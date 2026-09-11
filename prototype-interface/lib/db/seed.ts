@@ -1,12 +1,20 @@
-import { db } from './index'
+import { db, fallbackToSqlite } from './index'
 import { users, decks, cards, cardSrsStates, translationPrompts, userStreaks } from './schema'
 import { hashPassword } from '../auth/password'
-import { eq } from 'drizzle-orm'
 
 export async function seedDatabase() {
-  const existingUsers = await db.select().from(users).limit(1)
-  if (existingUsers.length > 0) {
-    return { status: 'already_seeded' }
+  try {
+    const existingUsers = await db.select().from(users).limit(1)
+    if (existingUsers.length > 0) {
+      return { status: 'already_seeded' }
+    }
+  } catch (err: any) {
+    console.warn('[Database Seed Warning] Connection to primary DB failed, falling back to local SQLite:', err?.message || err)
+    const localDb = fallbackToSqlite()
+    const existingUsers = await localDb.select().from(users).limit(1)
+    if (existingUsers.length > 0) {
+      return { status: 'already_seeded' }
+    }
   }
 
   const demoUserId = 'user_demo_alex_lee'
@@ -136,7 +144,7 @@ export async function seedDatabase() {
       repetition: 0,
       interval: 0,
       easeFactor: 2.5,
-      dueDate: todayIso, // Due today initially
+      dueDate: todayIso,
     })
   }
 
