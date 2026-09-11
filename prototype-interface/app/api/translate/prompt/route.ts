@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { translationPrompts } from '@/lib/db/schema'
 import { seedDatabase } from '@/lib/db/seed'
+import { safeJsonParse } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +14,7 @@ export async function GET() {
     const formattedPrompts = prompts.map((p: any) => ({
       id: p.id,
       vietnameseText: p.vietnameseText,
-      canonicalAnswers: JSON.parse(p.canonicalAnswersJson || '[]'),
+      canonicalAnswers: safeJsonParse(p.canonicalAnswersJson, []),
       grammarCategory: p.grammarCategory,
       grammarNotes: p.grammarNotes,
       difficulty: p.difficulty,

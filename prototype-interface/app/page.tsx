@@ -38,8 +38,6 @@ const navItems: { label: View; icon: typeof LayoutDashboard }[] = [
   { label: 'Analytics', icon: BarChart3 },
 ]
 
-const activity = [3, 5, 2, 7, 4, 8, 6, 3, 5, 7, 8, 4, 6, 7, 8, 6, 4, 7, 8, 5, 3, 6, 7, 8, 4, 6, 8, 7, 5, 4, 6, 7, 8, 5, 3, 7, 6, 8, 4, 5, 7, 8, 6, 3, 5, 7, 8, 4, 6, 7, 5, 8, 6, 4, 7, 8, 5, 6, 7, 8, 6, 4, 7, 8, 5, 3, 7, 6, 8, 4, 6, 7, 8, 5, 4, 6, 7, 8, 6, 3, 5, 7, 8, 4, 6, 7, 8, 5, 6, 4, 7, 8, 6, 5, 7, 8, 4, 6, 7, 5, 8, 6, 4, 7, 8, 5, 6, 7, 8, 4, 6, 7, 5, 8, 6, 4, 7, 8, 5]
-
 function AppLogo() {
   return (
     <div className="logo-mark">
@@ -79,7 +77,7 @@ function MetricCard({
 // ----------------------------------------------------
 // Dashboard View
 // ----------------------------------------------------
-function Dashboard({ setView }: { setView: (view: View) => void }) {
+function Dashboard({ setView, user }: { setView: (view: View) => void; user: any }) {
   const [metrics, setMetrics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -93,17 +91,24 @@ function Dashboard({ setView }: { setView: (view: View) => void }) {
       .catch(() => setLoading(false))
   }, [])
 
+  const activityData: number[] = metrics?.activityMap || new Array(112).fill(0)
+  const cardsDueCount = metrics?.cardsDue ?? 0
+  const totalCardsCount = metrics?.totalCards ?? 0
+  const progressPercent = totalCardsCount > 0 ? Math.min(100, Math.round(((totalCardsCount - cardsDueCount) / totalCardsCount) * 100)) : 100
+
   return (
     <div className="page-content">
       <div className="welcome-row">
         <div>
-          <p className="eyebrow" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
-          <h1>Good morning, Alex</h1>
+          <p className="eyebrow" suppressHydrationWarning>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          </p>
+          <h1>Good morning, {user?.name?.split(' ')[0] || 'Alex'}</h1>
           <p className="subhead">Keep your momentum going with LinguaFlow.</p>
         </div>
         <button className="profile-button">
-          <span className="avatar">AL</span>
-          <span>Alex Lee</span>
+          <span className="avatar">{user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2) : 'AL'}</span>
+          <span>{user?.name || 'Alex Lee'}</span>
           <ChevronDown size={15} />
         </button>
       </div>
@@ -118,10 +123,10 @@ function Dashboard({ setView }: { setView: (view: View) => void }) {
           <div className="hero-progress">
             <div>
               <span>Daily target</span>
-              <b>{metrics?.cardsDue ?? 24} cards due today</b>
+              <b>{loading ? '...' : `${cardsDueCount} cards due today`}</b>
             </div>
             <div className="progress-track">
-              <div style={{ width: '68%' }} />
+              <div style={{ width: `${progressPercent}%` }} />
             </div>
           </div>
           <button className="hero-action" onClick={() => setView('Review')}>
@@ -153,22 +158,22 @@ function Dashboard({ setView }: { setView: (view: View) => void }) {
         <MetricCard
           icon={Target}
           label="Due today"
-          value={loading ? '...' : String(metrics?.cardsDue ?? 24)}
+          value={loading ? '...' : String(cardsDueCount)}
           detail="SRS algorithm scheduled"
           tone="blue"
         />
         <MetricCard
           icon={TrendingUp}
           label="Mastery rate"
-          value={loading ? '...' : metrics?.retentionRate ?? '82.4%'}
-          detail="Calculated from reviews"
+          value={loading ? '...' : metrics?.retentionRate ?? '100.0%'}
+          detail="Calculated from database logs"
           tone="mint"
         />
         <MetricCard
           icon={Flame}
           label="Day streak"
-          value={loading ? '...' : `${metrics?.streak?.current ?? 12} days`}
-          detail={`Personal best: ${metrics?.streak?.longest ?? 21}`}
+          value={loading ? '...' : `${metrics?.streak?.current ?? 0} days`}
+          detail={`Personal best: ${metrics?.streak?.longest ?? 0} days`}
           tone="orange"
         />
       </div>
@@ -181,23 +186,23 @@ function Dashboard({ setView }: { setView: (view: View) => void }) {
               <h3>Learning activity</h3>
             </div>
             <button className="select-button">
-              Last 12 weeks <ChevronDown size={14} />
+              Last 16 weeks <ChevronDown size={14} />
             </button>
           </div>
           <div className="activity-top">
             <strong>
-              64 <span>sessions completed</span>
+              {loading ? '...' : metrics?.totalSessions ?? 0} <span>sessions completed</span>
             </strong>
             <span className="positive">
-              +18% <small>vs. last period</small>
+              Live Database <small>sync</small>
             </span>
           </div>
           <div className="heatmap-wrap">
             <div className="months">
-              <span>Jun</span>
-              <span>Jul</span>
-              <span>Aug</span>
-              <span>Sep</span>
+              <span>Past</span>
+              <span>Recent</span>
+              <span>This Month</span>
+              <span>Today</span>
             </div>
             <div className="heatmap">
               <div className="weekdays">
@@ -206,15 +211,15 @@ function Dashboard({ setView }: { setView: (view: View) => void }) {
                 <span>Fri</span>
               </div>
               <div className="squares">
-                {activity.map((v, i) => (
-                  <span key={i} className={`level-${Math.min(4, Math.ceil(v / 2))}`} />
+                {activityData.map((v, i) => (
+                  <span key={i} className={`level-${v === 0 ? 0 : Math.min(4, v)}`} title={`${v} activities`} />
                 ))}
               </div>
             </div>
           </div>
           <div className="heatmap-legend">
             <span>Less</span>
-            {[1, 2, 3, 4, 5].map((n) => (
+            {[1, 2, 3, 4].map((n) => (
               <i key={n} className={`level-${n}`} />
             ))}
             <span>More</span>
@@ -234,7 +239,7 @@ function Dashboard({ setView }: { setView: (view: View) => void }) {
             </span>
             <span>
               <b>Review vocabulary</b>
-              <small>{metrics?.cardsDue ?? 24} cards waiting for you</small>
+              <small>{cardsDueCount} cards waiting for you</small>
             </span>
             <ArrowRight size={17} />
           </button>
@@ -254,7 +259,7 @@ function Dashboard({ setView }: { setView: (view: View) => void }) {
             </span>
             <span>
               <b>Browse your decks</b>
-              <small>3 active decks in library</small>
+              <small>{metrics?.totalDecks ?? 0} active decks in library</small>
             </span>
             <ArrowRight size={17} />
           </button>
@@ -311,7 +316,6 @@ function Review({ setView }: { setView: (view: View) => void }) {
         setCurrentIndex((prev) => prev + 1)
         setRevealed(false)
       } else {
-        // Queue finished
         setView('Dashboard')
       }
     } catch (err) {
@@ -321,7 +325,6 @@ function Review({ setView }: { setView: (view: View) => void }) {
     }
   }
 
-  // Keyboard Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
@@ -354,7 +357,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
           <div>
             <p className="eyebrow">VOCABULARY REVIEW</p>
             <h1>Review Complete! 🎉</h1>
-            <p className="subhead">You have cleared all scheduled cards for today.</p>
+            <p className="subhead">You have cleared all scheduled cards in queue.</p>
           </div>
         </div>
         <button className="hero-action" style={{ marginTop: '24px' }} onClick={() => setView('Dashboard')}>
@@ -444,6 +447,7 @@ function Translate({ setView }: { setView: (view: View) => void }) {
   const [evaluation, setEvaluation] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [streakCount, setStreakCount] = useState(0)
 
   useEffect(() => {
     fetch('/api/translate/prompt')
@@ -453,6 +457,11 @@ function Translate({ setView }: { setView: (view: View) => void }) {
         setLoading(false)
       })
       .catch(() => setLoading(false))
+
+    fetch('/api/analytics/overview')
+      .then((res) => res.json())
+      .then((data) => setStreakCount(data?.streak?.current || 0))
+      .catch(() => {})
   }, [])
 
   const currentPrompt = prompts[promptIndex]
@@ -506,7 +515,7 @@ function Translate({ setView }: { setView: (view: View) => void }) {
           <p className="subhead">Turn understanding into confident expression.</p>
         </div>
         <div className="streak-chip">
-          <Flame size={17} /> 12 day streak
+          <Flame size={17} /> {streakCount} day streak
         </div>
       </div>
 
@@ -599,18 +608,41 @@ function Decks() {
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  // Modals state
+  const [showNewDeckModal, setShowNewDeckModal] = useState(false)
+  const [showNewCardModal, setShowNewCardModal] = useState(false)
+  const [showBulkModal, setShowBulkModal] = useState(false)
+
+  // Form inputs
+  const [newDeckTitle, setNewDeckTitle] = useState('')
+  const [newDeckDesc, setNewDeckDesc] = useState('')
+
+  const [newTerm, setNewTerm] = useState('')
+  const [newVietDefinition, setNewVietDefinition] = useState('')
+  const [newPhonetic, setNewPhonetic] = useState('')
+  const [newPartOfSpeech, setNewPartOfSpeech] = useState('noun')
+  const [newExampleSentence, setNewExampleSentence] = useState('')
+  const [newCollocations, setNewCollocations] = useState('')
+
+  const [bulkInput, setBulkInput] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const fetchDecks = () => {
     fetch('/api/decks')
       .then((res) => res.json())
       .then((data) => {
         setDecksList(data.decks || [])
-        if (data.decks?.[0]?.id) {
+        if (!selectedDeckId && data.decks?.[0]?.id) {
           setSelectedDeckId(data.decks[0].id)
         }
       })
-  }, [])
+  }
 
   useEffect(() => {
+    fetchDecks()
+  }, [])
+
+  const fetchCards = () => {
     if (!selectedDeckId) return
     setLoading(true)
     fetch(`/api/decks/${selectedDeckId}/cards`)
@@ -620,7 +652,126 @@ function Decks() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    fetchCards()
   }, [selectedDeckId])
+
+  const handleCreateDeck = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newDeckTitle.trim() || isSubmitting) return
+    setIsSubmitting(true)
+
+    try {
+      const res = await fetch('/api/decks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newDeckTitle, description: newDeckDesc }),
+      })
+      const data = await res.json()
+      if (data.deck?.id) {
+        setSelectedDeckId(data.deck.id)
+        setNewDeckTitle('')
+        setNewDeckDesc('')
+        setShowNewDeckModal(false)
+        fetchDecks()
+      }
+    } catch (err) {
+      console.error('Create deck error:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleCreateCard = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedDeckId || !newTerm.trim() || !newVietDefinition.trim() || isSubmitting) return
+    setIsSubmitting(true)
+
+    try {
+      const collocationsArray = newCollocations
+        .split('\n')
+        .concat(newCollocations.split(','))
+        .map((s) => s.trim())
+        .filter(Boolean)
+
+      await fetch(`/api/decks/${selectedDeckId}/cards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          term: newTerm,
+          vietnameseDefinition: newVietDefinition,
+          phonetic: newPhonetic,
+          partOfSpeech: newPartOfSpeech,
+          exampleSentence: newExampleSentence,
+          collocations: Array.from(new Set(collocationsArray)),
+        }),
+      })
+
+      setNewTerm('')
+      setNewVietDefinition('')
+      setNewPhonetic('')
+      setNewExampleSentence('')
+      setNewCollocations('')
+      setShowNewCardModal(false)
+      fetchCards()
+      fetchDecks()
+    } catch (err) {
+      console.error('Create card error:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleBulkImport = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedDeckId || !bulkInput.trim() || isSubmitting) return
+    setIsSubmitting(true)
+
+    try {
+      let cardsToInsert: any[] = []
+
+      // Try JSON parse first
+      try {
+        const parsed = JSON.parse(bulkInput)
+        if (Array.isArray(parsed)) cardsToInsert = parsed
+      } catch {
+        // Fallback: parse line by line (format: term | definition)
+        const lines = bulkInput.split('\n')
+        cardsToInsert = lines
+          .map((line) => {
+            const parts = line.split('|').map((s) => s.trim())
+            if (parts.length >= 2 && parts[0] && parts[1]) {
+              return {
+                term: parts[0],
+                vietnameseDefinition: parts[1],
+                exampleSentence: parts[2] || '',
+              }
+            }
+            return null
+          })
+          .filter(Boolean)
+      }
+
+      if (cardsToInsert.length > 0) {
+        await fetch(`/api/decks/${selectedDeckId}/cards`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cardsToInsert),
+        })
+
+        setBulkInput('')
+        setShowBulkModal(false)
+        fetchCards()
+        fetchDecks()
+      }
+    } catch (err) {
+      console.error('Bulk import error:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div className="page-content">
@@ -628,13 +779,16 @@ function Decks() {
         <div>
           <p className="eyebrow">YOUR LIBRARY</p>
           <h1>Decks & cards</h1>
-          <p className="subhead">Organize your learning your way.</p>
+          <p className="subhead">Organize your vocabulary into real database decks.</p>
         </div>
         <div className="deck-actions">
-          <button className="secondary-button">
+          <button className="secondary-button" onClick={() => setShowNewDeckModal(true)}>
+            <Plus size={16} /> New deck
+          </button>
+          <button className="secondary-button" onClick={() => setShowBulkModal(true)}>
             <Upload size={16} /> Bulk Import
           </button>
-          <button className="hero-action">
+          <button className="hero-action" onClick={() => setShowNewCardModal(true)}>
             <Plus size={16} /> New card
           </button>
         </div>
@@ -677,6 +831,10 @@ function Decks() {
             <div style={{ padding: '24px', textAlign: 'center' }}>
               <Loader2 className="animate-spin" size={24} />
             </div>
+          ) : cardsList.length === 0 ? (
+            <div style={{ padding: '32px', color: '#64748b', textAlign: 'center' }}>
+              No cards found in this deck yet. Click <strong>New card</strong> to add your first word!
+            </div>
           ) : (
             cardsList
               .filter((c) =>
@@ -698,6 +856,186 @@ function Decks() {
           )}
         </div>
       </div>
+
+      {/* NEW DECK MODAL */}
+      {showNewDeckModal && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3>Create New Deck</h3>
+              <button className="modal-close" onClick={() => setShowNewDeckModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateDeck}>
+              <div className="form-group">
+                <label>Deck Title *</label>
+                <input
+                  className="input-field"
+                  placeholder="e.g. Advanced Academic Vocabulary"
+                  value={newDeckTitle}
+                  onChange={(e) => setNewDeckTitle(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Description</label>
+                <input
+                  className="input-field"
+                  placeholder="e.g. High-yield IELTS & TOEFL terms"
+                  value={newDeckDesc}
+                  onChange={(e) => setNewDeckDesc(e.target.value)}
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="secondary-button" onClick={() => setShowNewDeckModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="hero-action" disabled={isSubmitting}>
+                  {isSubmitting ? 'Creating...' : 'Create Deck'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* NEW CARD MODAL */}
+      {showNewCardModal && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3>Add New Flashcard</h3>
+              <button className="modal-close" onClick={() => setShowNewCardModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateCard}>
+              <div className="form-group">
+                <label>Target Deck</label>
+                <select
+                  className="select-field"
+                  value={selectedDeckId || ''}
+                  onChange={(e) => setSelectedDeckId(e.target.value)}
+                >
+                  {decksList.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>English Word / Term *</label>
+                <input
+                  className="input-field"
+                  placeholder="e.g. accomplish"
+                  value={newTerm}
+                  onChange={(e) => setNewTerm(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Vietnamese Definition *</label>
+                <input
+                  className="input-field"
+                  placeholder="e.g. Đạt được, hoàn thành mục tiêu"
+                  value={newVietDefinition}
+                  onChange={(e) => setNewVietDefinition(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label>Phonetic</label>
+                  <input
+                    className="input-field"
+                    placeholder="/əˈkʌm.plɪʃ/"
+                    value={newPhonetic}
+                    onChange={(e) => setNewPhonetic(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label>Part of Speech</label>
+                  <select
+                    className="select-field"
+                    value={newPartOfSpeech}
+                    onChange={(e) => setNewPartOfSpeech(e.target.value)}
+                  >
+                    <option value="verb">verb</option>
+                    <option value="noun">noun</option>
+                    <option value="adjective">adjective</option>
+                    <option value="adverb">adverb</option>
+                    <option value="phrase">phrase</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Example Sentence</label>
+                <input
+                  className="input-field"
+                  placeholder="She accomplished her goal within 6 months."
+                  value={newExampleSentence}
+                  onChange={(e) => setNewExampleSentence(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label>Collocations (one per line or comma-separated)</label>
+                <textarea
+                  className="textarea-field"
+                  style={{ minHeight: '60px' }}
+                  placeholder="accomplish a task, accomplish a mission"
+                  value={newCollocations}
+                  onChange={(e) => setNewCollocations(e.target.value)}
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="secondary-button" onClick={() => setShowNewCardModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="hero-action" disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving...' : 'Save Card'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* BULK IMPORT MODAL */}
+      {showBulkModal && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3>Bulk Import Vocabulary Cards</h3>
+              <button className="modal-close" onClick={() => setShowBulkModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleBulkImport}>
+              <div className="form-group">
+                <label>Paste Data (Format: English Term | Vietnamese Definition | Example Sentence)</label>
+                <textarea
+                  className="textarea-field"
+                  style={{ minHeight: '160px', fontFamily: 'monospace', fontSize: '12px' }}
+                  placeholder={`meticulous | Tỉ mỉ, cẩn thận từng chi tiết | He is a meticulous worker.\nresilient | Kiên cường, có khả năng phục hồi nhanh | The city is resilient against storms.`}
+                  value={bulkInput}
+                  onChange={(e) => setBulkInput(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="secondary-button" onClick={() => setShowBulkModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="hero-action" disabled={isSubmitting}>
+                  {isSubmitting ? 'Importing...' : 'Import Cards'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -727,6 +1065,11 @@ function Analytics() {
     )
   }
 
+  const learningCount = data?.cardHealth?.learning ?? 0
+  const youngCount = data?.cardHealth?.young ?? 0
+  const matureCount = data?.cardHealth?.mature ?? 0
+  const totalCards = data?.totalCards ?? (learningCount + youngCount + matureCount)
+
   return (
     <div className="page-content">
       <div className="welcome-row">
@@ -738,9 +1081,9 @@ function Analytics() {
       </div>
 
       <div className="analytics-metrics">
-        <MetricCard icon={TrendingUp} label="Retention rate" value={data?.retentionRate || '91.8%'} detail="Calculated over recent reviews" tone="mint" />
-        <MetricCard icon={Target} label="Cards tracked" value={String(data?.totalCards || 6)} detail={`${data?.cardsDue || 0} due for review`} tone="blue" />
-        <MetricCard icon={Zap} label="Current streak" value={`${data?.streak?.current || 12} days`} detail={`Longest: ${data?.streak?.longest || 21} days`} tone="purple" />
+        <MetricCard icon={TrendingUp} label="Retention rate" value={data?.retentionRate || '100.0%'} detail="Calculated over DB review logs" tone="mint" />
+        <MetricCard icon={Target} label="Cards tracked" value={String(totalCards)} detail={`${data?.cardsDue || 0} due for review`} tone="blue" />
+        <MetricCard icon={Zap} label="Current streak" value={`${data?.streak?.current || 0} days`} detail={`Longest: ${data?.streak?.longest || 0} days`} tone="purple" />
       </div>
 
       <div className="analytics-grid">
@@ -748,10 +1091,10 @@ function Analytics() {
           <div className="panel-header">
             <div>
               <p className="eyebrow">RETENTION</p>
-              <h3>Memory over time</h3>
+              <h3>Memory stability trend</h3>
             </div>
             <span className="chart-key">
-              <i /> Retention rate
+              <i /> Live Database Activity
             </span>
           </div>
           <div className="line-chart">
@@ -772,11 +1115,11 @@ function Analytics() {
               />
             </svg>
             <div className="chart-labels">
-              <span>Aug 11</span>
-              <span>Aug 18</span>
-              <span>Aug 25</span>
-              <span>Sep 1</span>
-              <span>Sep 8</span>
+              <span>Week 1</span>
+              <span>Week 2</span>
+              <span>Week 3</span>
+              <span>Week 4</span>
+              <span>Today</span>
             </div>
           </div>
         </section>
@@ -789,20 +1132,24 @@ function Analytics() {
             </div>
           </div>
           {[
-            ['Learning', data?.cardHealth?.learning ?? 2, 'blue'],
-            ['Young', data?.cardHealth?.young ?? 3, 'purple'],
-            ['Mature', data?.cardHealth?.mature ?? 1, 'green'],
-          ].map(([a, b, c]) => (
-            <div className="bar-item" key={String(a)}>
-              <div>
-                <span>{a}</span>
-                <b>{b} cards</b>
+            ['Learning', learningCount, 'blue'],
+            ['Young', youngCount, 'purple'],
+            ['Mature', matureCount, 'green'],
+          ].map(([stageName, countVal, tone]) => {
+            const numVal = Number(countVal)
+            const percent = totalCards > 0 ? Math.round((numVal / totalCards) * 100) : 0
+            return (
+              <div className="bar-item" key={String(stageName)}>
+                <div>
+                  <span>{stageName}</span>
+                  <b>{numVal} cards ({percent}%)</b>
+                </div>
+                <div className="bar">
+                  <i className={String(tone)} style={{ width: `${percent}%` }} />
+                </div>
               </div>
-              <div className="bar">
-                <i className={String(c)} style={{ width: `${Math.min(100, Number(b) * 20)}%` }} />
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </section>
       </div>
 
@@ -830,7 +1177,7 @@ function Analytics() {
             </div>
           ))
         ) : (
-          <div style={{ padding: '16px', color: '#64748b' }}>No recent translation logs yet.</div>
+          <div style={{ padding: '16px', color: '#64748b' }}>No recent translation logs recorded in database yet.</div>
         )}
       </section>
     </div>
@@ -842,6 +1189,20 @@ function Analytics() {
 // ----------------------------------------------------
 export default function Page() {
   const [view, setView] = useState<View>('Dashboard')
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.user) {
+          setUser(data.user)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const userInitials = user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2) : 'AL'
 
   return (
     <main className="app-shell">
@@ -854,9 +1215,9 @@ export default function Page() {
         </div>
 
         <div className="workspace">
-          <span className="workspace-avatar">A</span>
+          <span className="workspace-avatar">{userInitials[0] || 'A'}</span>
           <div>
-            <b>Alex&apos;s workspace</b>
+            <b>{user?.name || 'Alex'}&apos;s workspace</b>
             <small>Study Group Cohort</small>
           </div>
           <ChevronDown size={15} />
@@ -886,9 +1247,9 @@ export default function Page() {
           </button>
 
           <div className="sidebar-user">
-            <span className="avatar">AL</span>
+            <span className="avatar">{userInitials}</span>
             <span>
-              <b>Alex Lee</b>
+              <b>{user?.name || 'Alex Lee'}</b>
               <small>Student</small>
             </span>
             <MoreHorizontal size={17} />
@@ -919,13 +1280,13 @@ export default function Page() {
               <Search size={18} />
             </button>
             <button className="upgrade-button">
-              <Sparkles size={15} /> Live Backend
+              <Sparkles size={15} /> Live Database
             </button>
-            <span className="avatar">AL</span>
+            <span className="avatar">{userInitials}</span>
           </div>
         </header>
 
-        {view === 'Dashboard' && <Dashboard setView={setView} />}
+        {view === 'Dashboard' && <Dashboard setView={setView} user={user} />}
         {view === 'Review' && <Review setView={setView} />}
         {view === 'Translate' && <Translate setView={setView} />}
         {view === 'Decks' && <Decks />}

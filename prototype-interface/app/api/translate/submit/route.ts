@@ -4,6 +4,7 @@ import { translationPrompts, translationLogs, userStreaks } from '@/lib/db/schem
 import { getSession } from '@/lib/auth/session'
 import { evaluateTranslation } from '@/lib/translation/evaluator'
 import { eq } from 'drizzle-orm'
+import { safeJsonParse } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Prompt not found' }, { status: 404 })
     }
 
-    const canonicalAnswers: string[] = JSON.parse(prompt.canonicalAnswersJson || '[]')
+    const canonicalAnswers: string[] = safeJsonParse(prompt.canonicalAnswersJson, [])
 
     // Run evaluation engine
     const evaluation = evaluateTranslation(userSubmission, canonicalAnswers)

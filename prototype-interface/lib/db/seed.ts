@@ -46,9 +46,9 @@ export async function seedDatabase() {
     // Initialize streak
     await activeDb.insert(userStreaks).values({
       userId: demoUserId,
-      currentStreak: 12,
-      longestStreak: 21,
-      lastActivityDate: new Date().toISOString().split('T')[0],
+      currentStreak: 0,
+      longestStreak: 0,
+      lastActivityDate: null,
     })
 
     // 2. Create Default Decks

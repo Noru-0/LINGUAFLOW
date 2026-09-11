@@ -4,6 +4,7 @@ import { cards, cardSrsStates, decks } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
 import { eq, lte, and } from 'drizzle-orm'
+import { safeJsonParse } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,7 +65,7 @@ export async function GET() {
 
     const formattedQueue = result.map((item: any) => ({
       ...item,
-      collocations: JSON.parse(item.collocationsJson || '[]'),
+      collocations: safeJsonParse(item.collocationsJson, []),
     }))
 
     return NextResponse.json({
