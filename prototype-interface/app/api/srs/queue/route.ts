@@ -62,7 +62,7 @@ export async function GET() {
         .limit(30)
     }
 
-    const formattedQueue = result.map((item) => ({
+    const formattedQueue = result.map((item: any) => ({
       ...item,
       collocations: JSON.parse(item.collocationsJson || '[]'),
     }))

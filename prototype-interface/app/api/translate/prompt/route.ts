@@ -10,7 +10,7 @@ export async function GET() {
     await seedDatabase()
 
     const prompts = await db.select().from(translationPrompts)
-    const formattedPrompts = prompts.map((p) => ({
+    const formattedPrompts = prompts.map((p: any) => ({
       id: p.id,
       vietnameseText: p.vietnameseText,
       canonicalAnswers: JSON.parse(p.canonicalAnswersJson || '[]'),

@@ -30,7 +30,7 @@ export async function GET(
       .leftJoin(cardSrsStates, eq(cards.id, cardSrsStates.cardId))
       .where(eq(cards.deckId, deckId))
 
-    const formattedCards = deckCards.map((c) => ({
+    const formattedCards = deckCards.map((c: any) => ({
       ...c,
       collocations: JSON.parse(c.collocationsJson || '[]'),
     }))

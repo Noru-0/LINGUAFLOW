@@ -1,0 +1,78 @@
+import { pgTable, text, integer, doublePrecision, boolean } from 'drizzle-orm/pg-core'
+
+export const users = pgTable('users', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  name: text('name').notNull(),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const decks = pgTable('decks', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description'),
+  isPublic: boolean('is_public').notNull().default(false),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const cards = pgTable('cards', {
+  id: text('id').primaryKey(),
+  deckId: text('deck_id').notNull().references(() => decks.id, { onDelete: 'cascade' }),
+  term: text('term').notNull(),
+  vietnameseDefinition: text('vietnamese_definition').notNull(),
+  phonetic: text('phonetic'),
+  partOfSpeech: text('part_of_speech'),
+  exampleSentence: text('example_sentence'),
+  collocationsJson: text('collocations_json').default('[]'),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const cardSrsStates = pgTable('card_srs_states', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  cardId: text('card_id').notNull().references(() => cards.id, { onDelete: 'cascade' }),
+  repetition: integer('repetition').notNull().default(0),
+  interval: integer('interval').notNull().default(0),
+  easeFactor: doublePrecision('ease_factor').notNull().default(2.5),
+  dueDate: text('due_date').notNull(),
+  lastReviewedAt: text('last_reviewed_at'),
+})
+
+export const reviewLogs = pgTable('review_logs', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  cardId: text('card_id').notNull().references(() => cards.id, { onDelete: 'cascade' }),
+  rating: integer('rating').notNull(),
+  repetition: integer('repetition').notNull(),
+  interval: integer('interval').notNull(),
+  easeFactor: doublePrecision('ease_factor').notNull(),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const translationPrompts = pgTable('translation_prompts', {
+  id: text('id').primaryKey(),
+  vietnameseText: text('vietnamese_text').notNull(),
+  canonicalAnswersJson: text('canonical_answers_json').notNull(),
+  grammarCategory: text('grammar_category').notNull(),
+  grammarNotes: text('grammar_notes'),
+  difficulty: text('difficulty').default('intermediate'),
+})
+
+export const translationLogs = pgTable('translation_logs', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  promptId: text('prompt_id').notNull().references(() => translationPrompts.id, { onDelete: 'cascade' }),
+  userSubmission: text('user_submission').notNull(),
+  isCorrect: boolean('is_correct').notNull(),
+  matchedCanonical: text('matched_canonical'),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const userStreaks = pgTable('user_streaks', {
+  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  currentStreak: integer('current_streak').notNull().default(0),
+  longestStreak: integer('longest_streak').notNull().default(0),
+  lastActivityDate: text('last_activity_date'),
+})

@@ -23,7 +23,7 @@ export async function GET() {
       .select({ val: count() })
       .from(cardSrsStates)
       .where(eq(cardSrsStates.userId, userId))
-      .then((res) => res[0]?.val || 0)
+      .then((res: any) => res[0]?.val || 0)
 
     // 3. Fetch Stability Breakdown: Learning (int <= 1), Young (1 < int <= 21), Mature (int > 21)
     const srsStates = await db.select().from(cardSrsStates).where(eq(cardSrsStates.userId, userId))
@@ -57,7 +57,7 @@ export async function GET() {
 
     // Calculate accuracy rate
     const totalTranslations = recentLogs.length
-    const correctTranslations = recentLogs.filter((l) => l.isCorrect).length
+    const correctTranslations = recentLogs.filter((l: any) => l.isCorrect).length
     const retentionRate = totalTranslations > 0 ? ((correctTranslations / totalTranslations) * 100).toFixed(1) : '91.8'
 
     return NextResponse.json({

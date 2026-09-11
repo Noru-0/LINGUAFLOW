@@ -2,7 +2,8 @@ import Database from 'better-sqlite3'
 import { drizzle as drizzleSqlite } from 'drizzle-orm/better-sqlite3'
 import { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
-import * as schema from './schema'
+import * as sqliteSchema from './schema'
+import * as pgSchema from './pg_schema'
 import path from 'path'
 import fs from 'fs'
 
@@ -111,7 +112,7 @@ function getSqliteDb() {
     initializedSqlite = true
   }
 
-  return drizzleSqlite(sqlite, { schema })
+  return drizzleSqlite(sqlite, { schema: sqliteSchema })
 }
 
 export function getDb(): any {
@@ -122,10 +123,11 @@ export function getDb(): any {
       try {
         const client = postgres(connectionString, {
           prepare: false,
-          connect_timeout: 5, // Timeout fast if hostname cannot be resolved
+          connect_timeout: 5,
           idle_timeout: 10,
         })
-        dbInstance = drizzlePostgres(client, { schema })
+        dbInstance = drizzlePostgres(client, { schema: pgSchema })
+        console.log('Connected to Supabase PostgreSQL with Postgres schema dialect.')
       } catch (err) {
         console.warn('Failed to connect to Supabase PostgreSQL, falling back to local SQLite:', err)
         dbInstance = getSqliteDb()
