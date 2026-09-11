@@ -15,7 +15,7 @@ export async function seedDatabase() {
     if (isMissingTable) {
       console.info('[Supabase Setup Required] Table "users" does not exist in your Supabase database yet. Please run lib/db/supabase_schema.sql in your Supabase SQL Editor!')
     } else {
-      console.warn('[Database Seed Info] Primary connection failed, using local SQLite:', err?.message || err)
+      console.warn('[Database Seed Info] Primary connection query error:', err?.message || err, err?.code || '')
     }
 
     activeDb = fallbackToSqlite()

@@ -1,5 +1,5 @@
 -- ==========================================================
--- LINGUAFLOW: Supabase PostgreSQL Schema & RLS Setup
+-- LINGUAFLOW: Supabase PostgreSQL Schema & Open RLS Policies
 -- Copy and execute this script inside your Supabase SQL Editor
 -- ==========================================================
 
@@ -92,15 +92,49 @@ CREATE TABLE IF NOT EXISTS public.user_streaks (
   last_activity_date DATE
 );
 
--- Enable Row Level Security (RLS)
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.decks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.cards ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.card_srs_states ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.review_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.translation_prompts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.translation_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_streaks ENABLE ROW LEVEL SECURITY;
+-- Option A: Disable RLS for small study group cohort
+ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.decks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cards DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.card_srs_states DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.review_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.translation_prompts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.translation_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_streaks DISABLE ROW LEVEL SECURITY;
 
--- Allow public read access to prompts
-CREATE POLICY "Allow public read translation_prompts" ON public.translation_prompts FOR SELECT USING (true);
+-- Option B: Alternatively create open policies if RLS is enabled
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'users') THEN
+    DROP POLICY IF EXISTS "Allow full access users" ON public.users;
+    CREATE POLICY "Allow full access users" ON public.users FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'decks') THEN
+    DROP POLICY IF EXISTS "Allow full access decks" ON public.decks;
+    CREATE POLICY "Allow full access decks" ON public.decks FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'cards') THEN
+    DROP POLICY IF EXISTS "Allow full access cards" ON public.cards;
+    CREATE POLICY "Allow full access cards" ON public.cards FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'card_srs_states') THEN
+    DROP POLICY IF EXISTS "Allow full access card_srs_states" ON public.card_srs_states;
+    CREATE POLICY "Allow full access card_srs_states" ON public.card_srs_states FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'review_logs') THEN
+    DROP POLICY IF EXISTS "Allow full access review_logs" ON public.review_logs;
+    CREATE POLICY "Allow full access review_logs" ON public.review_logs FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'translation_prompts') THEN
+    DROP POLICY IF EXISTS "Allow full access translation_prompts" ON public.translation_prompts;
+    CREATE POLICY "Allow full access translation_prompts" ON public.translation_prompts FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'translation_logs') THEN
+    DROP POLICY IF EXISTS "Allow full access translation_logs" ON public.translation_logs;
+    CREATE POLICY "Allow full access translation_logs" ON public.translation_logs FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'user_streaks') THEN
+    DROP POLICY IF EXISTS "Allow full access user_streaks" ON public.user_streaks;
+    CREATE POLICY "Allow full access user_streaks" ON public.user_streaks FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
