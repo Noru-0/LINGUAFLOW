@@ -79,6 +79,8 @@ function MetricCard({
 function Dashboard({ setView, user }: { setView: (view: View) => void; user: any }) {
   const [metrics, setMetrics] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [activityPeriod, setActivityPeriod] = useState('12m')
+  const [heatTooltip, setHeatTooltip] = useState<{ x: number; y: number; text: string } | null>(null)
 
   useEffect(() => {
     fetch('/api/analytics/overview')
@@ -97,6 +99,33 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
   const cardsDueCount = metrics?.cardsDue ?? 0
   const totalCardsCount = metrics?.totalCards ?? 0
   const progressPercent = totalCardsCount > 0 ? Math.min(100, Math.round(((totalCardsCount - cardsDueCount) / totalCardsCount) * 100)) : 100
+
+  // GitHub-style contribution calendar: 52 weeks x 7 days ending today (Sunday-first columns)
+  const today = new Date()
+  const heatmapStart = new Date(today)
+  heatmapStart.setDate(heatmapStart.getDate() - 363)
+  const heatmapDateAt = (i: number) => {
+    const d = new Date(heatmapStart)
+    d.setDate(d.getDate() + i)
+    return d
+  }
+  const heatmapDateLabel = (i: number) =>
+    heatmapDateAt(i).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+  // Place a month label on the first column whose week contains the 1st of that month
+  const monthLabels: { index: number; label: string }[] = []
+  for (let w = 0; w < 52; w++) {
+    for (let d = 0; d < 7; d++) {
+      const date = heatmapDateAt(w * 7 + d)
+      if (date.getDate() === 1) {
+        const label = date.toLocaleDateString('en-US', { month: 'short' })
+        if (!monthLabels.some((m) => m.label === label)) {
+          monthLabels.push({ index: w, label })
+        }
+        break
+      }
+    }
+  }
 
   return (
     <div className="page-content">
@@ -151,79 +180,89 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
         </button>
       </div>
 
-      <div className="metrics-grid">
-        <MetricCard
-          icon={Target}
-          label="Due today"
-          value={loading ? '...' : String(cardsDueCount)}
-          tone="blue"
-        />
-        <MetricCard
-          icon={TrendingUp}
-          label="Mastery rate"
-          value={loading ? '...' : metrics?.retentionRate ?? '100.0%'}
-          tone="mint"
-        />
-        <MetricCard
-          icon={Flame}
-          label="Day streak"
-          value={loading ? '...' : `${metrics?.streak?.current ?? 0} days`}
-          detail={`Personal best: ${metrics?.streak?.longest ?? 0} days`}
-          tone="orange"
-        />
-      </div>
+      <div className="dashboard-grid">
+        <div className="dashboard-main">
+          <div className="metrics-grid">
+            <MetricCard
+              icon={Target}
+              label="Due today"
+              value={loading ? '...' : String(cardsDueCount)}
+              tone="blue"
+            />
+            <MetricCard
+              icon={Flame}
+              label="Day streak"
+              value={loading ? '...' : `${metrics?.streak?.current ?? 0} days`}
+              detail={`Personal best: ${metrics?.streak?.longest ?? 0} days`}
+              tone="orange"
+            />
+          </div>
 
-      <div className="content-grid">
-        <section className="panel activity-panel">
-          <div className="panel-header">
-            <div>
-              <p className="eyebrow">CONSISTENCY</p>
-              <h3>Learning activity</h3>
-            </div>
-            <button className="select-button">
-              Last 12 months <ChevronDown size={14} />
-            </button>
-          </div>
-          <div className="heatmap-wrap">
-            <div className="months">
-              <span style={{ gridColumnStart: 1 }}>Jan</span>
-              <span style={{ gridColumnStart: 5 }}>Feb</span>
-              <span style={{ gridColumnStart: 9 }}>Mar</span>
-              <span style={{ gridColumnStart: 14 }}>Apr</span>
-              <span style={{ gridColumnStart: 18 }}>May</span>
-              <span style={{ gridColumnStart: 23 }}>Jun</span>
-              <span style={{ gridColumnStart: 27 }}>Jul</span>
-              <span style={{ gridColumnStart: 31 }}>Aug</span>
-              <span style={{ gridColumnStart: 36 }}>Sep</span>
-              <span style={{ gridColumnStart: 40 }}>Oct</span>
-              <span style={{ gridColumnStart: 44 }}>Nov</span>
-              <span style={{ gridColumnStart: 49 }}>Dec</span>
-            </div>
-            <div className="heatmap">
-              <div className="weekdays">
-                <span />
-                <span>Mon</span>
-                <span />
-                <span>Wed</span>
-                <span />
-                <span>Fri</span>
-                <span />
+          <section className="panel activity-panel">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">CONSISTENCY</p>
+                <h3>Learning activity</h3>
               </div>
-              <div className="squares">
-                {activityData.map((v, i) => (
-                  <span key={i} className={`level-${v === 0 ? 0 : Math.min(4, v)}`} title={`${v} activities`} />
-                ))}
+              <select
+                className="select-field"
+                style={{ width: 'auto', padding: '4px 10px', fontSize: '11.5px', height: '30px' }}
+                value={activityPeriod}
+                onChange={(e) => setActivityPeriod(e.target.value)}
+              >
+                <option value="12m">12 tháng gần nhất</option>
+                <option value="6m">6 tháng gần nhất</option>
+                <option value="3m">3 tháng gần nhất</option>
+              </select>
+            </div>
+            <div className="heatmap-wrap">
+              <div className="heatmap-scroll">
+                <div className="months">
+                  {monthLabels.map((m) => (
+                    <span key={m.index} style={{ gridColumnStart: m.index + 1 }}>
+                      {m.label}
+                    </span>
+                  ))}
+                </div>
+                <div className="heatmap">
+                  <div className="weekdays">
+                    <span />
+                    <span>Mon</span>
+                    <span />
+                    <span>Wed</span>
+                    <span />
+                    <span>Fri</span>
+                    <span />
+                  </div>
+                  <div className="squares">
+                    {activityData.map((v, i) => (
+                      <span
+                        key={i}
+                        className={`level-${v === 0 ? 0 : Math.min(4, v)}${i === activityData.length - 1 ? ' is-today' : ''}`}
+                        onMouseEnter={(e) => {
+                          const r = e.currentTarget.getBoundingClientRect()
+                          setHeatTooltip({
+                            x: r.left + r.width / 2,
+                          y: r.top,
+                          text: `${v} ${v === 1 ? 'activity' : 'activities'} on ${heatmapDateLabel(i)}`,
+                        })
+                      }}
+                      onMouseLeave={() => setHeatTooltip(null)}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-          <div className="heatmap-legend">
-            <span>Less</span>
-            {[1, 2, 3, 4].map((n) => (
-              <i key={n} className={`level-${n}`} />
-            ))}
-            <span>More</span>
-          </div>
-        </section>
+            <div className="heatmap-legend">
+              <span>Less</span>
+              {[1, 2, 3, 4].map((n) => (
+                <i key={n} className={`level-${n}`} />
+              ))}
+              <span>More</span>
+            </div>
+          </section>
+        </div>
 
         <section className="panel memory-status-panel">
           <p className="eyebrow" style={{ marginBottom: '6px' }}>MEMORY OVERVIEW</p>
@@ -282,10 +321,15 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
           </div>
         </section>
       </div>
+
+      {heatTooltip && (
+        <div className="heatmap-tooltip" style={{ left: heatTooltip.x, top: heatTooltip.y }}>
+          {heatTooltip.text}
+        </div>
+      )}
     </div>
   )
 }
-
 // ----------------------------------------------------
 // Review View (SRS Flashcards)
 // ----------------------------------------------------
@@ -789,6 +833,21 @@ function Decks() {
   const [showNewDeckModal, setShowNewDeckModal] = useState(false)
   const [showNewCardModal, setShowNewCardModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
+  const [selectedCardAction, setSelectedCardAction] = useState<any>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const handleDeleteCard = async (cardId: string) => {
+    if (!selectedDeckId) return
+    try {
+      await fetch(`/api/decks/${selectedDeckId}/cards?cardId=${cardId}`, {
+        method: 'DELETE',
+      })
+      fetchCards()
+      setSelectedCardAction(null)
+    } catch (err) {
+      console.error('Delete card error:', err)
+    }
+  }
 
   // Form inputs
   const [newDeckTitle, setNewDeckTitle] = useState('')
@@ -1180,7 +1239,7 @@ function Decks() {
                     <span className="vietnamese-col">{c.vietnameseDefinition}</span>
                     <span className="def-col">{engDef}</span>
                     <span className="example-col">{c.exampleSentence || '—'}</span>
-                    <button className="more-btn">
+                    <button className="more-btn" title="Tùy chọn từ vựng" onClick={() => setSelectedCardAction(c)}>
                       <MoreHorizontal size={17} />
                     </button>
                   </div>
@@ -1189,6 +1248,75 @@ function Decks() {
           )}
         </div>
       </div>
+
+      {/* CARD ACTION DETAILS & DELETE MODAL */}
+      {selectedCardAction && (
+        <div className="modal-overlay" onClick={() => setSelectedCardAction(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ margin: 0, color: '#0f172a' }}>{selectedCardAction.term}</h3>
+                <span className="type-chip">{selectedCardAction.partOfSpeech || 'noun'}</span>
+              </div>
+              <button className="modal-close" onClick={() => setSelectedCardAction(null)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px', margin: '12px 0 18px' }}>
+              <div>
+                <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700, display: 'block' }}>PHÁT ÂM</span>
+                <span style={{ fontFamily: 'monospace', color: '#4f46e5', fontSize: '14px' }}>{selectedCardAction.phonetic || '—'}</span>
+              </div>
+              <div>
+                <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700, display: 'block' }}>NGHĨA TIẾNG VIỆT</span>
+                <strong style={{ color: '#0f172a', fontSize: '14px' }}>{selectedCardAction.vietnameseDefinition}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700, display: 'block' }}>ĐỊNH NGHĨA TIẾNG ANH</span>
+                <p style={{ margin: '2px 0 0', color: '#475569', lineHeight: 1.4 }}>
+                  {typeof selectedCardAction.collocations === 'object' && selectedCardAction.collocations?.englishDefinition
+                    ? selectedCardAction.collocations.englishDefinition
+                    : 'A key vocabulary term recorded in your database deck.'}
+                </p>
+              </div>
+              <div>
+                <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700, display: 'block' }}>CÂU VÍ DỤ</span>
+                <p style={{ margin: '2px 0 0', color: '#64748b', fontStyle: 'italic', lineHeight: 1.4 }}>
+                  {selectedCardAction.exampleSentence || '—'}
+                </p>
+              </div>
+            </div>
+
+            <div className="modal-actions" style={{ justifyContent: 'space-between' }}>
+              <button
+                type="button"
+                className="secondary-button"
+                style={{ color: '#ef4444', borderColor: '#fca5a5', background: '#fff5f5' }}
+                onClick={() => handleDeleteCard(selectedCardAction.id)}
+              >
+                Xóa từ này
+              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${selectedCardAction.term}: ${selectedCardAction.vietnameseDefinition}`)
+                    setCopiedId(selectedCardAction.id)
+                    setTimeout(() => setCopiedId(null), 2000)
+                  }}
+                >
+                  {copiedId === selectedCardAction.id ? 'Đã chép ✓' : 'Sao chép'}
+                </button>
+                <button type="button" className="hero-action" onClick={() => setSelectedCardAction(null)}>
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* NEW DECK MODAL */}
       {showNewDeckModal && (
@@ -1705,6 +1833,24 @@ function Analytics() {
 export default function Page() {
   const [view, setView] = useState<View>('Dashboard')
   const [user, setUser] = useState<any>(null)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  // Global Interactive Modals
+  const [showHelpModal, setShowHelpModal] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [showSearchModal, setShowSearchModal] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searching, setSearching] = useState(false)
+
+  // Settings State
+  const [userNameInput, setUserNameInput] = useState('')
+  const [dailyGoalTarget, setDailyGoalTarget] = useState(20)
+  const [autoPlayAudio, setAutoPlayAudio] = useState(true)
+  const [saveMessage, setSaveMessage] = useState('')
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -1712,6 +1858,7 @@ export default function Page() {
       .then((data) => {
         if (data?.user) {
           setUser(data.user)
+          setUserNameInput(data.user.name || '')
         }
       })
       .catch(() => {})
@@ -1719,9 +1866,56 @@ export default function Page() {
 
   const userInitials = user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2) : 'AL'
 
+  const handleGlobalSearch = async (query: string) => {
+    setSearchQuery(query)
+    if (!query.trim()) {
+      setSearchResults([])
+      return
+    }
+    setSearching(true)
+    try {
+      const res = await fetch('/api/decks')
+      const data = await res.json()
+      const allDecks = data.decks || []
+      const matches: any[] = []
+
+      for (const d of allDecks) {
+        const cRes = await fetch(`/api/decks/${d.id}/cards`)
+        const cData = await cRes.json()
+        const cards = cData.cards || []
+        const filtered = cards.filter(
+          (c: any) =>
+            c.term?.toLowerCase().includes(query.toLowerCase()) ||
+            c.vietnameseDefinition?.toLowerCase().includes(query.toLowerCase())
+        )
+        matches.push(...filtered.map((c: any) => ({ ...c, deckTitle: d.title, deckId: d.id })))
+      }
+      setSearchResults(matches)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const handleSaveSettings = (e: React.FormEvent) => {
+    e.preventDefault()
+    setUser((prev: any) => ({ ...prev, name: userNameInput || 'Alex Lee' }))
+    setSaveMessage('Cài đặt đã được lưu thành công!')
+    setTimeout(() => {
+      setSaveMessage('')
+      setShowSettingsModal(false)
+    }, 1000)
+  }
+
   return (
     <main className="app-shell">
-      <aside className="sidebar">
+      <div
+        className={mobileNavOpen ? 'sidebar-backdrop open' : 'sidebar-backdrop'}
+        onClick={() => setMobileNavOpen(false)}
+      />
+
+      <aside className={mobileNavOpen ? 'sidebar open' : 'sidebar'}>
         <div className="brand">
           <AppLogo />
           <span>
@@ -1729,21 +1923,15 @@ export default function Page() {
           </span>
         </div>
 
-        <div className="workspace">
-          <span className="workspace-avatar">{userInitials[0] || 'A'}</span>
-          <div>
-            <b>{user?.name || 'Alex'}&apos;s workspace</b>
-            <small>Study Group Cohort</small>
-          </div>
-          <ChevronDown size={15} />
-        </div>
-
         <nav>
           {navItems.map(({ label, icon: Icon }) => (
             <button
               key={label}
               className={view === label ? 'nav-item active' : 'nav-item'}
-              onClick={() => setView(label)}
+              onClick={() => {
+                setView(label)
+                setMobileNavOpen(false)
+              }}
             >
               <Icon size={18} />
               <span>{label}</span>
@@ -1752,16 +1940,21 @@ export default function Page() {
         </nav>
 
         <div className="sidebar-bottom">
-          <button className="nav-item">
+          <button className="nav-item" onClick={() => setShowHelpModal(true)}>
             <CircleHelp size={18} />
             <span>Help center</span>
           </button>
-          <button className="nav-item">
+          <button className="nav-item" onClick={() => setShowSettingsModal(true)}>
             <Settings size={18} />
             <span>Settings</span>
           </button>
 
-          <div className="sidebar-user">
+          <div
+            className="sidebar-user"
+            style={{ cursor: 'pointer' }}
+            onClick={() => setShowProfileModal(true)}
+            title="Xem hồ sơ"
+          >
             <span className="avatar">{userInitials}</span>
             <span>
               <b>{user?.name || 'Alex Lee'}</b>
@@ -1779,7 +1972,20 @@ export default function Page() {
             lingua<span>flow</span>
           </span>
         </div>
-        <Menu size={22} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button className="icon-button" title="Tìm kiếm từ vựng" onClick={() => setShowSearchModal(true)}>
+            <Search size={20} />
+          </button>
+          <button
+            className="icon-button"
+            title="Mở menu"
+            aria-label="Mở menu"
+            aria-expanded={mobileNavOpen}
+            onClick={() => setMobileNavOpen(true)}
+          >
+            <Menu size={22} />
+          </button>
+        </div>
       </div>
 
       <section className="main-area">
@@ -1792,13 +1998,17 @@ export default function Page() {
             </div>
 
             <div className="topbar-actions">
-              <button className="icon-button">
+              <button className="icon-button" title="Tìm kiếm từ vựng" onClick={() => setShowSearchModal(true)}>
                 <Search size={18} />
               </button>
-              <button className="upgrade-button">
-                <Sparkles size={15} /> Live Database
-              </button>
-              <span className="avatar">{userInitials}</span>
+              <span
+                className="avatar"
+                style={{ cursor: 'pointer' }}
+                title="Hồ sơ cá nhân"
+                onClick={() => setShowProfileModal(true)}
+              >
+                {userInitials}
+              </span>
             </div>
           </div>
         </header>
@@ -1809,6 +2019,241 @@ export default function Page() {
         {view === 'Decks' && <Decks />}
         {view === 'Analytics' && <Analytics />}
       </section>
+
+      {/* HELP CENTER MODAL */}
+      {showHelpModal && (
+        <div className="modal-overlay" onClick={() => setShowHelpModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '560px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CircleHelp size={20} style={{ color: '#4f46e5' }} />
+                <h3 style={{ margin: 0 }}>Trung tâm trợ giúp (Help Center)</h3>
+              </div>
+              <button className="modal-close" onClick={() => setShowHelpModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px', color: '#334155' }}>
+              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <b style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>⚡ 1. Thêm danh sách từ vựng tự động</b>
+                <p style={{ margin: 0, color: '#475569', fontSize: '12px' }}>
+                  Vào mục <strong>Decks</strong> → nhấn <strong>Thêm list từ vựng</strong>. Bạn chỉ cần nhập từ tiếng Anh và chọn loại từ (Noun/Verb/Adj), hệ thống sẽ tự động gợi ý phát âm, nghĩa Việt và câu ví dụ!
+                </p>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <b style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>🧠 2. Thuật toán lặp lại ngắt quãng SuperMemo SM-2</b>
+                <p style={{ margin: 0, color: '#475569', fontSize: '12px' }}>
+                  Hệ thống phân tích mức độ nhớ của bạn (Again, Hard, Good, Easy) để lên lịch ôn tập chính xác vào thời điểm bạn sắp quên, chuyển từ vựng vào trí nhớ dài hạn.
+                </p>
+              </div>
+
+              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <b style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>⌨️ 3. Phím tắt thao tác nhanh</b>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px', marginTop: '6px' }}>
+                  <div><kbd style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>Space</kbd> : Lật thẻ bài tập</div>
+                  <div><kbd style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>1 / 2 / 3 / 4</kbd> : Đánh giá mức độ</div>
+                  <div><kbd style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>Enter</kbd> : Gửi đáp án dịch</div>
+                  <div><kbd style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>Esc</kbd> : Hủy / Đóng cửa sổ</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: '16px' }}>
+              <button type="button" className="hero-action" onClick={() => setShowHelpModal(false)}>
+                Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SETTINGS MODAL */}
+      {showSettingsModal && (
+        <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Settings size={20} style={{ color: '#4f46e5' }} />
+                <h3 style={{ margin: 0 }}>Cài đặt hệ thống (Settings)</h3>
+              </div>
+              <button className="modal-close" onClick={() => setShowSettingsModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSettings}>
+              {saveMessage && (
+                <div style={{ padding: '8px 12px', background: '#dcfce7', color: '#166534', borderRadius: '8px', fontSize: '12px', marginBottom: '12px' }}>
+                  {saveMessage}
+                </div>
+              )}
+
+              <div className="form-group">
+                <label>Tên hiển thị người dùng</label>
+                <input
+                  className="input-field"
+                  value={userNameInput}
+                  onChange={(e) => setUserNameInput(e.target.value)}
+                  placeholder="Nhập tên của bạn"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Mục tiêu thẻ từ ôn tập mỗi ngày (Cards/day)</label>
+                <select
+                  className="select-field"
+                  value={dailyGoalTarget}
+                  onChange={(e) => setDailyGoalTarget(Number(e.target.value))}
+                >
+                  <option value={10}>10 từ / ngày (Nhẹ nhàng)</option>
+                  <option value={20}>20 từ / ngày (Tiêu chuẩn - Khuyên dùng)</option>
+                  <option value={30}>30 từ / ngày (Chuyên sâu)</option>
+                  <option value={50}>50 từ / ngày (Cấp tốc)</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Phát âm tự động khi lật thẻ</label>
+                <select
+                  className="select-field"
+                  value={autoPlayAudio ? 'on' : 'off'}
+                  onChange={(e) => setAutoPlayAudio(e.target.value === 'on')}
+                >
+                  <option value="on">Bật phát âm tự động</option>
+                  <option value="off">Tắt phát âm tự động</option>
+                </select>
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="secondary-button" onClick={() => setShowSettingsModal(false)}>
+                  Hủy
+                </button>
+                <button type="submit" className="hero-action">
+                  Lưu cài đặt
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* GLOBAL SEARCH MODAL */}
+      {showSearchModal && (
+        <div className="modal-overlay" onClick={() => setShowSearchModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Search size={20} style={{ color: '#4f46e5' }} />
+                <h3 style={{ margin: 0 }}>Tìm kiếm từ vựng (Global Search)</h3>
+              </div>
+              <button className="modal-close" onClick={() => setShowSearchModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="search-box" style={{ width: '100%', marginBottom: '14px', padding: '8px 12px' }}>
+              <Search size={16} />
+              <input
+                type="text"
+                placeholder="Nhập từ tiếng Anh hoặc nghĩa tiếng Việt..."
+                value={searchQuery}
+                onChange={(e) => handleGlobalSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {searching ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
+                  <Loader2 className="animate-spin" size={20} /> Đang tìm kiếm...
+                </div>
+              ) : searchResults.length > 0 ? (
+                searchResults.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      padding: '10px 12px',
+                      background: '#f8fafc',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => {
+                      setShowSearchModal(false)
+                      setView('Decks')
+                    }}
+                  >
+                    <div>
+                      <strong style={{ color: '#0f172a', fontSize: '13px' }}>{item.term}</strong>
+                      <span className="type-chip" style={{ marginLeft: '8px' }}>{item.partOfSpeech || 'noun'}</span>
+                      <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#475569' }}>{item.vietnameseDefinition}</p>
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#64748b', background: '#e2e8f0', padding: '2px 8px', borderRadius: '4px' }}>
+                      {item.deckTitle}
+                    </span>
+                  </div>
+                ))
+              ) : searchQuery.trim() ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                  Không tìm thấy từ vựng nào phù hợp với từ khóa &quot;{searchQuery}&quot;.
+                </div>
+              ) : (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                  Nhập từ khóa ở ô trên để tìm kiếm nhanh trong toàn bộ các bộ từ vựng của bạn.
+                </div>
+              )}
+            </div>
+
+            <div className="modal-actions" style={{ marginTop: '14px' }}>
+              <button type="button" className="secondary-button" onClick={() => setShowSearchModal(false)}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* USER PROFILE MODAL */}
+      {showProfileModal && (
+        <div className="modal-overlay" onClick={() => setShowProfileModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', textAlign: 'center' }}>
+            <div className="modal-header">
+              <h3 style={{ margin: 0 }}>Hồ sơ người dùng</h3>
+              <button className="modal-close" onClick={() => setShowProfileModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '16px 0' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#4f46e5', color: '#fff', display: 'grid', placeItems: 'center', fontSize: '24px', fontWeight: 700 }}>
+                {userInitials}
+              </div>
+              <h3 style={{ margin: 0, color: '#0f172a' }}>{user?.name || 'Alex Lee'}</h3>
+              <span style={{ fontSize: '12px', color: '#64748b', background: '#f1f5f9', padding: '3px 10px', borderRadius: '12px' }}>
+                Học viên chính thức • LinguaFlow Member
+              </span>
+              <p style={{ fontSize: '12px', color: '#475569', margin: '4px 0 0' }}>
+                Email: {user?.email || 'alex.lee@linguaflow.app'}
+              </p>
+            </div>
+
+            <div className="modal-actions" style={{ justifyContent: 'center' }}>
+              <button type="button" className="secondary-button" onClick={() => setShowProfileModal(false)}>
+                Đóng
+              </button>
+              <button type="button" className="hero-action" onClick={() => { setShowProfileModal(false); setShowSettingsModal(true); }}>
+                Chỉnh sửa cài đặt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

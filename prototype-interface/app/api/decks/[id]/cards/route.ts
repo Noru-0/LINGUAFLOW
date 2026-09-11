@@ -106,3 +106,23 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to create cards' }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  request: Request
+) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const cardId = searchParams.get('cardId')
+    if (!cardId) {
+      return NextResponse.json({ error: 'Card ID required' }, { status: 400 })
+    }
+
+    await db.delete(cardSrsStates).where(eq(cardSrsStates.cardId, cardId))
+    await db.delete(cards).where(eq(cards.id, cardId))
+
+    return NextResponse.json({ success: true, deletedId: cardId })
+  } catch (error) {
+    console.error('Delete card error:', error)
+    return NextResponse.json({ error: 'Failed to delete card' }, { status: 500 })
+  }
+}
