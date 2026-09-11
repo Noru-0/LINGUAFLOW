@@ -97,7 +97,7 @@ function Dashboard({ setView }: { setView: (view: View) => void }) {
     <div className="page-content">
       <div className="welcome-row">
         <div>
-          <p className="eyebrow">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+          <p className="eyebrow" suppressHydrationWarning>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
           <h1>Good morning, Alex</h1>
           <p className="subhead">Keep your momentum going with LinguaFlow.</p>
         </div>
