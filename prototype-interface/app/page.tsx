@@ -1987,7 +1987,6 @@ export default function Page() {
           </button>
         </div>
       </div>
-
       <section className="main-area">
         <header className="topbar">
           <div className="topbar-inner">
@@ -2019,6 +2018,19 @@ export default function Page() {
         {view === 'Decks' && <Decks />}
         {view === 'Analytics' && <Analytics />}
       </section>
+
+      <nav className="bottom-nav" aria-label="Điều hướng chính">
+        {navItems.map(({ label, icon: Icon }) => (
+          <button
+            key={label}
+            className={view === label ? 'bottom-nav-item active' : 'bottom-nav-item'}
+            onClick={() => setView(label)}
+          >
+            <Icon size={20} />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
 
       {/* HELP CENTER MODAL */}
       {showHelpModal && (

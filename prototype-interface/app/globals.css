@@ -177,6 +177,7 @@ nav {
 
 .mobile-header { display: none; }
 .sidebar-backdrop { display: none; }
+.bottom-nav { display: none; }
 
 /* Main Area */
 .main-area {
@@ -1089,9 +1090,12 @@ nav {
     border-bottom: 1px solid #e8ebf2;
     width: 100%;
     flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 40;
   }
   .mobile-header .brand { padding: 0; font-size: 18px; }
-  .mobile-header .icon-button { display: grid; place-items: center; }
+  .mobile-header .icon-button { display: grid; place-items: center; min-width: 36px; min-height: 36px; }
   .topbar { display: none; }
 
   .page-content { padding: 16px 16px 28px; gap: 14px; }
@@ -1115,13 +1119,64 @@ nav {
   .modal-card { padding: 18px; }
   .modal-actions { flex-wrap: wrap; }
   .excel-modal { width: 96vw !important; padding: 16px; }
+
+  /* Bottom navigation bar (app-like mobile navigation) */
+  .bottom-nav {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+    gap: 2px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    height: auto;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid #e8ebf2;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -2px 12px rgba(15, 23, 42, 0.06);
+  }
+  .bottom-nav-item {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 48px;
+    border: 0;
+    background: transparent;
+    color: #94a3b8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 4px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    transition: color 0.15s, background 0.15s;
+  }
+  .bottom-nav-item span { line-height: 1; }
+  .bottom-nav-item.active { color: #4f46e5; background: #eef2ff; }
+
+  /* Reserve space so content is never hidden behind the bottom nav */
+  .main-area { padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px)); }
+  .page-content { padding-bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* Phones */
 @media (max-width: 640px) {
-  .page-content { padding: 14px 12px 26px; overflow-y: auto; }
+  .page-content { padding: 14px 12px calc(80px + env(safe-area-inset-bottom, 0px)); overflow-y: auto; }
   .welcome-row, .review-top { flex-direction: column; align-items: flex-start; gap: 10px; }
   .page-content h1 { font-size: 20px; }
+  .subhead { font-size: 11.5px; }
+
+  /* Dashboard hero: stack and center on phones */
+  .hero-card { flex-direction: column; align-items: stretch; text-align: left; }
+  .hero-copy { width: 100%; gap: 5px; }
+  .hero-copy p { max-width: 100%; }
+  .hero-illustration { display: none; }
 
   .flashcard { min-height: 220px; padding: 18px 16px; }
   .card-word { font-size: 28px; }
@@ -1135,8 +1190,21 @@ nav {
   .section-heading { flex-wrap: wrap; gap: 8px; }
   .memory-status-item { padding: 7px 8px; }
 
+  /* Comfortable touch targets */
+  .icon-button { min-width: 40px; min-height: 40px; display: grid; place-items: center; }
+  .nav-item { padding: 11px 12px; }
+  .deck-tabs button { padding: 4px 0 10px; }
+  .more-btn { padding: 6px; }
+  .bottom-nav-item { min-height: 48px; }
+
   .modal-overlay { padding: 10px; align-items: flex-start; overflow-y: auto; }
   .modal-card { max-width: 100%; }
+  .modal-actions .secondary-button,
+  .modal-actions .hero-action { flex: 1; justify-content: center; }
+
+  /* Heatmap scrolls horizontally on narrow screens instead of shrinking */
+  .heatmap-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .heatmap-scroll { width: max-content; min-width: 100%; }
 }
 
 /* Very small phones */
@@ -1145,7 +1213,9 @@ nav {
   .metric-card { padding: 12px 14px; }
   .metric-copy strong { font-size: 18px; }
   .card-word { font-size: 24px; }
-  .page-content { padding: 12px 10px 24px; }
+  .page-content { padding: 12px 10px calc(78px + env(safe-area-inset-bottom, 0px)); }
+  .bottom-nav-item { font-size: 9px; }
+  .bottom-nav-item svg { width: 18px; height: 18px; }
 }
 
 /* Short viewports (landscape phones / small laptop heights) */
