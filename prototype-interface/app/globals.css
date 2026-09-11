@@ -1057,7 +1057,33 @@ nav {
 
   .topbar { padding: 0 18px; }
   .topbar-inner { padding: 0; }
-  .page-content { padding: 18px 20px; overflow-y: auto; }
+
+  /* Below tablet, the viewport is no longer a fixed single-screen shell:
+     the whole document scrolls instead of clipping inside .main-area */
+  .app-shell {
+    height: auto;
+    max-height: none;
+    min-height: 100dvh;
+    overflow: visible;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .main-area {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    align-items: stretch;
+    width: 100%;
+    flex: 0 0 auto;
+  }
+  .page-content {
+    padding: 18px 20px;
+    overflow: visible;
+    flex: 0 0 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: 100%;
+  }
   body { overflow: auto; }
 
   .hero-illustration { display: none; }
@@ -1167,7 +1193,7 @@ nav {
 
 /* Phones */
 @media (max-width: 640px) {
-  .page-content { padding: 14px 12px calc(80px + env(safe-area-inset-bottom, 0px)); overflow-y: auto; }
+  .page-content { padding: 14px 12px calc(80px + env(safe-area-inset-bottom, 0px)); }
   .welcome-row, .review-top { flex-direction: column; align-items: flex-start; gap: 10px; }
   .page-content h1 { font-size: 20px; }
   .subhead { font-size: 11.5px; }
