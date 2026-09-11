@@ -10,6 +10,7 @@ import {
   CircleHelp,
   Flame,
   GraduationCap,
+  Image as ImageIcon,
   Keyboard,
   LayoutDashboard,
   Library,
@@ -339,6 +340,10 @@ function Review({ setView }: { setView: (view: View) => void }) {
   const [revealed, setRevealed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [cardImages, setCardImages] = useState<any[]>([])
+  const [imageIndex, setImageIndex] = useState(0)
+  const [imagesLoading, setImagesLoading] = useState(false)
+  const [imageError, setImageError] = useState(false)
 
   const fetchQueue = () => {
     setLoading(true)
@@ -358,6 +363,39 @@ function Review({ setView }: { setView: (view: View) => void }) {
   }, [])
 
   const currentCard = queue[currentIndex]
+
+  // Load illustration images for the current word (both card faces)
+  useEffect(() => {
+    if (!currentCard?.term) {
+      setCardImages([])
+      return
+    }
+
+    let cancelled = false
+    setImagesLoading(true)
+    setImageError(false)
+    setImageIndex(0)
+    setCardImages([])
+
+    fetch(`/api/images?q=${encodeURIComponent(currentCard.term)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled) return
+        setCardImages(data.images || [])
+      })
+      .catch(() => {
+        if (!cancelled) setCardImages([])
+      })
+      .finally(() => {
+        if (!cancelled) setImagesLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentCard?.term])
+
+  const currentImage = cardImages[imageIndex]
 
   const handleGrade = async (rating: number) => {
     if (!currentCard || submitting) return
@@ -449,6 +487,50 @@ function Review({ setView }: { setView: (view: View) => void }) {
       <div className="review-layout">
         <div className={`flashcard ${revealed ? 'revealed' : ''}`} onClick={() => setRevealed(!revealed)}>
           <div className="card-label">{revealed ? 'ENGLISH' : 'VIETNAMESE DEFINITION'}</div>
+
+          {revealed && (
+            <div className="card-media">
+              {imagesLoading ? (
+                <div className="card-media-placeholder">
+                  <Loader2 className="animate-spin" size={22} />
+                  <span>Đang tìm hình minh hoạ…</span>
+                </div>
+              ) : currentImage && !imageError ? (
+                <>
+                  <img
+                    src={currentImage.url}
+                    alt={currentImage.alt || currentCard.term}
+                    loading="lazy"
+                    onError={() => setImageError(true)}
+                  />
+                  <span className="card-media-credit">
+                    {currentImage.author} · {currentImage.source === 'unsplash' ? 'Unsplash' : 'Openverse'}
+                  </span>
+                  {cardImages.length > 1 && (
+                    <div className="card-media-dots" onClick={(e) => e.stopPropagation()}>
+                      {cardImages.slice(0, 6).map((_: any, i: number) => (
+                        <button
+                          key={i}
+                          className={i === imageIndex ? 'dot active' : 'dot'}
+                          aria-label={`Hình ${i + 1}`}
+                          onClick={() => {
+                            setImageIndex(i)
+                            setImageError(false)
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="card-media-placeholder">
+                  <ImageIcon size={22} />
+                  <span>Không có hình minh hoạ</span>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className={`card-word ${!revealed ? 'vietnamese-text' : ''}`}>{revealed ? currentCard.term : currentCard.vietnameseDefinition}</div>
           <p>{revealed ? `${currentCard.phonetic || ''} • ${currentCard.partOfSpeech || ''}` : 'Tap card or press space to reveal answer'}</p>
           <div className="card-example">
