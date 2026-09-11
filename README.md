@@ -4,7 +4,8 @@
 
 [![Next.js](https://img.shields.io/badge/Next.js-16_App_Router-black?logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-SQLite-green?logo=sqlite)](https://orm.drizzle.team/)
+[![Supabase](https://img.shields.io/badge/Database-Supabase_PostgreSQL-emerald?logo=supabase)](https://supabase.com/)
+[![Drizzle ORM](https://img.shields.io/badge/Drizzle_ORM-PostgreSQL_%2F_SQLite-green)](https://orm.drizzle.team/)
 [![License](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE)
 
 ---
@@ -29,13 +30,31 @@ LinguaFlow eliminates social bloat, paywalls, and distracting gamification, deli
 
 ---
 
-## 🛠️ Technology Stack
+## ⚡ Supabase Database Setup Guide
 
-- **Frontend**: Next.js 16 (App Router), React 19, Tailwind CSS, Lucide Icons
-- **Backend & API**: Next.js Server Components & Route Handlers
-- **Database & ORM**: SQLite (`better-sqlite3`) + Drizzle ORM (Zero-config local database with auto-seeding)
-- **Algorithms**: SuperMemo SM-2, Deterministic Regex Normalizer, `diff` word comparator
-- **Authentication**: `bcryptjs` password hashing + JWT session HTTP-only cookies
+LinguaFlow natively integrates with **Supabase (PostgreSQL)** for production cloud deployments.
+
+### 1. Create a Supabase Project
+1. Go to [supabase.com](https://supabase.com) and create a free account & new project.
+2. Under **Project Settings > Database**, copy your PostgreSQL Connection String URI (Transaction Pooler).
+
+### 2. Run Database Schema Migration
+Copy the SQL script in [`prototype-interface/lib/db/supabase_schema.sql`](file:///d:/5/EN_web/prototype-interface/lib/db/supabase_schema.sql) and paste it into your **Supabase SQL Editor**, then click **Run**. This will create the required tables (`users`, `decks`, `cards`, `card_srs_states`, `review_logs`, `translation_prompts`, `translation_logs`, `user_streaks`) and RLS policies.
+
+### 3. Set Environment Variables
+Create a `.env.local` file in `prototype-interface/`:
+
+```env
+# Supabase Database URI
+DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
+
+# Supabase API Credentials
+NEXT_PUBLIC_SUPABASE_URL=https://[YOUR-PROJECT-ID].supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=[YOUR-ANON-KEY]
+SUPABASE_SERVICE_ROLE_KEY=[YOUR-SERVICE-ROLE-KEY]
+
+JWT_SECRET=linguaflow-secret-jwt-key-study-group-2026
+```
 
 ---
 
@@ -71,7 +90,7 @@ LinguaFlow eliminates social bloat, paywalls, and distracting gamification, deli
 5. **Open LinguaFlow in Your Browser**
    Navigate to [http://localhost:3000](http://localhost:3000).
 
-> 💡 **Automatic Database Seeding**: On first run, LinguaFlow will automatically initialize the local SQLite database (`linguaflow.db`) and seed demo vocabulary decks (Academic Word List) and translation drills.
+> 💡 **Local Development Fallback**: If `DATABASE_URL` is omitted, LinguaFlow automatically falls back to an embedded local SQLite database (`linguaflow.db`) with zero manual setup required.
 
 ---
 
@@ -96,36 +115,6 @@ npm run build
 
 # Start production server
 npm run start
-```
-
----
-
-## 📁 Repository Structure
-
-```
-LINGUAFLOW/
-├── documents/                                  # Academic & Architecture Docs
-│   ├── 01_Prototype.md                         # High-fidelity prototype spec
-│   ├── 02_Project_Vision_and_Scope.md          # Vision & project scope
-│   ├── 03_Software_Requirements.md             # SRS specification & SM-2 math
-│   ├── 04_Software_Architecture.md             # Layered modular monolith architecture
-│   └── 05_Infrastructure_and_Content_Selection.md # Infrastructure & corpus report
-└── prototype-interface/                        # Next.js Web Application
-    ├── app/                                    # App Router pages & API routes
-    │   ├── api/                                # REST API endpoints
-    │   │   ├── analytics/                      # Retention curves & history
-    │   │   ├── auth/                           # Login, register, session endpoints
-    │   │   ├── decks/                          # Deck & card CRUD / CSV import
-    │   │   ├── srs/                            # SM-2 review queue & grading
-    │   │   └── translate/                      # Grammar drills & evaluation
-    │   ├── globals.css                         # Core CSS design system
-    │   └── page.tsx                            # Full-stack SPA dashboard
-    ├── lib/                                    # Core business logic modules
-    │   ├── auth/                               # Password & JWT cookie sessions
-    │   ├── db/                                 # Drizzle schema, SQLite client, seed data
-    │   ├── srs/                                # SuperMemo SM-2 algorithm
-    │   └── translation/                        # Text normalizer & word diff evaluator
-    └── package.json
 ```
 
 ---
