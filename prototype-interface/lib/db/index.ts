@@ -67,6 +67,22 @@ function getSqliteDb() {
         FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE
       );
 
+      CREATE TABLE IF NOT EXISTS card_dsr_state (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        card_id TEXT NOT NULL,
+        difficulty REAL NOT NULL DEFAULT 5.0,
+        stability REAL NOT NULL DEFAULT 0.0,
+        reps INTEGER NOT NULL DEFAULT 0,
+        lapses INTEGER NOT NULL DEFAULT 0,
+        due_date TEXT NOT NULL,
+        last_reviewed_at TEXT,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_dsr_due ON card_dsr_state(user_id, due_date ASC);
+
       CREATE TABLE IF NOT EXISTS review_logs (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,

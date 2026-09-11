@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { cardSrsStates, reviewLogs, userStreaks } from '@/lib/db/schema'
+import { cardSrsStates, cardDsrStates, reviewLogs, userStreaks } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { calculateSm2 } from '@/lib/srs/sm2'
+import { DSREngine, DSRRating } from '@/lib/srs/dsr'
 import { eq, and } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
@@ -68,6 +69,68 @@ export async function POST(request: Request) {
       })
     }
 
+    // -----------------------------------------------------------------------
+    // DSR runs in parallel with SM-2 during the migration window.
+    // Failures here must never break grading, so they are caught separately.
+    // -----------------------------------------------------------------------
+    let dsrResult: { difficulty: number; stability: number; intervalDays: number; dueDate: string } | null = null
+    try {
+      const existingDsr = await db
+        .select()
+        .from(cardDsrStates)
+        .where(and(eq(cardDsrStates.userId, userId), eq(cardDsrStates.cardId, cardId)))
+        .limit(1)
+
+      const dsrRating = rating as DSRRating
+      const currentDsr = existingDsr[0]
+
+      const nextDsr =
+        !currentDsr || !currentDsr.lastReviewedAt
+          ? DSREngine.initializeCard(dsrRating)
+          : DSREngine.reviewCard(
+              {
+                difficulty: currentDsr.difficulty,
+                stability: currentDsr.stability,
+                reps: currentDsr.reps,
+                lapses: currentDsr.lapses,
+                lastReviewed: currentDsr.lastReviewedAt ? new Date(currentDsr.lastReviewedAt) : null,
+                dueDate: new Date(currentDsr.dueDate),
+              },
+              dsrRating
+            )
+
+      const dsrPayload = {
+        userId,
+        cardId,
+        difficulty: nextDsr.difficulty,
+        stability: nextDsr.stability,
+        reps: nextDsr.reps,
+        lapses: nextDsr.lapses,
+        dueDate: nextDsr.dueDate.toISOString(),
+        lastReviewedAt: nowIso,
+      }
+
+      if (currentDsr) {
+        await db.update(cardDsrStates).set(dsrPayload).where(eq(cardDsrStates.id, currentDsr.id))
+      } else {
+        await db.insert(cardDsrStates).values({ id: `dsr_${cardId}_${userId}`, ...dsrPayload })
+      }
+
+      dsrResult = {
+        difficulty: nextDsr.difficulty,
+        stability: nextDsr.stability,
+        intervalDays: DSREngine.calculateInterval(nextDsr.stability),
+        dueDate: nextDsr.dueDate.toISOString(),
+      }
+
+      // Log the SM-2 vs DSR interval comparison for later analysis
+      console.log(
+        `[DSR] card=${cardId} rating=${rating} sm2Interval=${sm2Output.interval}d dsrInterval=${dsrResult.intervalDays}d`
+      )
+    } catch (dsrError) {
+      console.error('DSR update failed (SM-2 result was still saved):', dsrError)
+    }
+
     // Log review execution
     await db.insert(reviewLogs).values({
       id: `rev_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -112,6 +175,7 @@ export async function POST(request: Request) {
         easeFactor: sm2Output.easeFactor,
         dueDate: sm2Output.dueDate.toISOString(),
       },
+      dsr: dsrResult,
     })
   } catch (error) {
     console.error('Grade SRS card error:', error)

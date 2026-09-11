@@ -40,6 +40,19 @@ export const cardSrsStates = sqliteTable('card_srs_states', {
   lastReviewedAt: text('last_reviewed_at'),
 })
 
+// DSR (Difficulty – Stability – Retrievability) state, replacing SM-2 over time
+export const cardDsrStates = sqliteTable('card_dsr_state', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  cardId: text('card_id').notNull().references(() => cards.id, { onDelete: 'cascade' }),
+  difficulty: real('difficulty').notNull().default(5.0),
+  stability: real('stability').notNull().default(0.0),
+  reps: integer('reps').notNull().default(0),
+  lapses: integer('lapses').notNull().default(0),
+  dueDate: text('due_date').notNull(),
+  lastReviewedAt: text('last_reviewed_at'),
+})
+
 export const reviewLogs = sqliteTable('review_logs', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),

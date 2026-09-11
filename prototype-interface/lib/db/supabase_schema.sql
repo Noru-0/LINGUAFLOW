@@ -51,6 +51,28 @@ CREATE TABLE IF NOT EXISTS public.card_srs_states (
   CONSTRAINT unique_user_card UNIQUE (user_id, card_id)
 );
 
+-- 4b. CARD DSR STATES TABLE (Difficulty - Stability - Retrievability)
+-- Replaces card_srs_states over time; both are kept during the migration.
+CREATE TABLE IF NOT EXISTS public.card_dsr_state (
+  id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+  user_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  card_id TEXT NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
+
+  difficulty DOUBLE PRECISION NOT NULL DEFAULT 5.0,  -- D: 1.0 (rat de) -> 10.0 (rat kho)
+  stability  DOUBLE PRECISION NOT NULL DEFAULT 0.0,  -- S: do ben tri nho (ngay)
+  reps       INT NOT NULL DEFAULT 0,                 -- so lan on tap hop le
+  lapses     INT NOT NULL DEFAULT 0,                 -- so lan quen (bi reset)
+
+  due_date         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_reviewed_at TIMESTAMPTZ,
+
+  CONSTRAINT unique_user_card_dsr UNIQUE (user_id, card_id)
+);
+
+-- Index to speed up "cards due now" queries
+CREATE INDEX IF NOT EXISTS idx_dsr_due
+  ON public.card_dsr_state (user_id, due_date ASC);
+
 -- 5. REVIEW LOGS TABLE
 CREATE TABLE IF NOT EXISTS public.review_logs (
   id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
@@ -97,6 +119,7 @@ ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.decks DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cards DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.card_srs_states DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.card_dsr_state DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.review_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.translation_prompts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.translation_logs DISABLE ROW LEVEL SECURITY;
@@ -120,6 +143,10 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'card_srs_states') THEN
     DROP POLICY IF EXISTS "Allow full access card_srs_states" ON public.card_srs_states;
     CREATE POLICY "Allow full access card_srs_states" ON public.card_srs_states FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'card_dsr_state') THEN
+    DROP POLICY IF EXISTS "Allow full access card_dsr_state" ON public.card_dsr_state;
+    CREATE POLICY "Allow full access card_dsr_state" ON public.card_dsr_state FOR ALL USING (true) WITH CHECK (true);
   END IF;
   IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'review_logs') THEN
     DROP POLICY IF EXISTS "Allow full access review_logs" ON public.review_logs;
