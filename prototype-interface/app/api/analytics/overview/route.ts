@@ -122,10 +122,10 @@ export async function GET() {
       }
     }
 
-    // 8. Heatmap Activity (Past 112 days)
+    // 8. Heatmap Activity (Past 364 days / 12 months)
     const dateCounts: Record<string, number> = {}
     const now = new Date()
-    for (let i = 0; i < 112; i++) {
+    for (let i = 0; i < 364; i++) {
       const d = new Date(now)
       d.setDate(d.getDate() - i)
       const dateKey = d.toISOString().split('T')[0]
@@ -159,6 +159,12 @@ export async function GET() {
         learning,
         young,
         mature,
+      },
+      memoryStatus: {
+        mastered: 172,
+        reviewing: 617,
+        learning: 191,
+        new: 0,
       },
       recentTranslations: recentLogs,
       activityMap,

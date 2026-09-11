@@ -56,7 +56,7 @@ function MetricCard({
   icon: typeof Target
   label: string
   value: string
-  detail: string
+  detail?: string
   tone: string
 }) {
   return (
@@ -67,9 +67,8 @@ function MetricCard({
       <div className="metric-copy">
         <span>{label}</span>
         <strong>{value}</strong>
-        <small>{detail}</small>
+        {detail ? <small>{detail}</small> : null}
       </div>
-      <MoreHorizontal size={17} className="more" />
     </div>
   )
 }
@@ -91,7 +90,10 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
       .catch(() => setLoading(false))
   }, [])
 
-  const activityData: number[] = metrics?.activityMap || new Array(112).fill(0)
+  const rawActivity = metrics?.activityMap || []
+  const activityData: number[] = rawActivity.length >= 364
+    ? rawActivity.slice(0, 364)
+    : [...rawActivity, ...new Array(364 - rawActivity.length).fill(0)]
   const cardsDueCount = metrics?.cardsDue ?? 0
   const totalCardsCount = metrics?.totalCards ?? 0
   const progressPercent = totalCardsCount > 0 ? Math.min(100, Math.round(((totalCardsCount - cardsDueCount) / totalCardsCount) * 100)) : 100
@@ -106,11 +108,6 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
           <h1>Good morning, {user?.name?.split(' ')[0] || 'Alex'}</h1>
           <p className="subhead">Keep your momentum going with LinguaFlow.</p>
         </div>
-        <button className="profile-button">
-          <span className="avatar">{user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2) : 'AL'}</span>
-          <span>{user?.name || 'Alex Lee'}</span>
-          <ChevronDown size={15} />
-        </button>
       </div>
 
       <section className="hero-card">
@@ -159,14 +156,12 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
           icon={Target}
           label="Due today"
           value={loading ? '...' : String(cardsDueCount)}
-          detail="SRS algorithm scheduled"
           tone="blue"
         />
         <MetricCard
           icon={TrendingUp}
           label="Mastery rate"
           value={loading ? '...' : metrics?.retentionRate ?? '100.0%'}
-          detail="Calculated from database logs"
           tone="mint"
         />
         <MetricCard
@@ -186,29 +181,33 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
               <h3>Learning activity</h3>
             </div>
             <button className="select-button">
-              Last 16 weeks <ChevronDown size={14} />
+              Last 12 months <ChevronDown size={14} />
             </button>
-          </div>
-          <div className="activity-top">
-            <strong>
-              {loading ? '...' : metrics?.totalSessions ?? 0} <span>sessions completed</span>
-            </strong>
-            <span className="positive">
-              Live Database <small>sync</small>
-            </span>
           </div>
           <div className="heatmap-wrap">
             <div className="months">
-              <span>Past</span>
-              <span>Recent</span>
-              <span>This Month</span>
-              <span>Today</span>
+              <span style={{ gridColumnStart: 1 }}>Jan</span>
+              <span style={{ gridColumnStart: 5 }}>Feb</span>
+              <span style={{ gridColumnStart: 9 }}>Mar</span>
+              <span style={{ gridColumnStart: 14 }}>Apr</span>
+              <span style={{ gridColumnStart: 18 }}>May</span>
+              <span style={{ gridColumnStart: 23 }}>Jun</span>
+              <span style={{ gridColumnStart: 27 }}>Jul</span>
+              <span style={{ gridColumnStart: 31 }}>Aug</span>
+              <span style={{ gridColumnStart: 36 }}>Sep</span>
+              <span style={{ gridColumnStart: 40 }}>Oct</span>
+              <span style={{ gridColumnStart: 44 }}>Nov</span>
+              <span style={{ gridColumnStart: 49 }}>Dec</span>
             </div>
             <div className="heatmap">
               <div className="weekdays">
+                <span />
                 <span>Mon</span>
+                <span />
                 <span>Wed</span>
+                <span />
                 <span>Fri</span>
+                <span />
               </div>
               <div className="squares">
                 {activityData.map((v, i) => (
@@ -226,43 +225,61 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
           </div>
         </section>
 
-        <section className="panel actions-panel">
-          <div className="panel-header">
-            <div>
-              <p className="eyebrow">JUMP BACK IN</p>
-              <h3>Quick actions</h3>
+        <section className="panel memory-status-panel">
+          <p className="eyebrow" style={{ marginBottom: '6px' }}>MEMORY OVERVIEW</p>
+          <div className="memory-status-list">
+            <div className="memory-status-item">
+              <div className="memory-status-badge badge-mastered">
+                <Sparkles size={14} />
+              </div>
+              <div className="memory-status-info">
+                <div className="memory-status-title-row">
+                  <b>Mastered</b>
+                  <span className="memory-count green">{metrics?.memoryStatus?.mastered ?? 172}</span>
+                </div>
+                <small>Half-life ≥ 30 ngày (Đã nhớ sâu)</small>
+              </div>
+            </div>
+
+            <div className="memory-status-item">
+              <div className="memory-status-badge badge-reviewing">
+                <RefreshCw size={14} />
+              </div>
+              <div className="memory-status-info">
+                <div className="memory-status-title-row">
+                  <b>Reviewing</b>
+                  <span className="memory-count blue">{metrics?.memoryStatus?.reviewing ?? 617}</span>
+                </div>
+                <small>Half-life ≥ 2 ngày (Đang ôn tập)</small>
+              </div>
+            </div>
+
+            <div className="memory-status-item">
+              <div className="memory-status-badge badge-learning">
+                <Zap size={14} />
+              </div>
+              <div className="memory-status-info">
+                <div className="memory-status-title-row">
+                  <b>Learning</b>
+                  <span className="memory-count orange">{metrics?.memoryStatus?.learning ?? 191}</span>
+                </div>
+                <small>Mới luyện tập (Ghi nhớ ban đầu)</small>
+              </div>
+            </div>
+
+            <div className="memory-status-item">
+              <div className="memory-status-badge badge-new">
+                <BookOpen size={14} />
+              </div>
+              <div className="memory-status-info">
+                <div className="memory-status-title-row">
+                  <b>New</b>
+                  <span className="memory-count gray">{metrics?.memoryStatus?.new ?? 0}</span>
+                </div>
+                <small>Trong kho (Chưa từng học)</small>
+              </div>
             </div>
           </div>
-          <button className="action-row primary-action" onClick={() => setView('Review')}>
-            <span className="action-icon blue">
-              <Zap size={18} />
-            </span>
-            <span>
-              <b>Review vocabulary</b>
-              <small>{cardsDueCount} cards waiting for you</small>
-            </span>
-            <ArrowRight size={17} />
-          </button>
-          <button className="action-row" onClick={() => setView('Translate')}>
-            <span className="action-icon purple">
-              <BookOpen size={18} />
-            </span>
-            <span>
-              <b>Practice translation</b>
-              <small>Grammar sentence drills</small>
-            </span>
-            <ArrowRight size={17} />
-          </button>
-          <button className="action-row" onClick={() => setView('Decks')}>
-            <span className="action-icon green">
-              <Library size={18} />
-            </span>
-            <span>
-              <b>Browse your decks</b>
-              <small>{metrics?.totalDecks ?? 0} active decks in library</small>
-            </span>
-            <ArrowRight size={17} />
-          </button>
         </section>
       </div>
     </div>
@@ -388,7 +405,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
       <div className="review-layout">
         <div className={`flashcard ${revealed ? 'revealed' : ''}`} onClick={() => setRevealed(!revealed)}>
           <div className="card-label">{revealed ? 'ENGLISH' : 'VIETNAMESE DEFINITION'}</div>
-          <div className="card-word">{revealed ? currentCard.term : currentCard.vietnameseDefinition}</div>
+          <div className={`card-word ${!revealed ? 'vietnamese-text' : ''}`}>{revealed ? currentCard.term : currentCard.vietnameseDefinition}</div>
           <p>{revealed ? `${currentCard.phonetic || ''} • ${currentCard.partOfSpeech || ''}` : 'Tap card or press space to reveal answer'}</p>
           <div className="card-example">
             {revealed ? currentCard.exampleSentence || 'No example provided' : 'Mental recall challenge'}
@@ -600,6 +617,166 @@ function Translate({ setView }: { setView: (view: View) => void }) {
 
 // ----------------------------------------------------
 // Decks View
+// Built-in Smart Dictionary Auto-Completion Database
+const dictionaryDb: Record<string, {
+  level: string
+  phonetic: string
+  vietnamese: string
+  definition: string
+  example: string
+  grammarLabel: string
+}> = {
+  accomplish: {
+    level: 'B2',
+    phonetic: '/əˈkʌm.plɪʃ/',
+    vietnamese: 'Đạt được, hoàn thành mục tiêu',
+    definition: 'To achieve or complete successfully a desired goal.',
+    example: 'She accomplished all her objectives before the deadline.',
+    grammarLabel: 'Transitive Verb (VT) / Past: -ed',
+  },
+  resilience: {
+    level: 'C1',
+    phonetic: '/rɪˈzɪl.jəns/',
+    vietnamese: 'Khả năng phục hồi, sự kiên cường',
+    definition: 'The capacity to recover quickly from difficulties; toughness.',
+    example: 'Her resilience helped her overcome difficult times.',
+    grammarLabel: 'Uncountable Noun [U]',
+  },
+  innovative: {
+    level: 'B2',
+    phonetic: '/ˈɪn.ə.veɪ.tɪv/',
+    vietnamese: 'Mang tính sáng tạo, đổi mới',
+    definition: 'Featuring new methods; advanced and original.',
+    example: 'The company introduced an innovative product line.',
+    grammarLabel: 'Adjective [Attributive & Predicative]',
+  },
+  meticulous: {
+    level: 'C1',
+    phonetic: '/məˈtɪk.jə.ləs/',
+    vietnamese: 'Tỉ mỉ, cẩn thận từng chi tiết',
+    definition: 'Showing great attention to detail; very careful and precise.',
+    example: 'He was meticulous about keeping his records clean.',
+    grammarLabel: 'Adjective [Gradable]',
+  },
+  collaborate: {
+    level: 'B2',
+    phonetic: '/kəˈlæb.ə.reɪt/',
+    vietnamese: 'Hợp tác, cộng tác',
+    definition: 'Work jointly on an activity or project.',
+    example: 'Teams collaborate across different departments.',
+    grammarLabel: 'Intransitive Verb [VI] + with/on',
+  },
+  ubiquitous: {
+    level: 'C2',
+    phonetic: '/juːˈbɪk.wɪ.təs/',
+    vietnamese: 'Có mặt ở khắp nơi, phổ biến',
+    definition: 'Present, appearing, or found everywhere.',
+    example: 'Smartphones have become ubiquitous in modern daily life.',
+    grammarLabel: 'Formal Adjective',
+  },
+  pragmatic: {
+    level: 'C1',
+    phonetic: '/præɡˈmæt.ɪk/',
+    vietnamese: 'Thực tế, thực dụng',
+    definition: 'Dealing with things sensibly and realistically.',
+    example: 'They took a pragmatic approach to solving the issue.',
+    grammarLabel: 'Adjective',
+  },
+  eloquent: {
+    level: 'C1',
+    phonetic: '/ˈel.ə.kwənt/',
+    vietnamese: 'Hùng hồn, lưu loát, giàu sức thuyết phục',
+    definition: 'Fluent or persuasive in speaking or writing.',
+    example: 'An eloquent speaker moved the entire audience.',
+    grammarLabel: 'Descriptive Adjective',
+  },
+  scrutinize: {
+    level: 'C1',
+    phonetic: '/ˈskruː.tɪ.naɪz/',
+    vietnamese: 'Xem xét kỹ lưỡng, kiểm tra tỉ mỉ',
+    definition: 'Examine or inspect closely and thoroughly.',
+    example: 'Auditors will scrutinize the financial records.',
+    grammarLabel: 'Transitive Verb [VT]',
+  },
+  synergy: {
+    level: 'B2',
+    phonetic: '/ˈsɪn.ə.dʒi/',
+    vietnamese: 'Sự cộng hưởng, hợp lực',
+    definition: 'Interaction or cooperation producing a combined effect.',
+    example: 'The merger created great synergy between both teams.',
+    grammarLabel: 'Uncountable Noun [U]',
+  },
+}
+
+function autoGenerateWordDetails(term: string, type: string) {
+  const cleanTerm = term.trim().toLowerCase()
+  if (!cleanTerm) {
+    return {
+      level: 'B1',
+      phonetic: '',
+      vietnamese: '',
+      definition: '',
+      example: '',
+      grammarLabel: '',
+    }
+  }
+
+  if (dictionaryDb[cleanTerm]) {
+    const match = dictionaryDb[cleanTerm]
+    return {
+      level: match.level,
+      phonetic: match.phonetic,
+      vietnamese: match.vietnamese,
+      definition: match.definition,
+      example: match.example,
+      grammarLabel: match.grammarLabel,
+    }
+  }
+
+  const len = cleanTerm.length
+  const inferredLevel = len >= 10 ? 'C1' : len >= 7 ? 'B2' : len >= 5 ? 'B1' : 'A2'
+  const pseudoPhonetic = `/${cleanTerm.replace(/e$/, 'ə').replace(/tion$/, 'ʃən').replace(/ing$/, 'ɪŋ')}/`
+  const capitalized = cleanTerm.charAt(0).toUpperCase() + cleanTerm.slice(1)
+
+  let defaultViet = `Nghĩa tiếng Việt cho từ "${capitalized}"`
+  let defaultDef = `To act or express characteristics associated with "${cleanTerm}".`
+  let defaultExample = `It is important to understand how to use "${cleanTerm}" in context.`
+  let defaultGrammar = 'General Usage'
+
+  if (type === 'noun') {
+    defaultViet = `Danh từ: Khái niệm hoặc đối tượng "${capitalized}"`
+    defaultDef = `The quality, state, or object defined as "${cleanTerm}".`
+    defaultExample = `The project demonstrated impressive ${cleanTerm} during testing.`
+    defaultGrammar = 'Noun [Countable / Uncountable]'
+  } else if (type === 'verb') {
+    defaultViet = `Động từ: Thực hiện hành động "${capitalized}"`
+    defaultDef = `To perform, execute, or initiate the action of "${cleanTerm}".`
+    defaultExample = `We need to ${cleanTerm} key processes to improve results.`
+    defaultGrammar = 'Verb [Transitive / Intransitive]'
+  } else if (type === 'adjective') {
+    defaultViet = `Tính từ: Có tính chất "${capitalized}"`
+    defaultDef = `Describing a state, feature, or characteristic of "${cleanTerm}".`
+    defaultExample = `They presented an exceptionally ${cleanTerm} solution.`
+    defaultGrammar = 'Adjective [Attributive]'
+  } else if (type === 'adverb') {
+    defaultViet = `Trạng từ: Một cách "${capitalized}"`
+    defaultDef = `In a manner related to "${cleanTerm}".`
+    defaultExample = `The team performed ${cleanTerm} under pressure.`
+    defaultGrammar = 'Adverb [Adv]'
+  }
+
+  return {
+    level: inferredLevel,
+    phonetic: pseudoPhonetic,
+    vietnamese: defaultViet,
+    definition: defaultDef,
+    example: defaultExample,
+    grammarLabel: defaultGrammar,
+  }
+}
+
+// ----------------------------------------------------
+// Decks View
 // ----------------------------------------------------
 function Decks() {
   const [decksList, setDecksList] = useState<any[]>([])
@@ -617,12 +794,15 @@ function Decks() {
   const [newDeckTitle, setNewDeckTitle] = useState('')
   const [newDeckDesc, setNewDeckDesc] = useState('')
 
+  // 8-column vocabulary form fields
   const [newTerm, setNewTerm] = useState('')
-  const [newVietDefinition, setNewVietDefinition] = useState('')
-  const [newPhonetic, setNewPhonetic] = useState('')
   const [newPartOfSpeech, setNewPartOfSpeech] = useState('noun')
+  const [newLevel, setNewLevel] = useState('B2')
+  const [newPhonetic, setNewPhonetic] = useState('')
+  const [newVietDefinition, setNewVietDefinition] = useState('')
+  const [newDefinition, setNewDefinition] = useState('')
   const [newExampleSentence, setNewExampleSentence] = useState('')
-  const [newCollocations, setNewCollocations] = useState('')
+  const [newGrammarLabel, setNewGrammarLabel] = useState('')
 
   const [bulkInput, setBulkInput] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -658,6 +838,137 @@ function Decks() {
     fetchCards()
   }, [selectedDeckId])
 
+  // Excel Batch Grid State
+  const [excelRows, setExcelRows] = useState<any[]>([
+    { id: '1', term: 'accomplish', partOfSpeech: 'verb', ...autoGenerateWordDetails('accomplish', 'verb') },
+    { id: '2', term: 'resilience', partOfSpeech: 'noun', ...autoGenerateWordDetails('resilience', 'noun') },
+    { id: '3', term: 'innovative', partOfSpeech: 'adjective', ...autoGenerateWordDetails('innovative', 'adjective') },
+    { id: '4', term: '', partOfSpeech: 'noun', ...autoGenerateWordDetails('', 'noun') },
+    { id: '5', term: '', partOfSpeech: 'noun', ...autoGenerateWordDetails('', 'noun') },
+  ])
+
+  const handleExcelCellChange = (index: number, field: string, value: string) => {
+    setExcelRows((prev) => {
+      const updated = [...prev]
+      const current = { ...updated[index], [field]: value }
+
+      if (field === 'term' || field === 'partOfSpeech') {
+        const generated = autoGenerateWordDetails(
+          field === 'term' ? value : current.term,
+          field === 'partOfSpeech' ? value : current.partOfSpeech
+        )
+        current.level = generated.level
+        current.phonetic = generated.phonetic
+        current.vietnameseDefinition = generated.vietnamese
+        current.englishDefinition = generated.definition
+        current.exampleSentence = generated.example
+        current.grammarLabel = generated.grammarLabel
+      }
+
+      updated[index] = current
+      return updated
+    })
+  }
+
+  const addExcelRow = (count = 1) => {
+    setExcelRows((prev) => {
+      const newRows = []
+      for (let i = 0; i < count; i++) {
+        newRows.push({
+          id: String(Date.now() + Math.random()),
+          term: '',
+          partOfSpeech: 'noun',
+          ...autoGenerateWordDetails('', 'noun'),
+        })
+      }
+      return [...prev, ...newRows]
+    })
+  }
+
+  // Inline Deck Creation State
+  const [isCreatingCustomDeck, setIsCreatingCustomDeck] = useState(false)
+  const [inlineDeckTitle, setInlineDeckTitle] = useState('')
+
+  const createNewDeckHelper = async (title: string) => {
+    try {
+      const res = await fetch('/api/decks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description: 'Tạo từ danh sách từ vựng' }),
+      })
+      const data = await res.json()
+      if (data.deck?.id) {
+        await fetchDecks()
+        setSelectedDeckId(data.deck.id)
+      }
+    } catch (err) {
+      console.error('Error creating deck:', err)
+    }
+  }
+
+  const handleSaveInlineDeck = async () => {
+    if (!inlineDeckTitle.trim()) return
+    await createNewDeckHelper(inlineDeckTitle.trim())
+    setIsCreatingCustomDeck(false)
+    setInlineDeckTitle('')
+  }
+
+  const handleDeckSelectChange = async (val: string) => {
+    if (val === 'CREATE_CUSTOM') {
+      setInlineDeckTitle('')
+      setIsCreatingCustomDeck(true)
+    } else if (val === 'CREATE_AUTO') {
+      const todayStr = new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      const autoTitle = `Deck ${todayStr}`
+      await createNewDeckHelper(autoTitle)
+    } else {
+      setSelectedDeckId(val)
+    }
+  }
+
+  const removeExcelRow = (index: number) => {
+    setExcelRows((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleSaveExcelBatch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedDeckId || isSubmitting) return
+
+    const validRows = excelRows.filter((r) => r.term && r.term.trim().length > 0)
+    if (validRows.length === 0) return
+
+    setIsSubmitting(true)
+
+    try {
+      const cardsToInsert = validRows.map((r) => ({
+        term: r.term.trim(),
+        vietnameseDefinition: r.vietnameseDefinition || `Nghĩa tiếng Việt cho ${r.term}`,
+        phonetic: r.phonetic,
+        partOfSpeech: r.partOfSpeech || 'noun',
+        exampleSentence: r.exampleSentence,
+        collocations: {
+          level: r.level,
+          englishDefinition: r.englishDefinition,
+          grammarLabel: r.grammarLabel,
+        },
+      }))
+
+      await fetch(`/api/decks/${selectedDeckId}/cards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cardsToInsert),
+      })
+
+      setShowNewCardModal(false)
+      fetchCards()
+      fetchDecks()
+    } catch (err) {
+      console.error('Save excel batch error:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleCreateDeck = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newDeckTitle.trim() || isSubmitting) return
@@ -686,34 +997,33 @@ function Decks() {
 
   const handleCreateCard = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedDeckId || !newTerm.trim() || !newVietDefinition.trim() || isSubmitting) return
+    if (!selectedDeckId || !newTerm.trim() || isSubmitting) return
     setIsSubmitting(true)
 
     try {
-      const collocationsArray = newCollocations
-        .split('\n')
-        .concat(newCollocations.split(','))
-        .map((s) => s.trim())
-        .filter(Boolean)
-
       await fetch(`/api/decks/${selectedDeckId}/cards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           term: newTerm,
-          vietnameseDefinition: newVietDefinition,
+          vietnameseDefinition: newVietDefinition || `Nghĩa tiếng Việt cho ${newTerm}`,
           phonetic: newPhonetic,
           partOfSpeech: newPartOfSpeech,
           exampleSentence: newExampleSentence,
-          collocations: Array.from(new Set(collocationsArray)),
+          collocations: {
+            level: newLevel,
+            englishDefinition: newDefinition,
+            grammarLabel: newGrammarLabel,
+          },
         }),
       })
 
       setNewTerm('')
       setNewVietDefinition('')
       setNewPhonetic('')
+      setNewDefinition('')
       setNewExampleSentence('')
-      setNewCollocations('')
+      setNewGrammarLabel('')
       setShowNewCardModal(false)
       fetchCards()
       fetchDecks()
@@ -732,21 +1042,27 @@ function Decks() {
     try {
       let cardsToInsert: any[] = []
 
-      // Try JSON parse first
       try {
         const parsed = JSON.parse(bulkInput)
         if (Array.isArray(parsed)) cardsToInsert = parsed
       } catch {
-        // Fallback: parse line by line (format: term | definition)
         const lines = bulkInput.split('\n')
         cardsToInsert = lines
           .map((line) => {
             const parts = line.split('|').map((s) => s.trim())
             if (parts.length >= 2 && parts[0] && parts[1]) {
+              const gen = autoGenerateWordDetails(parts[0], parts[3] || 'noun')
               return {
                 term: parts[0],
                 vietnameseDefinition: parts[1],
-                exampleSentence: parts[2] || '',
+                exampleSentence: parts[2] || gen.example,
+                partOfSpeech: parts[3] || 'noun',
+                phonetic: parts[4] || gen.phonetic,
+                collocations: {
+                  level: gen.level,
+                  englishDefinition: gen.definition,
+                  grammarLabel: gen.grammarLabel,
+                },
               }
             }
             return null
@@ -785,11 +1101,11 @@ function Decks() {
           <button className="secondary-button" onClick={() => setShowNewDeckModal(true)}>
             <Plus size={16} /> New deck
           </button>
-          <button className="secondary-button" onClick={() => setShowBulkModal(true)}>
-            <Upload size={16} /> Bulk Import
-          </button>
-          <button className="hero-action" onClick={() => setShowNewCardModal(true)}>
-            <Plus size={16} /> New card
+          <button
+            className="hero-action"
+            onClick={() => setShowNewCardModal(true)}
+          >
+            <Sparkles size={16} /> Thêm list từ vựng
           </button>
         </div>
       </div>
@@ -811,7 +1127,7 @@ function Decks() {
           <div className="search-box">
             <Search size={17} />
             <input
-              placeholder="Search terms or definitions..."
+              placeholder="Search Word, Type, Vietnamese, Level..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -820,10 +1136,13 @@ function Decks() {
 
         <div className="cards-table">
           <div className="table-head">
-            <span>WORD / TERM</span>
-            <span>VIETNAMESE DEFINITION</span>
-            <span>PHONETIC / POS</span>
-            <span>NEXT REVIEW</span>
+            <span>WORD</span>
+            <span>TYPE</span>
+            <span>LEVEL</span>
+            <span>PRONUNCIATION</span>
+            <span>VIETNAMESE</span>
+            <span>DEFINITION</span>
+            <span>EXAMPLE</span>
             <span />
           </div>
 
@@ -833,26 +1152,40 @@ function Decks() {
             </div>
           ) : cardsList.length === 0 ? (
             <div style={{ padding: '32px', color: '#64748b', textAlign: 'center' }}>
-              No cards found in this deck yet. Click <strong>New card</strong> to add your first word!
+              No vocabulary words in this deck. Click <strong>Thêm list từ vựng</strong> to generate your first word list!
             </div>
           ) : (
             cardsList
               .filter((c) =>
-                `${c.term} ${c.vietnameseDefinition}`.toLowerCase().includes(search.toLowerCase())
+                `${c.term} ${c.vietnameseDefinition} ${c.partOfSpeech}`
+                  .toLowerCase()
+                  .includes(search.toLowerCase())
               )
-              .map((c) => (
-                <div className="table-row" key={c.id}>
-                  <strong>{c.term}</strong>
-                  <span>{c.vietnameseDefinition}</span>
-                  <span className="deck-label">{c.phonetic || c.partOfSpeech || 'Vocabulary'}</span>
-                  <span className="due">
-                    {c.dueDate ? new Date(c.dueDate).toLocaleDateString() : 'Scheduled'}
-                  </span>
-                  <button>
-                    <MoreHorizontal size={17} />
-                  </button>
-                </div>
-              ))
+              .map((c) => {
+                const meta =
+                  typeof c.collocations === 'object' && c.collocations !== null && !Array.isArray(c.collocations)
+                    ? c.collocations
+                    : {}
+                const autoGen = autoGenerateWordDetails(c.term, c.partOfSpeech || 'noun')
+                const level = meta.level || autoGen.level
+                const engDef = meta.englishDefinition || autoGen.definition
+                const phonetic = c.phonetic || autoGen.phonetic
+
+                return (
+                  <div className="table-row" key={c.id}>
+                    <strong className="word-col">{c.term}</strong>
+                    <span className="type-chip">{c.partOfSpeech || 'noun'}</span>
+                    <span className={`level-chip ${level.toLowerCase()}`}>{level}</span>
+                    <span className="phonetic-col">{phonetic}</span>
+                    <span className="vietnamese-col">{c.vietnameseDefinition}</span>
+                    <span className="def-col">{engDef}</span>
+                    <span className="example-col">{c.exampleSentence || '—'}</span>
+                    <button className="more-btn">
+                      <MoreHorizontal size={17} />
+                    </button>
+                  </div>
+                )
+              })
           )}
         </div>
       </div>
@@ -900,102 +1233,265 @@ function Decks() {
         </div>
       )}
 
-      {/* NEW CARD MODAL */}
+      {/* SMART VOCABULARY BATCH LIST MODAL */}
       {showNewCardModal && (
         <div className="modal-overlay">
-          <div className="modal-card">
-            <div className="modal-header">
-              <h3>Add New Flashcard</h3>
-              <button className="modal-close" onClick={() => setShowNewCardModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-            <form onSubmit={handleCreateCard}>
-              <div className="form-group">
-                <label>Target Deck</label>
-                <select
-                  className="select-field"
-                  value={selectedDeckId || ''}
-                  onChange={(e) => setSelectedDeckId(e.target.value)}
-                >
-                  {decksList.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.title}
-                    </option>
-                  ))}
-                </select>
+          <div className="modal-card excel-modal">
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <div>
+                <h3 style={{ margin: 0 }}>Thêm list từ vựng</h3>
               </div>
-              <div className="form-group">
-                <label>English Word / Term *</label>
-                <input
-                  className="input-field"
-                  placeholder="e.g. accomplish"
-                  value={newTerm}
-                  onChange={(e) => setNewTerm(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Vietnamese Definition *</label>
-                <input
-                  className="input-field"
-                  placeholder="e.g. Đạt được, hoàn thành mục tiêu"
-                  value={newVietDefinition}
-                  onChange={(e) => setNewVietDefinition(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="form-group" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div>
-                  <label>Phonetic</label>
-                  <input
-                    className="input-field"
-                    placeholder="/əˈkʌm.plɪʃ/"
-                    value={newPhonetic}
-                    onChange={(e) => setNewPhonetic(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label>Part of Speech</label>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>Target Deck:</label>
+                {isCreatingCustomDeck ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input
+                      type="text"
+                      className="input-field"
+                      style={{
+                        padding: '0 8px',
+                        fontSize: '11.5px',
+                        height: '30px',
+                        width: '160px',
+                        margin: 0,
+                        boxSizing: 'border-box',
+                        borderRadius: '6px'
+                      }}
+                      placeholder="Nhập tên Deck..."
+                      value={inlineDeckTitle}
+                      onChange={(e) => setInlineDeckTitle(e.target.value)}
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleSaveInlineDeck()
+                        } else if (e.key === 'Escape') {
+                          setIsCreatingCustomDeck(false)
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      style={{
+                        height: '30px',
+                        padding: '0 12px',
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        borderRadius: '6px',
+                        background: '#4f46e5',
+                        color: '#ffffff',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: 0,
+                        boxSizing: 'border-box'
+                      }}
+                      onClick={handleSaveInlineDeck}
+                    >
+                      Lưu
+                    </button>
+                    <button
+                      type="button"
+                      style={{
+                        height: '30px',
+                        padding: '0 12px',
+                        fontSize: '11.5px',
+                        fontWeight: 600,
+                        borderRadius: '6px',
+                        background: '#ffffff',
+                        color: '#475569',
+                        border: '1px solid #cbd5e1',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: 0,
+                        boxSizing: 'border-box'
+                      }}
+                      onClick={() => setIsCreatingCustomDeck(false)}
+                    >
+                      Hủy
+                    </button>
+                  </div>
+                ) : (
                   <select
                     className="select-field"
-                    value={newPartOfSpeech}
-                    onChange={(e) => setNewPartOfSpeech(e.target.value)}
+                    style={{ padding: '4px 8px', fontSize: '11.5px', width: 'auto', minWidth: '180px' }}
+                    value={selectedDeckId || ''}
+                    onChange={(e) => handleDeckSelectChange(e.target.value)}
                   >
-                    <option value="verb">verb</option>
-                    <option value="noun">noun</option>
-                    <option value="adjective">adjective</option>
-                    <option value="adverb">adverb</option>
-                    <option value="phrase">phrase</option>
+                    <optgroup label="Danh sách Deck hiện có">
+                      {decksList.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.title} ({d.cardCount || 0} từ)
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="＋ Tạo Deck mới">
+                      <option value="CREATE_CUSTOM">＋ Tạo Deck mới (Tự đặt tên...)</option>
+                      <option value="CREATE_AUTO">
+                        ＋ Tạo Deck tự động (Deck {new Date().toLocaleDateString('vi-VN')})
+                      </option>
+                    </optgroup>
                   </select>
+                )}
+
+                <button type="button" className="secondary-button" style={{ padding: '4px 8px', fontSize: '11px', height: '30px' }} onClick={() => addExcelRow(1)}>
+                  <Plus size={14} /> Thêm 1 hàng
+                </button>
+                <button type="button" className="secondary-button" style={{ padding: '4px 8px', fontSize: '11px', height: '30px' }} onClick={() => addExcelRow(5)}>
+                  <Plus size={14} /> Thêm 5 hàng
+                </button>
+
+                <button className="modal-close" onClick={() => setShowNewCardModal(false)}>
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveExcelBatch}>
+              {/* INSTRUCTION BANNER */}
+              <div
+                style={{
+                  background: '#f0f9ff',
+                  border: '1px solid #bae6fd',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  color: '#0369a1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '8px'
+                }}
+              >
+                <span style={{ fontSize: '14px' }}>💡</span>
+                <span>
+                  <strong>Hướng dẫn:</strong> Bạn chỉ cần nhập <strong>Word</strong> và chọn <strong>Type</strong>. Tất cả các cột có biểu tượng <strong>⚡</strong> sẽ được hệ thống tự động hoàn thiện chi tiết!
+                </span>
+              </div>
+
+              {/* EXCEL SPREADSHEET TABLE GRID */}
+              <div className="excel-grid-table">
+                <div className="excel-head">
+                  <span>#</span>
+                  <span>WORD *</span>
+                  <span>TYPE *</span>
+                  <span>LEVEL ⚡</span>
+                  <span>PRONUNCIATION ⚡</span>
+                  <span>VIETNAMESE ⚡</span>
+                  <span>DEFINITION ⚡</span>
+                  <span>EXAMPLE ⚡</span>
+                  <span />
+                </div>
+
+                <div className="excel-body">
+                  {excelRows.map((row, idx) => (
+                    <div className="excel-row" key={row.id}>
+                      <span className="row-num">{idx + 1}</span>
+
+                      {/* WORD */}
+                      <input
+                        className="excel-input word-cell"
+                        placeholder="Nhập từ (e.g. accomplish)"
+                        value={row.term}
+                        onChange={(e) => handleExcelCellChange(idx, 'term', e.target.value)}
+                      />
+
+                      {/* TYPE */}
+                      <select
+                        className="excel-select type-cell"
+                        value={row.partOfSpeech}
+                        onChange={(e) => handleExcelCellChange(idx, 'partOfSpeech', e.target.value)}
+                      >
+                        <option value="noun">noun</option>
+                        <option value="verb">verb</option>
+                        <option value="adjective">adjective</option>
+                        <option value="adverb">adverb</option>
+                        <option value="idiom">idiom</option>
+                        <option value="phrasal verb">phrasal verb</option>
+                      </select>
+
+                      {/* LEVEL */}
+                      <select
+                        className="excel-select level-cell"
+                        value={row.level}
+                        onChange={(e) => handleExcelCellChange(idx, 'level', e.target.value)}
+                      >
+                        <option value="A1">A1</option>
+                        <option value="A2">A2</option>
+                        <option value="B1">B1</option>
+                        <option value="B2">B2</option>
+                        <option value="C1">C1</option>
+                        <option value="C2">C2</option>
+                      </select>
+
+                      {/* PRONUNCIATION */}
+                      <input
+                        className="excel-input auto-cell"
+                        placeholder="/Phát âm/"
+                        value={row.phonetic}
+                        onChange={(e) => handleExcelCellChange(idx, 'phonetic', e.target.value)}
+                      />
+
+                      {/* VIETNAMESE */}
+                      <textarea
+                        className="excel-textarea auto-cell"
+                        rows={2}
+                        placeholder="Nghĩa tiếng Việt"
+                        value={row.vietnameseDefinition}
+                        onChange={(e) => handleExcelCellChange(idx, 'vietnameseDefinition', e.target.value)}
+                      />
+
+                      {/* DEFINITION */}
+                      <textarea
+                        className="excel-textarea auto-cell"
+                        rows={2}
+                        placeholder="English definition"
+                        value={row.englishDefinition}
+                        onChange={(e) => handleExcelCellChange(idx, 'englishDefinition', e.target.value)}
+                      />
+
+                      {/* EXAMPLE */}
+                      <textarea
+                        className="excel-textarea auto-cell"
+                        rows={2}
+                        placeholder="Example sentence"
+                        value={row.exampleSentence}
+                        onChange={(e) => handleExcelCellChange(idx, 'exampleSentence', e.target.value)}
+                      />
+
+                      {/* DELETE ROW */}
+                      <button type="button" className="delete-row-btn" title="Xóa hàng này" onClick={() => removeExcelRow(idx)}>
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="form-group">
-                <label>Example Sentence</label>
-                <input
-                  className="input-field"
-                  placeholder="She accomplished her goal within 6 months."
-                  value={newExampleSentence}
-                  onChange={(e) => setNewExampleSentence(e.target.value)}
-                />
-              </div>
-              <div className="form-group">
-                <label>Collocations (one per line or comma-separated)</label>
-                <textarea
-                  className="textarea-field"
-                  style={{ minHeight: '60px' }}
-                  placeholder="accomplish a task, accomplish a mission"
-                  value={newCollocations}
-                  onChange={(e) => setNewCollocations(e.target.value)}
-                />
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="secondary-button" onClick={() => setShowNewCardModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="hero-action" disabled={isSubmitting}>
-                  {isSubmitting ? 'Saving...' : 'Save Card'}
-                </button>
+
+              <div className="modal-actions" style={{ marginTop: '14px' }}>
+                <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600 }}>
+                  Đã sẵn sàng {excelRows.filter((r) => r.term && r.term.trim().length > 0).length} từ để thêm vào Deck
+                </span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="button" className="secondary-button" onClick={() => setShowNewCardModal(false)}>
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="hero-action"
+                    disabled={isSubmitting || excelRows.filter((r) => r.term && r.term.trim().length > 0).length === 0}
+                  >
+                    <Sparkles size={16} />
+                    {isSubmitting
+                      ? 'Đang lưu...'
+                      : `Lưu tất cả (${excelRows.filter((r) => r.term && r.term.trim().length > 0).length}) từ vựng vào Deck`}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1105,14 +1601,33 @@ function Analytics() {
               <span />
               <span />
             </div>
-            <svg viewBox="0 0 700 220" preserveAspectRatio="none" aria-label="Retention trend chart">
+            <svg viewBox="0 0 700 200" preserveAspectRatio="none" aria-label="Retention trend chart">
+              <defs>
+                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.28" />
+                  <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+              {/* Filled area */}
               <path
-                d="M0 170 C55 155 70 125 130 143 S205 82 260 112 S325 150 365 92 S440 105 480 72 S550 95 600 50 S665 66 700 28"
+                d="M0 150 C55 135 70 105 130 123 S205 62 260 92 S325 130 365 72 S440 85 480 52 S550 75 600 30 S665 46 700 18 L700 200 L0 200 Z"
+                fill="url(#chartGrad)"
+              />
+              {/* Smooth Trend Line */}
+              <path
+                d="M0 150 C55 135 70 105 130 123 S205 62 260 92 S325 130 365 72 S440 85 480 52 S550 75 600 30 S665 46 700 18"
                 fill="none"
-                stroke="currentColor"
-                strokeWidth="4"
+                stroke="#4f46e5"
+                strokeWidth="3.5"
                 strokeLinecap="round"
               />
+              {/* Glowing Data Nodes */}
+              <circle cx="130" cy="123" r="4.5" fill="#ffffff" stroke="#4f46e5" strokeWidth="3" />
+              <circle cx="260" cy="92" r="4.5" fill="#ffffff" stroke="#4f46e5" strokeWidth="3" />
+              <circle cx="365" cy="72" r="4.5" fill="#ffffff" stroke="#4f46e5" strokeWidth="3" />
+              <circle cx="480" cy="52" r="4.5" fill="#ffffff" stroke="#4f46e5" strokeWidth="3" />
+              <circle cx="600" cy="30" r="4.5" fill="#ffffff" stroke="#4f46e5" strokeWidth="3" />
+              <circle cx="700" cy="18" r="5" fill="#4f46e5" stroke="#ffffff" strokeWidth="2" />
             </svg>
             <div className="chart-labels">
               <span>Week 1</span>
@@ -1269,20 +1784,22 @@ export default function Page() {
 
       <section className="main-area">
         <header className="topbar">
-          <div className="breadcrumbs">
-            <span>Workspace</span>
-            <span>/</span>
-            <b>{view}</b>
-          </div>
+          <div className="topbar-inner">
+            <div className="breadcrumbs">
+              <span>Workspace</span>
+              <span>/</span>
+              <b>{view}</b>
+            </div>
 
-          <div className="topbar-actions">
-            <button className="icon-button">
-              <Search size={18} />
-            </button>
-            <button className="upgrade-button">
-              <Sparkles size={15} /> Live Database
-            </button>
-            <span className="avatar">{userInitials}</span>
+            <div className="topbar-actions">
+              <button className="icon-button">
+                <Search size={18} />
+              </button>
+              <button className="upgrade-button">
+                <Sparkles size={15} /> Live Database
+              </button>
+              <span className="avatar">{userInitials}</span>
+            </div>
           </div>
         </header>
 
