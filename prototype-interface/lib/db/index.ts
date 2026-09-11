@@ -123,7 +123,8 @@ export function getDb(): any {
       try {
         const client = postgres(connectionString, {
           prepare: false,
-          connect_timeout: 5,
+          ssl: 'require',
+          connect_timeout: 10,
           idle_timeout: 10,
         })
         dbInstance = drizzlePostgres(client, { schema: pgSchema })
