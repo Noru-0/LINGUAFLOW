@@ -48,8 +48,22 @@ const navItems: { label: View; icon: typeof LayoutDashboard }[] = [
   { label: 'Analytics', icon: BarChart3 },
 ]
 
-function getTypeStyle(type: string) {
+function isDarkModeActive(): boolean {
+  if (typeof document === 'undefined') return false
+  return document.documentElement.classList.contains('dark')
+}
+
+function getTypeStyle(type: string, isDark?: boolean) {
   const t = (type || '').toLowerCase().trim()
+  const dark = isDark !== undefined ? isDark : isDarkModeActive()
+  if (dark) {
+    if (!t) return { background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', border: '1px solid rgba(129, 140, 248, 0.4)', fontWeight: 600 }
+    if (t === 'noun') return { background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: '1px solid rgba(96, 165, 250, 0.4)', fontWeight: 600 }
+    if (t === 'verb') return { background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.4)', fontWeight: 600 }
+    if (t === 'adjective') return { background: 'rgba(139, 92, 246, 0.2)', color: '#a78bfa', border: '1px solid rgba(167, 139, 250, 0.4)', fontWeight: 600 }
+    if (t === 'adverb') return { background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.4)', fontWeight: 600 }
+    return { background: 'rgba(244, 63, 94, 0.2)', color: '#fb7185', border: '1px solid rgba(253, 164, 175, 0.4)', fontWeight: 600 }
+  }
   if (!t) return { background: '#eef2ff', color: '#4338ca', border: '1px solid #818cf8', fontWeight: 600 }
   if (t === 'noun') return { background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', fontWeight: 600 }
   if (t === 'verb') return { background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', fontWeight: 600 }
@@ -58,8 +72,19 @@ function getTypeStyle(type: string) {
   return { background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3', fontWeight: 600 }
 }
 
-function getLevelRedStyle(level: string) {
+function getLevelRedStyle(level: string, isDark?: boolean) {
   const lvl = (level || '').toUpperCase().trim()
+  const dark = isDark !== undefined ? isDark : isDarkModeActive()
+  if (dark) {
+    if (!lvl) return { background: '#1e293b', color: '#94a3b8', border: '1px dashed #475569', fontWeight: 400 }
+    if (lvl === 'A1') return { background: 'rgba(244, 63, 94, 0.15)', color: '#fb7185', border: '1px solid rgba(251, 113, 133, 0.3)', fontWeight: 600 }
+    if (lvl === 'A2') return { background: 'rgba(244, 63, 94, 0.25)', color: '#f43f5e', border: '1px solid rgba(244, 63, 94, 0.4)', fontWeight: 600 }
+    if (lvl === 'B1') return { background: 'rgba(225, 29, 72, 0.35)', color: '#fda4af', border: '1px solid rgba(253, 164, 175, 0.5)', fontWeight: 700 }
+    if (lvl === 'B2') return { background: 'rgba(190, 18, 60, 0.45)', color: '#fecdd3', border: '1px solid rgba(254, 205, 211, 0.6)', fontWeight: 700 }
+    if (lvl === 'C1') return { background: '#be123c', color: '#ffffff', border: '1px solid #e11d48', fontWeight: 800 }
+    if (lvl === 'C2') return { background: '#9f1239', color: '#ffffff', border: '1px solid #be123c', fontWeight: 800 }
+    return { background: 'rgba(244, 63, 94, 0.15)', color: '#fb7185', border: '1px solid rgba(251, 113, 133, 0.3)', fontWeight: 600 }
+  }
   if (!lvl) return { background: '#f8fafc', color: '#94a3b8', border: '1px dashed #cbd5e1', fontWeight: 400 }
   if (lvl === 'A1') return { background: '#fff1f2', color: '#f43f5e', border: '1px solid #ffe4e6', fontWeight: 600 }
   if (lvl === 'A2') return { background: '#ffe4e6', color: '#e11d48', border: '1px solid #fecdd3', fontWeight: 600 }
@@ -289,7 +314,7 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
             </div>
             <div className="heatmap-legend">
               <span>Less</span>
-              {[1, 2, 3, 4].map((n) => (
+              {[0, 1, 2, 3, 4].map((n) => (
                 <i key={n} className={`level-${n}`} />
               ))}
               <span>More</span>
@@ -946,11 +971,11 @@ function Review({ setView }: { setView: (view: View) => void }) {
             {batches.length > 1 && (
               <span
                 style={{
-                  background: '#e0e7ff',
-                  color: '#4f46e5',
-                  padding: '2px 8px',
+                  background: isDarkModeActive() ? 'rgba(99, 102, 241, 0.25)' : '#e0e7ff',
+                  color: isDarkModeActive() ? '#a5b4fc' : '#4f46e5',
+                  padding: '3px 10px',
                   borderRadius: '12px',
-                  fontSize: '11px',
+                  fontSize: '12px',
                   fontWeight: 700,
                 }}
               >
@@ -1136,7 +1161,16 @@ function Review({ setView }: { setView: (view: View) => void }) {
                   <Volume2 size={14} />
                 </button>
                 {currentCard.partOfSpeech && (
-                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--muted-bg, #f1f5f9)', color: 'var(--foreground, #475569)', fontWeight: 600 }}>
+                  <span
+                    className="type-chip"
+                    style={{
+                      fontSize: '11px',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      textTransform: 'uppercase',
+                      ...getTypeStyle(currentCard.partOfSpeech),
+                    }}
+                  >
                     {currentCard.partOfSpeech}
                   </span>
                 )}
@@ -2274,34 +2308,36 @@ function Decks() {
           <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h3 style={{ margin: 0, color: '#0f172a' }}>{selectedCardAction.term}</h3>
-                <span className="type-chip">{selectedCardAction.partOfSpeech || 'noun'}</span>
+                <h3 className="word-detail-title" style={{ margin: 0 }}>{selectedCardAction.term}</h3>
+                <span className="type-chip" style={getTypeStyle(selectedCardAction.partOfSpeech || 'noun')}>
+                  {selectedCardAction.partOfSpeech || 'noun'}
+                </span>
               </div>
               <button className="modal-close" onClick={() => setSelectedCardAction(null)}>
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px', margin: '12px 0 18px' }}>
+            <div className="word-detail-content">
               <div>
-                <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700, display: 'block' }}>PHÁT ÂM</span>
-                <span style={{ fontFamily: 'monospace', color: '#4f46e5', fontSize: '14px' }}>{selectedCardAction.phonetic || '—'}</span>
+                <span className="word-detail-label">PHÁT ÂM</span>
+                <span className="word-detail-phonetic">{selectedCardAction.phonetic || '—'}</span>
               </div>
               <div>
-                <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700, display: 'block' }}>NGHĨA TIẾNG VIỆT</span>
-                <strong style={{ color: '#0f172a', fontSize: '14px' }}>{selectedCardAction.vietnameseDefinition}</strong>
+                <span className="word-detail-label">NGHĨA TIẾNG VIỆT</span>
+                <strong className="word-detail-vietnamese">{selectedCardAction.vietnameseDefinition}</strong>
               </div>
               <div>
-                <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700, display: 'block' }}>ĐỊNH NGHĨA TIẾNG ANH</span>
-                <p style={{ margin: '2px 0 0', color: '#475569', lineHeight: 1.4 }}>
+                <span className="word-detail-label">ĐỊNH NGHĨA TIẾNG ANH</span>
+                <p className="word-detail-english">
                   {typeof selectedCardAction.collocations === 'object' && selectedCardAction.collocations?.englishDefinition
                     ? selectedCardAction.collocations.englishDefinition
                     : 'A key vocabulary term recorded in your database deck.'}
                 </p>
               </div>
               <div>
-                <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 700, display: 'block' }}>CÂU VÍ DỤ</span>
-                <p style={{ margin: '2px 0 0', color: '#64748b', fontStyle: 'italic', lineHeight: 1.4 }}>
+                <span className="word-detail-label">CÂU VÍ DỤ</span>
+                <p className="word-detail-example">
                   {selectedCardAction.exampleSentence || '—'}
                 </p>
               </div>
@@ -3520,7 +3556,7 @@ export default function Page() {
                   >
                     <div>
                       <strong style={{ color: '#0f172a', fontSize: '13px' }}>{item.term}</strong>
-                      <span className="type-chip" style={{ marginLeft: '8px' }}>{item.partOfSpeech || 'noun'}</span>
+                      <span className="type-chip" style={{ marginLeft: '8px', ...getTypeStyle(item.partOfSpeech || 'noun') }}>{item.partOfSpeech || 'noun'}</span>
                       <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#475569' }}>{item.vietnameseDefinition}</p>
                     </div>
                     <span style={{ fontSize: '11px', color: '#64748b', background: '#e2e8f0', padding: '2px 8px', borderRadius: '4px' }}>

@@ -259,7 +259,7 @@ nav {
 .eyebrow {
   margin: 0 0 3px;
   color: #64748b;
-  font-size: 10px;
+  font-size: 11.5px;
   letter-spacing: 1.2px;
   font-weight: 750;
   text-transform: uppercase;
@@ -267,14 +267,16 @@ nav {
 .page-content h1 {
   margin: 0;
   letter-spacing: -0.8px;
-  font-size: 24px;
-  line-height: 1.15;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 800;
   color: #0f172a;
 }
 .subhead {
-  margin: 2px 0 0;
+  margin: 4px 0 0;
   color: #64748b;
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 1.35;
 }
 .profile-button, .select-button, .secondary-button {
   display: flex;
@@ -2130,6 +2132,76 @@ nav {
   color: #ffffff !important;
 }
 
+/* Word Detail Modal styling */
+.word-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 13px;
+  margin: 12px 0 18px;
+}
+
+.word-detail-title {
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.word-detail-label {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  display: block;
+}
+
+.word-detail-phonetic {
+  font-family: monospace;
+  color: #4f46e5;
+  font-size: 14px;
+}
+
+.word-detail-vietnamese {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.word-detail-english {
+  margin: 2px 0 0;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.word-detail-example {
+  margin: 2px 0 0;
+  color: #64748b;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.dark .word-detail-title {
+  color: #ffffff !important;
+}
+
+.dark .word-detail-label {
+  color: #818cf8 !important;
+}
+
+.dark .word-detail-phonetic {
+  color: #a5b4fc !important;
+}
+
+.dark .word-detail-vietnamese {
+  color: #ffffff !important;
+}
+
+.dark .word-detail-english {
+  color: #cbd5e1 !important;
+}
+
+.dark .word-detail-example {
+  color: #94a3b8 !important;
+}
+
 .dark .excel-grid-table {
   background: #0f172a !important;
   border-color: #1e293b !important;
@@ -2151,7 +2223,7 @@ nav {
 }
 
 .dark .excel-input,
-.dark .excel-select,
+.dark .excel-select:not(.type-cell),
 .dark .excel-textarea,
 .dark .input-field,
 .dark .select-field,
@@ -2161,11 +2233,15 @@ nav {
   color: #ffffff !important;
 }
 
-.dark .word-cell,
-.dark .type-cell {
+.dark .word-cell {
   background: #1a233a !important;
   border-color: #6366f1 !important;
   color: #a5b4fc !important;
+}
+
+.dark select.type-cell option {
+  background: #0f172a !important;
+  color: #f8fafc !important;
 }
 
 .dark .auto-cell {
@@ -2293,35 +2369,35 @@ nav {
 }
 
 /* 8. Overrides for Inline Style Backgrounds & Text */
-.dark [style*="background: #ffffff"],
-.dark [style*="background:#ffffff"],
-.dark [style*="background: #fff"],
-.dark [style*="background:#fff"],
-.dark [style*="background: rgb(255, 255, 255)"],
-.dark [style*="background: #f8fafc"],
-.dark [style*="background:#f8fafc"],
-.dark [style*="background: #f1f5f9"],
-.dark [style*="background:#f1f5f9"],
-.dark [style*="background: #eef2ff"],
-.dark [style*="background:#eef2ff"] {
+.dark [style*="background: #ffffff"]:not(.type-chip):not(.level-chip),
+.dark [style*="background:#ffffff"]:not(.type-chip):not(.level-chip),
+.dark [style*="background: #fff"]:not(.type-chip):not(.level-chip),
+.dark [style*="background:#fff"]:not(.type-chip):not(.level-chip),
+.dark [style*="background: rgb(255, 255, 255)"]:not(.type-chip):not(.level-chip),
+.dark [style*="background: #f8fafc"]:not(.type-chip):not(.level-chip),
+.dark [style*="background:#f8fafc"]:not(.type-chip):not(.level-chip),
+.dark [style*="background: #f1f5f9"]:not(.type-chip):not(.level-chip),
+.dark [style*="background:#f1f5f9"]:not(.type-chip):not(.level-chip),
+.dark [style*="background: #eef2ff"]:not(.type-chip):not(.level-chip),
+.dark [style*="background:#eef2ff"]:not(.type-chip):not(.level-chip) {
   background-color: #131b2e !important;
   border-color: #1e293b !important;
   color: #f8fafc !important;
 }
 
-.dark [style*="color: #0f172a"],
-.dark [style*="color:#0f172a"],
-.dark [style*="color: #1e293b"],
-.dark [style*="color:#1e293b"],
-.dark [style*="color: #334155"],
-.dark [style*="color:#334155"],
-.dark [style*="color: #475569"],
-.dark [style*="color:#475569"] {
+.dark [style*="color: #0f172a"]:not(.type-chip):not(.level-chip),
+.dark [style*="color:#0f172a"]:not(.type-chip):not(.level-chip),
+.dark [style*="color: #1e293b"]:not(.type-chip):not(.level-chip),
+.dark [style*="color:#1e293b"]:not(.type-chip):not(.level-chip),
+.dark [style*="color: #334155"]:not(.type-chip):not(.level-chip),
+.dark [style*="color:#334155"]:not(.type-chip):not(.level-chip),
+.dark [style*="color: #475569"]:not(.type-chip):not(.level-chip),
+.dark [style*="color:#475569"]:not(.type-chip):not(.level-chip) {
   color: #ffffff !important;
 }
 
-.dark [style*="color: #64748b"],
-.dark [style*="color:#64748b"] {
+.dark [style*="color: #64748b"]:not(.type-chip):not(.level-chip),
+.dark [style*="color:#64748b"]:not(.type-chip):not(.level-chip) {
   color: #94a3b8 !important;
 }
 
@@ -2426,16 +2502,40 @@ nav {
 }
 
 /* Dashboard CONSISTENCY Heatmap Cells in Dark Mode */
-.dark .squares span,
-.dark .level-0 {
-  background: #1e293b !important;
-  outline: 1px solid rgba(255, 255, 255, 0.04) !important;
+.dark .squares span {
+  outline: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
-.dark .level-1 { background: #0e4429 !important; }
-.dark .level-2 { background: #006d32 !important; }
-.dark .level-3 { background: #26a641 !important; }
-.dark .level-4 { background: #39d353 !important; }
+.dark .squares span.level-0,
+.dark .level-0 {
+  background: #334155 !important;
+}
+
+.dark .squares span.level-1,
+.dark .level-1 {
+  background: #86efac !important;
+}
+
+.dark .squares span.level-2,
+.dark .level-2 {
+  background: #34d399 !important;
+}
+
+.dark .squares span.level-3,
+.dark .level-3 {
+  background: #059669 !important;
+}
+
+.dark .squares span.level-4,
+.dark .level-4 {
+  background: #047857 !important;
+}
+
+.dark .heatmap-legend i.level-0 { background: #334155 !important; }
+.dark .heatmap-legend i.level-1 { background: #86efac !important; }
+.dark .heatmap-legend i.level-2 { background: #34d399 !important; }
+.dark .heatmap-legend i.level-3 { background: #059669 !important; }
+.dark .heatmap-legend i.level-4 { background: #047857 !important; }
 
 /* Dashboard MEMORY OVERVIEW Items in Dark Mode */
 .dark .memory-status-item {
@@ -2479,6 +2579,16 @@ nav {
 }
 
 /* Batch Complete Card ("1 / 12 thành thạo đợt này") */
+.dark .review-count {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+.dark .review-count strong {
+  color: #818cf8 !important;
+}
+
 .batch-complete-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
