@@ -28,9 +28,14 @@ import {
   X,
   Loader2,
   RefreshCw,
-  Volume2
+  Volume2,
+  LogIn,
+  LogOut,
+  UserPlus
 } from 'lucide-react'
 
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { AuthModal } from '@/components/auth/AuthModal'
 import { evaluateFillInBlank, buildHintPattern, firstLetterOf } from '@/lib/srs/dsr'
 
 type View = 'Dashboard' | 'Review' | 'Translate' | 'Decks' | 'Analytics'
@@ -161,7 +166,7 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
           <p className="eyebrow" suppressHydrationWarning>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
           </p>
-          <h1>Good morning, {user?.name?.split(' ')[0] || 'Alex'}</h1>
+          <h1>Good morning, {user?.name ? user.name.split(' ')[0] : 'Guest'}</h1>
           <p className="subhead">Keep your momentum going with LinguaFlow.</p>
         </div>
       </div>
@@ -766,20 +771,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
 
     return (
       <div className="page-content review-page" style={{ maxWidth: '640px', margin: '0 auto', paddingTop: '20px' }}>
-        <div
-          style={{
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '20px',
-            padding: '36px 28px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '16px',
-          }}
-        >
+        <div className="batch-complete-card">
           <div
             style={{
               width: '64px',
@@ -820,34 +812,21 @@ function Review({ setView }: { setView: (view: View) => void }) {
               : `Bạn đã làm chủ ${totalBatchUniqueCount} từ vựng trong Đợt ${batchIndex + 1}. Bạn có muốn tiếp tục sang đợt tiếp theo?`}
           </p>
 
-          <div
-            style={{
-              display: 'flex',
-              gap: '20px',
-              justifyContent: 'center',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              padding: '16px 24px',
-              borderRadius: '12px',
-              width: '100%',
-              boxSizing: 'border-box',
-              marginTop: '4px',
-            }}
-          >
+          <div className="batch-summary-box">
             <div>
-              <small style={{ color: '#64748b', fontSize: '11px', display: 'block', fontWeight: 600 }}>
+              <small style={{ fontSize: '11px', display: 'block', fontWeight: 600, opacity: 0.8 }}>
                 {isEmptyQueue ? 'TỪ CẦN ÔN HÔM NAY' : 'TỪ ĐÃ HỌC ĐỢT NÀY'}
               </small>
-              <strong style={{ fontSize: '18px', color: '#0f172a' }}>
+              <strong style={{ fontSize: '18px' }}>
                 {isEmptyQueue ? '0 từ' : `${totalBatchUniqueCount} từ`}
               </strong>
             </div>
-            <div style={{ borderRight: '1px solid #cbd5e1' }} />
+            <div className="batch-divider" />
             <div>
-              <small style={{ color: '#64748b', fontSize: '11px', display: 'block', fontWeight: 600 }}>
+              <small style={{ fontSize: '11px', display: 'block', fontWeight: 600, opacity: 0.8 }}>
                 {isEmptyQueue ? 'TRẠNG THÁI' : 'TỔNG SỐ ĐỢT HỌC'}
               </small>
-              <strong style={{ fontSize: '18px', color: '#4f46e5' }}>
+              <strong style={{ fontSize: '18px', color: '#4f46e5' }} className="highlight-text">
                 {isEmptyQueue ? 'Hoàn thành 100%' : batches.length > 0 ? `${batchIndex + 1} / ${batches.length}` : '1 / 1'}
               </strong>
             </div>
@@ -993,77 +972,25 @@ function Review({ setView }: { setView: (view: View) => void }) {
       </div>
 
       {/* Mode Switcher Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '6px',
-          margin: '14px 0',
-          background: '#f1f5f9',
-          padding: '4px',
-          borderRadius: '12px',
-          width: 'fit-content',
-        }}
-      >
+      <div className="mode-switcher-container">
         <button
           type="button"
           onClick={() => setModeFilter('mixed')}
-          style={{
-            border: 'none',
-            padding: '7px 14px',
-            borderRadius: '8px',
-            fontSize: '12px',
-            fontWeight: modeFilter === 'mixed' ? 700 : 500,
-            background: modeFilter === 'mixed' ? '#ffffff' : 'transparent',
-            color: modeFilter === 'mixed' ? '#4f46e5' : '#64748b',
-            boxShadow: modeFilter === 'mixed' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'all 0.15s ease',
-          }}
+          className={`mode-switcher-tab ${modeFilter === 'mixed' ? 'active' : ''}`}
         >
           <RefreshCw size={14} /> 🔀 Trộn lẫn (Mặc định)
         </button>
         <button
           type="button"
           onClick={() => setModeFilter('flashcard')}
-          style={{
-            border: 'none',
-            padding: '7px 14px',
-            borderRadius: '8px',
-            fontSize: '12px',
-            fontWeight: modeFilter === 'flashcard' ? 700 : 500,
-            background: modeFilter === 'flashcard' ? '#ffffff' : 'transparent',
-            color: modeFilter === 'flashcard' ? '#4f46e5' : '#64748b',
-            boxShadow: modeFilter === 'flashcard' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'all 0.15s ease',
-          }}
+          className={`mode-switcher-tab ${modeFilter === 'flashcard' ? 'active' : ''}`}
         >
           <Zap size={14} /> 🎴 Flashcards
         </button>
         <button
           type="button"
           onClick={() => setModeFilter('fill_in_blank')}
-          style={{
-            border: 'none',
-            padding: '7px 14px',
-            borderRadius: '8px',
-            fontSize: '12px',
-            fontWeight: modeFilter === 'fill_in_blank' ? 700 : 500,
-            background: modeFilter === 'fill_in_blank' ? '#ffffff' : 'transparent',
-            color: modeFilter === 'fill_in_blank' ? '#4f46e5' : '#64748b',
-            boxShadow: modeFilter === 'fill_in_blank' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'all 0.15s ease',
-          }}
+          className={`mode-switcher-tab ${modeFilter === 'fill_in_blank' ? 'active' : ''}`}
         >
           <Sparkles size={14} /> ✍️ Fill-in-the-Blank
         </button>
@@ -1180,18 +1107,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
       {/* MODE 2: FILL-IN-THE-BLANK (DSR EVALUATION) */}
       {activeMode === 'fill_in_blank' && (
         <div className="review-layout" style={{ maxWidth: '640px' }}>
-          <div
-            style={{
-              background: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '18px',
-              padding: '28px 24px',
-              boxShadow: '0 6px 20px rgba(0,0,0,0.04)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-            }}
-          >
+          <div className="fill-in-blank-card">
             {/* Header info */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1px', color: '#6366f1' }}>
@@ -1202,11 +1118,11 @@ function Review({ setView }: { setView: (view: View) => void }) {
                   type="button"
                   onClick={() => playCardAudio()}
                   title="Nghe phát âm (Phím tắt: R)"
+                  className="icon-button-sm"
                   style={{
                     padding: '4px 8px',
                     borderRadius: '6px',
                     border: '1px solid #cbd5e1',
-                    background: '#ffffff',
                     color: '#4f46e5',
                     cursor: 'pointer',
                     display: 'flex',
@@ -1220,7 +1136,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
                   <Volume2 size={14} />
                 </button>
                 {currentCard.partOfSpeech && (
-                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: '#f1f5f9', color: '#475569', fontWeight: 600 }}>
+                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--muted-bg, #f1f5f9)', color: 'var(--foreground, #475569)', fontWeight: 600 }}>
                     {currentCard.partOfSpeech}
                   </span>
                 )}
@@ -1234,25 +1150,14 @@ function Review({ setView }: { setView: (view: View) => void }) {
 
             {/* Vietnamese Meaning Prompt */}
             <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
-              <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>Nghĩa tiếng Việt</span>
-              <h2 style={{ fontSize: '24px', color: '#0f172a', fontWeight: 750, margin: '4px 0 0' }}>
+              <span style={{ fontSize: '12px', opacity: 0.8, fontWeight: 500 }}>Nghĩa tiếng Việt</span>
+              <h2 style={{ fontSize: '24px', fontWeight: 750, margin: '4px 0 0' }}>
                 {currentCard.vietnameseDefinition}
               </h2>
             </div>
 
             {/* Sentence with Blank */}
-            <div
-              style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                padding: '16px',
-                fontSize: '15px',
-                lineHeight: '1.6',
-                color: '#334155',
-                textAlign: 'center',
-              }}
-            >
+            <div className="sentence-blank-box">
               {getMaskedSentence()}
             </div>
 
@@ -3177,6 +3082,11 @@ export default function Page() {
   const [user, setUser] = useState<any>(null)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
+  // Theme & Auth Modals
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('login')
+
   // Global Interactive Modals
   const [showHelpModal, setShowHelpModal] = useState(false)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
@@ -3195,6 +3105,18 @@ export default function Page() {
   const [saveMessage, setSaveMessage] = useState('')
 
   useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
+      if (savedTheme) {
+        setTheme(savedTheme)
+        if (savedTheme === 'dark') document.documentElement.classList.add('dark')
+        else document.documentElement.classList.remove('dark')
+      } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        setTheme('dark')
+        document.documentElement.classList.add('dark')
+      }
+    } catch (e) {}
+
     fetch('/api/auth/me')
       .then((res) => res.json())
       .then((data) => {
@@ -3206,7 +3128,30 @@ export default function Page() {
       .catch(() => {})
   }, [])
 
-  const userInitials = user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2) : 'AL'
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light'
+    setTheme(nextTheme)
+    try {
+      localStorage.setItem('theme', nextTheme)
+      if (nextTheme === 'dark') {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    } catch (e) {}
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+      setUser(null)
+      setUserNameInput('')
+      setShowProfileModal(false)
+      window.location.href = '/login'
+    } catch (e) {}
+  }
+
+  const userInitials = user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2) : '?'
 
   const handleGlobalSearch = async (query: string) => {
     setSearchQuery(query)
@@ -3281,7 +3226,7 @@ export default function Page() {
           ))}
         </nav>
 
-        <div className="sidebar-bottom">
+        <div className="sidebar-bottom" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <button className="nav-item" onClick={() => setShowHelpModal(true)}>
             <CircleHelp size={18} />
             <span>Help center</span>
@@ -3291,19 +3236,33 @@ export default function Page() {
             <span>Settings</span>
           </button>
 
-          <div
-            className="sidebar-user"
-            style={{ cursor: 'pointer' }}
-            onClick={() => setShowProfileModal(true)}
-            title="Xem hồ sơ"
-          >
-            <span className="avatar">{userInitials}</span>
-            <span>
-              <b>{user?.name || 'Alex Lee'}</b>
-              <small>Student</small>
-            </span>
-            <MoreHorizontal size={17} />
-          </div>
+          {user ? (
+            <div
+              className="sidebar-user"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setShowProfileModal(true)}
+              title="Xem hồ sơ cá nhân"
+            >
+              <span className="avatar">{userInitials}</span>
+              <span>
+                <b>{user.name}</b>
+                <small>{user.email || 'Student'}</small>
+              </span>
+              <MoreHorizontal size={17} />
+            </div>
+          ) : (
+            <button
+              className="auth-primary-btn"
+              style={{ marginTop: '6px' }}
+              onClick={() => {
+                setAuthInitialTab('login')
+                setShowAuthModal(true)
+              }}
+            >
+              <LogIn size={16} />
+              <span>Đăng nhập / Đăng ký</span>
+            </button>
+          )}
         </div>
       </aside>
 
@@ -3314,7 +3273,8 @@ export default function Page() {
             lingua<span>flow</span>
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <button className="icon-button" title="Tìm kiếm từ vựng" onClick={() => setShowSearchModal(true)}>
             <Search size={20} />
           </button>
@@ -3338,18 +3298,33 @@ export default function Page() {
               <b>{view}</b>
             </div>
 
-            <div className="topbar-actions">
+            <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
               <button className="icon-button" title="Tìm kiếm từ vựng" onClick={() => setShowSearchModal(true)}>
                 <Search size={18} />
               </button>
-              <span
-                className="avatar"
-                style={{ cursor: 'pointer' }}
-                title="Hồ sơ cá nhân"
-                onClick={() => setShowProfileModal(true)}
-              >
-                {userInitials}
-              </span>
+
+              {user ? (
+                <span
+                  className="avatar"
+                  style={{ cursor: 'pointer' }}
+                  title="Hồ sơ cá nhân"
+                  onClick={() => setShowProfileModal(true)}
+                >
+                  {userInitials}
+                </span>
+              ) : (
+                <button
+                  className="secondary-button"
+                  style={{ padding: '5px 12px', fontSize: '12px' }}
+                  onClick={() => {
+                    setAuthInitialTab('login')
+                    setShowAuthModal(true)
+                  }}
+                >
+                  Đăng nhập
+                </button>
+              )}
             </div>
           </div>
         </header>
@@ -3588,7 +3563,7 @@ export default function Page() {
               <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#4f46e5', color: '#fff', display: 'grid', placeItems: 'center', fontSize: '24px', fontWeight: 700 }}>
                 {userInitials}
               </div>
-              <h3 style={{ margin: 0, color: '#0f172a' }}>{user?.name || 'Alex Lee'}</h3>
+              <h3 style={{ margin: 0 }}>{user?.name || 'Alex Lee'}</h3>
               <span style={{ fontSize: '12px', color: '#64748b', background: '#f1f5f9', padding: '3px 10px', borderRadius: '12px' }}>
                 Học viên chính thức • LinguaFlow Member
               </span>
@@ -3597,17 +3572,33 @@ export default function Page() {
               </p>
             </div>
 
-            <div className="modal-actions" style={{ justifyContent: 'center' }}>
-              <button type="button" className="secondary-button" onClick={() => setShowProfileModal(false)}>
-                Đóng
+            <div className="modal-actions" style={{ justifyContent: 'center', gap: '10px' }}>
+              <button
+                type="button"
+                className="secondary-button"
+                style={{ color: '#ef4444', borderColor: '#fca5a5' }}
+                onClick={handleLogout}
+              >
+                <LogOut size={15} /> Đăng xuất
               </button>
               <button type="button" className="hero-action" onClick={() => { setShowProfileModal(false); setShowSettingsModal(true); }}>
-                Chỉnh sửa cài đặt
+                Cài đặt
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* AUTHENTICATION MODAL */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={(userData) => {
+          setUser(userData)
+          setUserNameInput(userData.name || '')
+        }}
+        initialTab={authInitialTab}
+      />
     </main>
   )
 }
