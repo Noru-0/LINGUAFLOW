@@ -172,7 +172,7 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
             <Sparkles size={14} /> DAILY GOAL
           </span>
           <h2>Make today count.</h2>
-          <p>You&apos;re building long-term memory with SuperMemo SM-2 algorithms.</p>
+          <p>Rèn luyện và ghi nhớ từ vựng hiệu quả mỗi ngày cùng LinguaFlow.</p>
           <div className="hero-progress">
             <div>
               <span>Daily target</span>
@@ -814,7 +814,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
 
           <p style={{ fontSize: '13.5px', color: '#64748b', margin: 0, maxWidth: '460px', lineHeight: 1.5 }}>
             {isEmptyQueue
-              ? 'Hiện tại không có từ vựng nào đến lịch cần ôn tập theo thuật toán SRS. Bạn có thể bấm "Ôn Luyện Tự Do Thêm" để ôn lại toàn bộ deck hoặc thêm từ vựng mới!'
+              ? 'Hiện tại không có từ vựng nào đến lịch cần ôn tập. Bạn có thể bấm "Ôn Luyện Tự Do Thêm" để ôn lại toàn bộ deck hoặc thêm từ vựng mới!'
               : isFinal
               ? 'Bạn đã làm chủ hoàn toàn các từ vựng trong lượt ôn tập này. Hãy tiếp tục duy trì thói quen học hàng ngày!'
               : `Bạn đã làm chủ ${totalBatchUniqueCount} từ vựng trong Đợt ${batchIndex + 1}. Bạn có muốn tiếp tục sang đợt tiếp theo?`}
@@ -839,13 +839,13 @@ function Review({ setView }: { setView: (view: View) => void }) {
                 {isEmptyQueue ? 'TỪ CẦN ÔN HÔM NAY' : 'TỪ ĐÃ HỌC ĐỢT NÀY'}
               </small>
               <strong style={{ fontSize: '18px', color: '#0f172a' }}>
-                {isEmptyQueue ? '0 từ (Sạch hàng đợi)' : `${totalBatchUniqueCount} từ`}
+                {isEmptyQueue ? '0 từ' : `${totalBatchUniqueCount} từ`}
               </strong>
             </div>
             <div style={{ borderRight: '1px solid #cbd5e1' }} />
             <div>
               <small style={{ color: '#64748b', fontSize: '11px', display: 'block', fontWeight: 600 }}>
-                {isEmptyQueue ? 'TRẠNG THÁI HÀNG ĐỢI' : 'TỔNG SỐ ĐỢT HỌC'}
+                {isEmptyQueue ? 'TRẠNG THÁI' : 'TỔNG SỐ ĐỢT HỌC'}
               </small>
               <strong style={{ fontSize: '18px', color: '#4f46e5' }}>
                 {isEmptyQueue ? 'Hoàn thành 100%' : batches.length > 0 ? `${batchIndex + 1} / ${batches.length}` : '1 / 1'}
@@ -1195,7 +1195,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
             {/* Header info */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1px', color: '#6366f1' }}>
-                FILL-IN-THE-BLANK DRILL
+                LUYỆN ĐIỀN TỪ
               </div>
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                 <button
@@ -2999,36 +2999,62 @@ function Analytics() {
     )
   }
 
-  const learningCount = data?.cardHealth?.learning ?? 0
-  const youngCount = data?.cardHealth?.young ?? 0
-  const matureCount = data?.cardHealth?.mature ?? 0
-  const totalCards = data?.totalCards ?? (learningCount + youngCount + matureCount)
+  const learningCount = data?.memoryStatus?.learning ?? data?.cardHealth?.learning ?? 0
+  const youngCount = data?.memoryStatus?.reviewing ?? data?.cardHealth?.young ?? 0
+  const matureCount = data?.memoryStatus?.mastered ?? data?.cardHealth?.mature ?? 0
+  const newCount = data?.memoryStatus?.new ?? 0
+  const totalCards = data?.totalCards ?? (learningCount + youngCount + matureCount + newCount)
 
   return (
     <div className="page-content">
       <div className="welcome-row">
         <div>
-          <p className="eyebrow">INSIGHTS</p>
-          <h1>Your learning analytics</h1>
-          <p className="subhead">SuperMemo retention rates and translation history.</p>
+          <p className="eyebrow">THỐNG KÊ & PHÂN TÍCH</p>
+          <h1>Phân tích tiến độ học tập</h1>
+          <p className="subhead">Theo dõi tỷ lệ ghi nhớ, trạng thái trí nhớ và lịch sử luyện tập hàng ngày.</p>
         </div>
       </div>
 
-      <div className="analytics-metrics">
-        <MetricCard icon={TrendingUp} label="Retention rate" value={data?.retentionRate || '100.0%'} detail="Calculated over DB review logs" tone="mint" />
-        <MetricCard icon={Target} label="Cards tracked" value={String(totalCards)} detail={`${data?.cardsDue || 0} due for review`} tone="blue" />
-        <MetricCard icon={Zap} label="Current streak" value={`${data?.streak?.current || 0} days`} detail={`Longest: ${data?.streak?.longest || 0} days`} tone="purple" />
+      <div className="analytics-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+        <MetricCard
+          icon={TrendingUp}
+          label="Tỷ lệ ghi nhớ"
+          value={data?.retentionRate || '100.0%'}
+          detail={`Tính trên tổng ${data?.totalSessions || 0} lượt luyện tập`}
+          tone="mint"
+        />
+        <MetricCard
+          icon={Target}
+          label="Tổng thẻ theo dõi"
+          value={String(totalCards)}
+          detail={`${data?.cardsDue || 0} thẻ đến hạn ôn hôm nay`}
+          tone="blue"
+        />
+        <MetricCard
+          icon={Zap}
+          label="Chuỗi ngày học"
+          value={`${data?.streak?.current || 0} ngày`}
+          detail={`Kỷ lục: ${data?.streak?.longest || 0} ngày liên tiếp`}
+          tone="purple"
+        />
+        <MetricCard
+          icon={BookOpen}
+          label="Hôm nay đã học"
+          value={`${data?.reviewedToday || 0} từ`}
+          detail="Từ vựng độc lập trong ngày"
+          tone="orange"
+        />
       </div>
 
       <div className="analytics-grid">
         <section className="panel chart-panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">RETENTION</p>
-              <h3>Memory stability trend</h3>
+              <p className="eyebrow">ĐỘ BỀN TRÍ NHỚ</p>
+              <h3>Xu hướng duy trì trí nhớ</h3>
             </div>
             <span className="chart-key">
-              <i /> Live Database Activity
+              <i /> Thống kê tiến độ ghi nhớ
             </span>
           </div>
           <div className="line-chart">
@@ -3039,7 +3065,7 @@ function Analytics() {
               <span />
               <span />
             </div>
-            <svg viewBox="0 0 700 200" preserveAspectRatio="none" aria-label="Retention trend chart">
+            <svg viewBox="0 0 700 200" preserveAspectRatio="none" aria-label="Biểu đồ độ bền trí nhớ">
               <defs>
                 <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.28" />
@@ -3068,11 +3094,11 @@ function Analytics() {
               <circle cx="700" cy="18" r="5" fill="#4f46e5" stroke="#ffffff" strokeWidth="2" />
             </svg>
             <div className="chart-labels">
-              <span>Week 1</span>
-              <span>Week 2</span>
-              <span>Week 3</span>
-              <span>Week 4</span>
-              <span>Today</span>
+              <span>Tuần 1</span>
+              <span>Tuần 2</span>
+              <span>Tuần 3</span>
+              <span>Tuần 4</span>
+              <span>Hôm nay</span>
             </div>
           </div>
         </section>
@@ -3080,25 +3106,29 @@ function Analytics() {
         <section className="panel distribution-panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">CARD STABILITY</p>
-              <h3>Memory stages</h3>
+              <p className="eyebrow">PHÂN BỔ TRÍ NHỚ</p>
+              <h3>Giai đoạn ghi nhớ</h3>
             </div>
           </div>
           {[
-            ['Learning', learningCount, 'blue'],
-            ['Young', youngCount, 'purple'],
-            ['Mature', matureCount, 'green'],
-          ].map(([stageName, countVal, tone]) => {
+            ['Từ mới', newCount, 'gray', 'Chưa học'],
+            ['Đang học', learningCount, 'blue', 'Khoảng cách < 2 ngày'],
+            ['Đang củng cố', youngCount, 'purple', 'Khoảng cách 2 - 30 ngày'],
+            ['Thành thạo', matureCount, 'green', 'Khoảng cách ≥ 30 ngày'],
+          ].map(([stageName, countVal, tone, subtext]) => {
             const numVal = Number(countVal)
             const percent = totalCards > 0 ? Math.round((numVal / totalCards) * 100) : 0
+            const toneColor = tone === 'green' ? '#10b981' : tone === 'purple' ? '#8b5cf6' : tone === 'blue' ? '#3b82f6' : '#94a3b8'
             return (
-              <div className="bar-item" key={String(stageName)}>
-                <div>
-                  <span>{stageName}</span>
-                  <b>{numVal} cards ({percent}%)</b>
+              <div className="bar-item" key={String(stageName)} style={{ marginBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
+                  <span style={{ fontWeight: 600, color: '#1e293b' }}>
+                    {stageName} <small style={{ color: '#94a3b8', fontWeight: 400, marginLeft: '4px' }}>({subtext})</small>
+                  </span>
+                  <b style={{ color: toneColor }}>{numVal} thẻ ({percent}%)</b>
                 </div>
-                <div className="bar">
-                  <i className={String(tone)} style={{ width: `${percent}%` }} />
+                <div className="bar" style={{ height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                  <i style={{ width: `${percent}%`, background: toneColor, height: '100%', display: 'block', borderRadius: '4px', transition: 'width 0.4s ease' }} />
                 </div>
               </div>
             )
@@ -3106,11 +3136,11 @@ function Analytics() {
         </section>
       </div>
 
-      <section className="panel history-panel">
+      <section className="panel history-panel" style={{ marginTop: '20px' }}>
         <div className="panel-header">
           <div>
-            <p className="eyebrow">RECENT ATTEMPTS</p>
-            <h3>Translation history log</h3>
+            <p className="eyebrow">NHẬT KÝ LUYỆN TẬP GẦN ĐÂY</p>
+            <h3>Lịch sử dịch câu & kiểm tra</h3>
           </div>
         </div>
 
@@ -3125,12 +3155,14 @@ function Analytics() {
                 <small>{log.grammarCategory} • {log.vietnameseText}</small>
               </span>
               <strong className={log.isCorrect ? 'positive' : 'negative'}>
-                {log.isCorrect ? 'Correct' : 'Review'}
+                {log.isCorrect ? 'Chính xác' : 'Cần ôn lại'}
               </strong>
             </div>
           ))
         ) : (
-          <div style={{ padding: '16px', color: '#64748b' }}>No recent translation logs recorded in database yet.</div>
+          <div style={{ padding: '20px', color: '#64748b', textAlign: 'center', fontSize: '13.5px' }}>
+            Chưa có lịch sử câu dịch nào được ghi nhận trong cơ sở dữ liệu.
+          </div>
         )}
       </section>
     </div>
