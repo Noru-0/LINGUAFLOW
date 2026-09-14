@@ -8,11 +8,14 @@ import { safeJsonParse } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await seedDatabase()
     const session = await getSession()
     const userId = session?.userId || 'user_demo_alex_lee'
+
+    const { searchParams } = new URL(request.url)
+    const includeAll = searchParams.get('all') === 'true'
 
     const nowIso = new Date().toISOString()
 
@@ -52,7 +55,6 @@ export async function GET() {
     }
 
     let dueCards: any[] = []
-    let allUserCards: any[] = []
 
     try {
       dueCards = await db
@@ -73,9 +75,10 @@ export async function GET() {
     }
 
     let result = dueCards
-    if (result.length === 0) {
+
+    if (includeAll && result.length === 0) {
       try {
-        allUserCards = await db
+        result = await db
           .select(fullSelectFields)
           .from(cards)
           .innerJoin(cardSrsStates, eq(cards.id, cardSrsStates.cardId))
@@ -83,7 +86,7 @@ export async function GET() {
           .where(eq(cardSrsStates.userId, userId))
           .limit(30)
       } catch {
-        allUserCards = await db
+        result = await db
           .select(baseSelectFields)
           .from(cards)
           .innerJoin(cardSrsStates, eq(cards.id, cardSrsStates.cardId))
@@ -91,7 +94,6 @@ export async function GET() {
           .where(eq(cardSrsStates.userId, userId))
           .limit(30)
       }
-      result = allUserCards
     }
 
     const formattedQueue = result.map((item: any) => ({

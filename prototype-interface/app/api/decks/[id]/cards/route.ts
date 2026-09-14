@@ -139,14 +139,17 @@ export async function POST(
       }
 
       const primaryDef = enriched?.definitions?.[0]
+      const term = item.term.trim()
 
-      const term = item.term
-      const vietnameseDefinition = item.vietnameseDefinition || primaryDef?.vietnameseMeaning || primaryDef?.englishMeaning || `Nghĩa của từ ${term}`
-      const englishMeaning = item.englishMeaning || primaryDef?.englishMeaning || ''
+      const isPlaceholderViet = !item.vietnameseDefinition || item.vietnameseDefinition.startsWith('Nghĩa')
+      const vietnameseDefinition = !isPlaceholderViet
+        ? item.vietnameseDefinition
+        : primaryDef?.vietnameseMeaning || primaryDef?.englishMeaning || `Nghĩa tiếng Việt của ${term}`
+      const englishMeaning = item.englishMeaning || item.collocations?.englishDefinition || primaryDef?.englishMeaning || enriched?.englishMeaning || ''
       const phonetic = item.phonetic || enriched?.ipaUk || enriched?.ipaUs || ''
-      const partOfSpeech = item.partOfSpeech || enriched?.partOfSpeech || 'noun'
-      const exampleSentence = item.exampleSentence || primaryDef?.examples?.[0] || ''
-      const cefrLevel = item.cefrLevel || primaryDef?.cefrLevel || null
+      const partOfSpeech = (item.partOfSpeech && item.partOfSpeech !== 'noun') ? item.partOfSpeech : (enriched?.partOfSpeech || item.partOfSpeech || 'noun')
+      const exampleSentence = item.exampleSentence || primaryDef?.examples?.[0] || enriched?.examples?.[0] || ''
+      const cefrLevel = item.cefrLevel || item.collocations?.level || primaryDef?.cefrLevel || enriched?.cefrLevel || 'B1'
       const audioUrl = item.audioUrl || enriched?.audioUkUrl || enriched?.audioUsUrl || null
       const imageUrl = item.imageUrl || enriched?.imageUrl || null
       const allDefinitionsJson = JSON.stringify(item.allDefinitions || enriched?.definitions || [])

@@ -34,11 +34,21 @@ export async function GET(req: Request) {
     };
 
     // Combine top 3 distinct Vietnamese meanings
-    const vietnameseMeanings = defs
-      .map((d) => d.vietnameseMeaning)
-      .filter((v, i, self) => Boolean(v) && self.indexOf(v) === i);
+    const cleanViList: string[] = [];
+    for (const d of defs) {
+      if (!d.vietnameseMeaning) continue;
+      const raw = d.vietnameseMeaning.trim();
+      if (/[a-zA-Z]{6,}\s+[a-zA-Z]{4,}/.test(raw)) continue;
 
-    const combinedVietnamese = vietnameseMeanings.length > 0 ? vietnameseMeanings.join('; ') : primaryDef.englishMeaning;
+      const parts = raw.split(/[;,/]/).map((p) => p.trim());
+      for (const p of parts) {
+        if (p && !cleanViList.includes(p)) {
+          cleanViList.push(p);
+        }
+      }
+    }
+
+    const combinedVietnamese = cleanViList.length > 0 ? cleanViList.slice(0, 3).join(', ') : primaryDef.vietnameseMeaning || '';
 
     // Combine top 3 English meanings
     const englishMeanings = defs
@@ -50,9 +60,13 @@ export async function GET(req: Request) {
     // Collect all examples from top 3 meanings
     const allExamples = defs.flatMap((d) => d.examples || []);
 
+    const effectivePos = (enriched.partOfSpeech && enriched.partOfSpeech !== 'noun')
+      ? enriched.partOfSpeech
+      : (type && type !== 'noun' ? type : (enriched.partOfSpeech || 'noun'));
+
     return NextResponse.json({
       term: enriched.term,
-      partOfSpeech: type || enriched.partOfSpeech || 'noun',
+      partOfSpeech: effectivePos,
       phonetic: enriched.ipaUk || enriched.ipaUs || '',
       vietnameseMeaning: combinedVietnamese,
       englishMeaning: combinedEnglish || primaryDef.englishMeaning,

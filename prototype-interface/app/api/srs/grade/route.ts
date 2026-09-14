@@ -165,6 +165,13 @@ export async function POST(request: Request) {
           })
           .where(eq(userStreaks.userId, userId))
       }
+    } else {
+      await db.insert(userStreaks).values({
+        userId,
+        currentStreak: 1,
+        longestStreak: 1,
+        lastActivityDate: todayDate,
+      })
     }
 
     return NextResponse.json({

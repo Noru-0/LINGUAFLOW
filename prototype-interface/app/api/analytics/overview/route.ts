@@ -7,12 +7,26 @@ import { eq, lte, count, and, desc } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
+function extractDateStr(createdAt: any): string {
+  if (!createdAt) return ''
+  if (typeof createdAt === 'string') {
+    const match = createdAt.match(/^\d{4}-\d{2}-\d{2}/)
+    if (match) return match[0]
+  }
+  try {
+    return new Date(createdAt).toISOString().split('T')[0]
+  } catch {
+    return ''
+  }
+}
+
 export async function GET() {
   try {
     await seedDatabase()
     const session = await getSession()
     const userId = session?.userId || 'user_demo_alex_lee'
     const nowIso = new Date().toISOString()
+    const todayStr = extractDateStr(nowIso)
 
     // 1. Fetch Streak
     const streaks = await db.select().from(userStreaks).where(eq(userStreaks.userId, userId)).limit(1)
@@ -32,17 +46,25 @@ export async function GET() {
       .where(eq(decks.userId, userId))
     const totalDecks = totalDecksRes[0]?.val || 0
 
-    // 4. Fetch Stability Breakdown & Total Cards
+    // 4. Fetch Real Memory Status Breakdown & Total Cards
+    const totalCardsRes = await db.select({ val: count() }).from(cards)
+    const totalCardsInDb = totalCardsRes[0]?.val || 0
+
     const srsStates = await db.select().from(cardSrsStates).where(eq(cardSrsStates.userId, userId))
-    let learning = 0
-    let young = 0
-    let mature = 0
+
+    let masteredCount = 0
+    let reviewingCount = 0
+    let learningCount = 0
 
     for (const s of srsStates) {
-      if (s.interval <= 1) learning++
-      else if (s.interval <= 21) young++
-      else mature++
+      if (s.repetition > 0) {
+        if (s.interval >= 30) masteredCount++
+        else if (s.interval >= 2) reviewingCount++
+        else learningCount++
+      }
     }
+
+    const newCardsCount = Math.max(0, totalCardsInDb - (masteredCount + reviewingCount + learningCount))
 
     // 5. Fetch Recent Translation Logs
     const recentLogs = await db
@@ -72,20 +94,30 @@ export async function GET() {
     const successfulAttempts = goodReviews + goodTranslations
     const retentionRate = totalAttempts > 0 ? ((successfulAttempts / totalAttempts) * 100).toFixed(1) : '100.0'
 
-    // 7. Calculate Real Streak from Activity Dates
+    // 7. Extract Robust Dates & Calculate Real Streak
+    const reviewDates = userReviewLogs.map((l: any) => extractDateStr(l.createdAt)).filter(Boolean)
+    const translationDates = userTranslationLogs.map((l: any) => extractDateStr(l.createdAt)).filter(Boolean)
+    
+    // Count UNIQUE vocabulary cards learned/reviewed today (distinct cardId)
+    const todayUniqueCards = new Set(
+      userReviewLogs
+        .filter((l: any) => extractDateStr(l.createdAt) === todayStr && l.cardId)
+        .map((l: any) => l.cardId)
+    )
+    const reviewedToday = todayUniqueCards.size
+
     const allActivityDates = Array.from(new Set([
-      ...userReviewLogs.map((l: any) => l.createdAt.split('T')[0]),
-      ...userTranslationLogs.map((l: any) => l.createdAt.split('T')[0]),
+      ...reviewDates,
+      ...translationDates,
     ])).sort()
 
     let realCurrentStreak = 0
     let realLongestStreak = 0
 
     if (allActivityDates.length > 0) {
-      const todayStr = new Date().toISOString().split('T')[0]
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
-      const yesterdayStr = yesterday.toISOString().split('T')[0]
+      const yesterdayStr = extractDateStr(yesterday.toISOString())
 
       const hasToday = allActivityDates.includes(todayStr)
       const hasYesterday = allActivityDates.includes(yesterdayStr)
@@ -93,7 +125,7 @@ export async function GET() {
       if (hasToday || hasYesterday) {
         let checkDate = new Date(hasToday ? todayStr : yesterdayStr)
         while (true) {
-          const dateStr = checkDate.toISOString().split('T')[0]
+          const dateStr = extractDateStr(checkDate.toISOString())
           if (allActivityDates.includes(dateStr)) {
             realCurrentStreak++
             checkDate.setDate(checkDate.getDate() - 1)
@@ -122,28 +154,26 @@ export async function GET() {
       }
     }
 
-    // 8. Heatmap Activity (Past 364 days / 12 months)
-    const dateCounts: Record<string, number> = {}
+    // 8. Heatmap Activity: UNIQUE Vocabulary Words Learned per Day (Past 364 days / 12 months)
+    const uniqueCardsByDate: Record<string, Set<string>> = {}
     const now = new Date()
     for (let i = 0; i < 364; i++) {
       const d = new Date(now)
       d.setDate(d.getDate() - i)
-      const dateKey = d.toISOString().split('T')[0]
-      dateCounts[dateKey] = 0
+      const dateKey = extractDateStr(d.toISOString())
+      uniqueCardsByDate[dateKey] = new Set<string>()
     }
 
     userReviewLogs.forEach((l: any) => {
-      const key = l.createdAt.split('T')[0]
-      if (dateCounts[key] !== undefined) dateCounts[key]++
-    })
-    userTranslationLogs.forEach((l: any) => {
-      const key = l.createdAt.split('T')[0]
-      if (dateCounts[key] !== undefined) dateCounts[key]++
+      const key = extractDateStr(l.createdAt)
+      if (key && uniqueCardsByDate[key] && l.cardId) {
+        uniqueCardsByDate[key].add(l.cardId)
+      }
     })
 
-    const activityMap = Object.keys(dateCounts)
+    const activityMap = Object.keys(uniqueCardsByDate)
       .sort()
-      .map((date) => dateCounts[date])
+      .map((dateKey) => uniqueCardsByDate[dateKey].size)
 
     return NextResponse.json({
       streak: {
@@ -151,20 +181,21 @@ export async function GET() {
         longest: realLongestStreak,
       },
       cardsDue: dueCount,
-      totalCards: srsStates.length,
+      reviewedToday,
+      totalCards: totalCardsInDb,
       totalDecks,
       retentionRate: `${retentionRate}%`,
       totalSessions: totalAttempts,
       cardHealth: {
-        learning,
-        young,
-        mature,
+        learning: learningCount,
+        young: reviewingCount,
+        mature: masteredCount,
       },
       memoryStatus: {
-        mastered: 172,
-        reviewing: 617,
-        learning: 191,
-        new: 0,
+        mastered: masteredCount,
+        reviewing: reviewingCount,
+        learning: learningCount,
+        new: newCardsCount,
       },
       recentTranslations: recentLogs,
       activityMap,

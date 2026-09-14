@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   AlertTriangle,
   ArrowRight,
@@ -30,6 +30,8 @@ import {
   RefreshCw,
   Volume2
 } from 'lucide-react'
+
+import { evaluateFillInBlank, buildHintPattern, firstLetterOf } from '@/lib/srs/dsr'
 
 type View = 'Dashboard' | 'Review' | 'Translate' | 'Decks' | 'Analytics'
 
@@ -212,13 +214,14 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
               icon={Target}
               label="Due today"
               value={loading ? '...' : String(cardsDueCount)}
+              detail={metrics?.reviewedToday ? `✓ Đã hoàn thành ${metrics.reviewedToday} từ hôm nay` : 'Số từ vựng đến lịch ôn tập'}
               tone="blue"
             />
             <MetricCard
               icon={Flame}
               label="Day streak"
-              value={loading ? '...' : `${metrics?.streak?.current ?? 0} days`}
-              detail={`Personal best: ${metrics?.streak?.longest ?? 0} days`}
+              value={loading ? '...' : `${metrics?.streak?.current ?? 0} ngày`}
+              detail={`Kỷ lục cá nhân: ${metrics?.streak?.longest ?? 0} ngày`}
               tone="orange"
             />
           </div>
@@ -268,17 +271,17 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
                           const r = e.currentTarget.getBoundingClientRect()
                           setHeatTooltip({
                             x: r.left + r.width / 2,
-                          y: r.top,
-                          text: `${v} ${v === 1 ? 'activity' : 'activities'} on ${heatmapDateLabel(i)}`,
-                        })
-                      }}
-                      onMouseLeave={() => setHeatTooltip(null)}
-                    />
-                  ))}
+                            y: r.top,
+                            text: `${v} từ vựng đã học ngày ${heatmapDateLabel(i)}`,
+                          })
+                        }}
+                        onMouseLeave={() => setHeatTooltip(null)}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
             <div className="heatmap-legend">
               <span>Less</span>
               {[1, 2, 3, 4].map((n) => (
@@ -299,7 +302,7 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
               <div className="memory-status-info">
                 <div className="memory-status-title-row">
                   <b>Mastered</b>
-                  <span className="memory-count green">{metrics?.memoryStatus?.mastered ?? 172}</span>
+                  <span className="memory-count green">{loading ? '...' : (metrics?.memoryStatus?.mastered ?? 0)}</span>
                 </div>
                 <small>Half-life ≥ 30 ngày (Đã nhớ sâu)</small>
               </div>
@@ -312,7 +315,7 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
               <div className="memory-status-info">
                 <div className="memory-status-title-row">
                   <b>Reviewing</b>
-                  <span className="memory-count blue">{metrics?.memoryStatus?.reviewing ?? 617}</span>
+                  <span className="memory-count blue">{loading ? '...' : (metrics?.memoryStatus?.reviewing ?? 0)}</span>
                 </div>
                 <small>Half-life ≥ 2 ngày (Đang ôn tập)</small>
               </div>
@@ -325,7 +328,7 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
               <div className="memory-status-info">
                 <div className="memory-status-title-row">
                   <b>Learning</b>
-                  <span className="memory-count orange">{metrics?.memoryStatus?.learning ?? 191}</span>
+                  <span className="memory-count orange">{loading ? '...' : (metrics?.memoryStatus?.learning ?? 0)}</span>
                 </div>
                 <small>Mới luyện tập (Ghi nhớ ban đầu)</small>
               </div>
@@ -338,7 +341,7 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
               <div className="memory-status-info">
                 <div className="memory-status-title-row">
                   <b>New</b>
-                  <span className="memory-count gray">{metrics?.memoryStatus?.new ?? 0}</span>
+                  <span className="memory-count gray">{loading ? '...' : (metrics?.memoryStatus?.new ?? 0)}</span>
                 </div>
                 <small>Trong kho (Chưa từng học)</small>
               </div>
@@ -356,40 +359,150 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
   )
 }
 // ----------------------------------------------------
-// Review View (SRS Flashcards)
+// Review View (SRS Flashcards & Fill-in-the-Blank DSR)
 // ----------------------------------------------------
 function Review({ setView }: { setView: (view: View) => void }) {
-  const [queue, setQueue] = useState<any[]>([])
+  const BATCH_SIZE = 12
+  const SESSION_STORAGE_KEY = 'linguaflow_review_session_progress_v1'
+
+  const [modeFilter, setModeFilter] = useState<'mixed' | 'flashcard' | 'fill_in_blank'>('mixed')
+  const [fullQueue, setFullQueue] = useState<any[]>([])
+  const [batches, setBatches] = useState<any[][]>([])
+  const [batchIndex, setBatchIndex] = useState(0)
+  const [activeBatchQueue, setActiveBatchQueue] = useState<any[]>([])
+  const [batchCompletedCardIds, setBatchCompletedCardIds] = useState<Set<string>>(new Set())
+  const [gradedCardIds, setGradedCardIds] = useState<Set<string>>(new Set())
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [hasStartedBatch, setHasStartedBatch] = useState<boolean>(false)
+
   const [revealed, setRevealed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [cardImages, setCardImages] = useState<any[]>([])
-  const [imageIndex, setImageIndex] = useState(0)
-  const [imagesLoading, setImagesLoading] = useState(false)
   const [imageError, setImageError] = useState(false)
 
-  const fetchQueue = () => {
+  // State for Fill-in-the-Blank exercise
+  const [fillInput, setFillInput] = useState('')
+  const [hintsUsedCount, setHintsUsedCount] = useState(0)
+  const [showPattern, setShowPattern] = useState(false)
+  const [showPhonetic, setShowPhonetic] = useState(false)
+  const [fillResult, setFillResult] = useState<{ isCorrect: boolean; rating: number; dsr?: any } | null>(null)
+  const [cardStartTime, setCardStartTime] = useState<number>(Date.now())
+  const fillInputRef = useRef<HTMLInputElement | null>(null)
+
+  const fetchQueue = (all = false, resetSavedSession = false) => {
     setLoading(true)
-    fetch('/api/srs/queue')
+
+    // Restore saved session if user left in the middle of a batch
+    if (!all && !resetSavedSession) {
+      try {
+        const saved = localStorage.getItem(SESSION_STORAGE_KEY)
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (parsed && Array.isArray(parsed.activeBatchQueue) && parsed.activeBatchQueue.length > 0) {
+            setFullQueue(parsed.fullQueue || [])
+            setBatches(parsed.batches || [])
+            setBatchIndex(parsed.batchIndex || 0)
+            setActiveBatchQueue(parsed.activeBatchQueue)
+            setBatchCompletedCardIds(new Set(parsed.batchCompletedCardIds || []))
+            setGradedCardIds(new Set(parsed.gradedCardIds || []))
+            setCurrentIndex(parsed.currentIndex || 0)
+            setHasStartedBatch(parsed.hasStartedBatch ?? false)
+            resetCardState()
+            setLoading(false)
+            return
+          }
+        }
+      } catch (err) {
+        console.error('Error restoring saved review session:', err)
+      }
+    }
+
+    // Otherwise fetch fresh queue from server
+    try {
+      localStorage.removeItem(SESSION_STORAGE_KEY)
+    } catch {}
+
+    fetch(`/api/srs/queue${all ? '?all=true' : ''}`)
       .then((res) => res.json())
       .then((data) => {
-        setQueue(data.queue || [])
+        const rawQueue: any[] = data.queue || []
+        setFullQueue(rawQueue)
+
+        const chunked: any[][] = []
+        for (let i = 0; i < rawQueue.length; i += BATCH_SIZE) {
+          chunked.push(rawQueue.slice(i, i + BATCH_SIZE))
+        }
+
+        setBatches(chunked)
+        setBatchIndex(0)
+
+        const firstBatch = chunked[0] || []
+        setActiveBatchQueue([...firstBatch])
+        setBatchCompletedCardIds(new Set())
+        setGradedCardIds(new Set())
         setCurrentIndex(0)
-        setRevealed(false)
+        setHasStartedBatch(false)
+        resetCardState()
         setLoading(false)
       })
       .catch(() => setLoading(false))
+  }
+
+  // Auto-save session progress on state change
+  useEffect(() => {
+    if (loading || activeBatchQueue.length === 0) return
+    try {
+      const payload = {
+        batchIndex,
+        activeBatchQueue,
+        batchCompletedCardIds: Array.from(batchCompletedCardIds),
+        gradedCardIds: Array.from(gradedCardIds),
+        currentIndex,
+        fullQueue,
+        batches,
+        hasStartedBatch,
+        timestamp: Date.now(),
+      }
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload))
+    } catch {}
+  }, [batchIndex, activeBatchQueue, batchCompletedCardIds, gradedCardIds, currentIndex, fullQueue, batches, hasStartedBatch, loading])
+
+  const resetCardState = () => {
+    setRevealed(false)
+    setImageError(false)
+    setFillInput('')
+    setHintsUsedCount(0)
+    setShowPattern(false)
+    setShowPhonetic(false)
+    setFillResult(null)
+    setCardStartTime(Date.now())
   }
 
   useEffect(() => {
     fetchQueue()
   }, [])
 
-  const currentCard = queue[currentIndex]
+  useEffect(() => {
+    resetCardState()
+  }, [currentIndex, modeFilter])
 
-  const playCardAudio = (e: React.MouseEvent) => {
-    e.stopPropagation()
+  const currentBatchInitial = batches[batchIndex] || []
+  const totalBatchUniqueCount = currentBatchInitial.length
+  const currentCard = activeBatchQueue[currentIndex]
+  const isBatchCompleted = totalBatchUniqueCount > 0 && batchCompletedCardIds.size >= totalBatchUniqueCount
+
+  // Calculate effective mode for current card
+  const activeMode: 'flashcard' | 'fill_in_blank' =
+    modeFilter === 'flashcard'
+      ? 'flashcard'
+      : modeFilter === 'fill_in_blank'
+      ? 'fill_in_blank'
+      : currentIndex % 2 === 0
+      ? 'flashcard'
+      : 'fill_in_blank'
+
+  const playCardAudio = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
     if (!currentCard?.term) return
     if (currentCard.audioUrl) {
       const audio = new Audio(currentCard.audioUrl)
@@ -407,26 +520,77 @@ function Review({ setView }: { setView: (view: View) => void }) {
     }
   }
 
+  const recordCardResult = (rating: number) => {
+    if (!currentCard) return
+    const cardId = currentCard.cardId
+
+    if (rating >= 3) {
+      // Good or Easy (or correct fill-in): Mark card as completed in current batch
+      setBatchCompletedCardIds((prev) => {
+        const next = new Set(prev)
+        next.add(cardId)
+        return next
+      })
+    } else {
+      // Rating 1 (Again) or 2 (Hard) or Incorrect fill-in:
+      // Re-insert card 3 positions later in activeBatchQueue so user repeats it within this batch!
+      setActiveBatchQueue((prevQueue) => {
+        const insertOffset = Math.min(prevQueue.length, currentIndex + 3)
+        const updated = [...prevQueue]
+        updated.splice(insertOffset, 0, currentCard)
+        return updated
+      })
+    }
+  }
+
+  const advanceToNextCard = () => {
+    if (currentIndex + 1 < activeBatchQueue.length) {
+      setCurrentIndex((prev) => prev + 1)
+    }
+  }
+
+  const startNextBatch = () => {
+    if (batchIndex + 1 < batches.length) {
+      const nextIdx = batchIndex + 1
+      setBatchIndex(nextIdx)
+      const nextBatchCards = batches[nextIdx] || []
+      setActiveBatchQueue([...nextBatchCards])
+      setBatchCompletedCardIds(new Set())
+      setCurrentIndex(0)
+      setHasStartedBatch(false)
+      resetCardState()
+    }
+  }
+
   const handleGrade = async (rating: number) => {
     if (!currentCard || submitting) return
+
+    const cardId = currentCard.cardId
+    const isFirstRatingInSession = !gradedCardIds.has(cardId)
+
     setSubmitting(true)
 
     try {
-      await fetch('/api/srs/grade', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cardId: currentCard.cardId,
-          rating,
-        }),
-      })
-
-      if (currentIndex + 1 < queue.length) {
-        setCurrentIndex((prev) => prev + 1)
-        setRevealed(false)
-      } else {
-        setView('Dashboard')
+      if (isFirstRatingInSession) {
+        // State 1: Call Database SRS / DSR algorithm update ONLY for the FIRST rating of the card
+        await fetch('/api/srs/grade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cardId,
+            rating,
+          }),
+        })
+        setGradedCardIds((prev) => {
+          const next = new Set(prev)
+          next.add(cardId)
+          return next
+        })
       }
+
+      // State 2: Intra-batch in-memory RAM queue update
+      recordCardResult(rating)
+      advanceToNextCard()
     } catch (err) {
       console.error('Error grading card:', err)
     } finally {
@@ -434,8 +598,104 @@ function Review({ setView }: { setView: (view: View) => void }) {
     }
   }
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+  const handleFillSubmit = async (gaveUp = false) => {
+    if (!currentCard || submitting || fillResult) return
+
+    const elapsedSeconds = Math.max(1, Math.round((Date.now() - cardStartTime) / 1000))
+    const evalRes = evaluateFillInBlank({
+      userInput: fillInput,
+      targetWord: currentCard.term,
+      hintsUsedCount: gaveUp ? 3 : hintsUsedCount,
+      elapsedSeconds,
+      gaveUp,
+    })
+
+    // Correct fill-in always counts as passing grade (rating >= 3, like Good/Easy) => +1 progress
+    const effectiveRating = evalRes.isCorrect ? Math.max(3, evalRes.rating) : evalRes.rating
+
+    const cardId = currentCard.cardId
+    const isFirstRatingInSession = !gradedCardIds.has(cardId)
+
+    setSubmitting(true)
+
+    try {
+      let dsrData: any = null
+
+      if (isFirstRatingInSession) {
+        // State 1: Call Database SRS / DSR algorithm update ONLY for the FIRST rating of the card
+        const res = await fetch('/api/srs/grade', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cardId,
+            rating: effectiveRating,
+          }),
+        })
+        const data = await res.json()
+        dsrData = data.dsr || data.newState
+        setGradedCardIds((prev) => {
+          const next = new Set(prev)
+          next.add(cardId)
+          return next
+        })
+      }
+
+      // State 2: Intra-batch in-memory RAM queue update (+1 progress if effectiveRating >= 3)
+      recordCardResult(effectiveRating)
+
+      setFillResult({
+        isCorrect: evalRes.isCorrect,
+        rating: effectiveRating,
+        dsr: dsrData,
+      })
+
+      if (evalRes.isCorrect) {
+        playCardAudio()
+      }
+    } catch (err) {
+      console.error('Fill in blank submission error:', err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleUseHintPattern = () => {
+    if (!showPattern) {
+      setShowPattern(true)
+      setHintsUsedCount((prev) => Math.max(prev, 1))
+    }
+  }
+
+  const handleUseHintPhonetic = () => {
+    if (!showPhonetic) {
+      setShowPhonetic(true)
+      setHintsUsedCount((prev) => Math.max(prev, 2))
+    }
+  }
+
+  const handleKeyDownRef = useRef<((e: KeyboardEvent) => void) | undefined>(undefined)
+  handleKeyDownRef.current = (e: KeyboardEvent) => {
+    const isInput = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA'
+
+    // Pre-start screen shortcut: Enter or Space starts batch
+    if (!hasStartedBatch && !isBatchCompleted && currentCard) {
+      if (e.code === 'Enter' || e.code === 'Space') {
+        e.preventDefault()
+        setHasStartedBatch(true)
+        return
+      }
+    }
+
+    // Audio shortcut: 'R' or 'r' (when not typing in input) or 'Alt+R' / 'F2' / 'A'
+    if ((e.key === 'r' || e.key === 'R' || e.key === 'a' || e.key === 'A' || e.code === 'F2') && (!isInput || e.altKey)) {
+      if (!e.ctrlKey) {
+        e.preventDefault()
+        playCardAudio()
+        return
+      }
+    }
+
+    if (activeMode === 'flashcard') {
       if (e.code === 'Space') {
         e.preventDefault()
         setRevealed((r) => !r)
@@ -445,11 +705,46 @@ function Review({ setView }: { setView: (view: View) => void }) {
         if (e.key === '3') handleGrade(3)
         if (e.key === '4') handleGrade(4)
       }
-    }
+    } else if (activeMode === 'fill_in_blank') {
+      // Tab key shortcut: focus input box so user can start typing
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        fillInputRef.current?.focus()
+        return
+      }
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [revealed, submitting, currentCard, currentIndex, queue])
+      // Hint shortcut: Press 'H' / 'h' 1st time for Hint 1 (Letter pattern), 2nd time for Hint 2 (IPA)
+      if ((e.key === 'h' || e.key === 'H') && (!isInput || e.altKey)) {
+        e.preventDefault()
+        if (!showPattern) {
+          handleUseHintPattern()
+        } else if (!showPhonetic) {
+          handleUseHintPhonetic()
+        }
+      } else if (e.altKey && e.key === '1') {
+        e.preventDefault()
+        handleUseHintPattern()
+      } else if (e.altKey && e.key === '2') {
+        e.preventDefault()
+        handleUseHintPhonetic()
+      } else if ((e.key === 'f' || e.key === 'F' || (e.altKey && (e.key === '3' || e.key === 'f' || e.key === 'F'))) && (!isInput || e.altKey)) {
+        e.preventDefault()
+        handleFillSubmit(true)
+      } else if (e.key === 'Enter') {
+        if (fillResult) {
+          advanceToNextCard()
+        }
+      }
+    }
+  }
+
+  useEffect(() => {
+    const listener = (e: KeyboardEvent) => {
+      handleKeyDownRef.current?.(e)
+    }
+    window.addEventListener('keydown', listener)
+    return () => window.removeEventListener('keydown', listener)
+  }, [])
 
   if (loading) {
     return (
@@ -459,137 +754,742 @@ function Review({ setView }: { setView: (view: View) => void }) {
     )
   }
 
-  if (!currentCard) {
+  if (isBatchCompleted || !currentCard) {
+    const isFinal = batchIndex >= batches.length - 1 || batches.length === 0
+    const isEmptyQueue = fullQueue.length === 0
+
+    if (isFinal) {
+      try {
+        localStorage.removeItem(SESSION_STORAGE_KEY)
+      } catch {}
+    }
+
     return (
-      <div className="page-content review-page">
-        <div className="review-top">
-          <div>
-            <p className="eyebrow">VOCABULARY REVIEW</p>
-            <h1>Review Complete! 🎉</h1>
-            <p className="subhead">You have cleared all scheduled cards in queue.</p>
+      <div className="page-content review-page" style={{ maxWidth: '640px', margin: '0 auto', paddingTop: '20px' }}>
+        <div
+          style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '20px',
+            padding: '36px 28px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px',
+          }}
+        >
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: isEmptyQueue ? '#e0e7ff' : isFinal ? '#fef3c7' : '#e0e7ff',
+              color: isEmptyQueue ? '#4f46e5' : isFinal ? '#d97706' : '#4f46e5',
+              display: 'grid',
+              placeItems: 'center',
+              fontSize: '32px',
+              margin: '0 auto',
+            }}
+          >
+            {isEmptyQueue ? '✨' : isFinal ? '🏆' : '🎉'}
+          </div>
+
+          <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '1px', color: '#6366f1', textTransform: 'uppercase' }}>
+            {isEmptyQueue
+              ? 'CHƯA CÓ TỪ CẦN ÔN HÔM NAY'
+              : isFinal
+              ? 'TẤT CẢ BÀI HỌC HOÀN THÀNH'
+              : `ĐỢT HỌC ${batchIndex + 1} / ${batches.length} HOÀN THÀNH`}
+          </div>
+
+          <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+            {isEmptyQueue
+              ? 'Tuyệt vời! Bạn đã hoàn thành toàn bộ từ vựng đến hạn'
+              : isFinal
+              ? `Xuất sắc! Hoàn thành toàn bộ ${fullQueue.length} từ vựng`
+              : `Hoàn thành Đợt ${batchIndex + 1} (${totalBatchUniqueCount}/${totalBatchUniqueCount} từ)!`}
+          </h2>
+
+          <p style={{ fontSize: '13.5px', color: '#64748b', margin: 0, maxWidth: '460px', lineHeight: 1.5 }}>
+            {isEmptyQueue
+              ? 'Hiện tại không có từ vựng nào đến lịch cần ôn tập theo thuật toán SRS. Bạn có thể bấm "Ôn Luyện Tự Do Thêm" để ôn lại toàn bộ deck hoặc thêm từ vựng mới!'
+              : isFinal
+              ? 'Bạn đã làm chủ hoàn toàn các từ vựng trong lượt ôn tập này. Hãy tiếp tục duy trì thói quen học hàng ngày!'
+              : `Bạn đã làm chủ ${totalBatchUniqueCount} từ vựng trong Đợt ${batchIndex + 1}. Bạn có muốn tiếp tục sang đợt tiếp theo?`}
+          </p>
+
+          <div
+            style={{
+              display: 'flex',
+              gap: '20px',
+              justifyContent: 'center',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              padding: '16px 24px',
+              borderRadius: '12px',
+              width: '100%',
+              boxSizing: 'border-box',
+              marginTop: '4px',
+            }}
+          >
+            <div>
+              <small style={{ color: '#64748b', fontSize: '11px', display: 'block', fontWeight: 600 }}>
+                {isEmptyQueue ? 'TỪ CẦN ÔN HÔM NAY' : 'TỪ ĐÃ HỌC ĐỢT NÀY'}
+              </small>
+              <strong style={{ fontSize: '18px', color: '#0f172a' }}>
+                {isEmptyQueue ? '0 từ (Sạch hàng đợi)' : `${totalBatchUniqueCount} từ`}
+              </strong>
+            </div>
+            <div style={{ borderRight: '1px solid #cbd5e1' }} />
+            <div>
+              <small style={{ color: '#64748b', fontSize: '11px', display: 'block', fontWeight: 600 }}>
+                {isEmptyQueue ? 'TRẠNG THÁI HÀNG ĐỢI' : 'TỔNG SỐ ĐỢT HỌC'}
+              </small>
+              <strong style={{ fontSize: '18px', color: '#4f46e5' }}>
+                {isEmptyQueue ? 'Hoàn thành 100%' : batches.length > 0 ? `${batchIndex + 1} / ${batches.length}` : '1 / 1'}
+              </strong>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', marginTop: '8px', width: '100%', justifyContent: 'center' }}>
+            <button
+              type="button"
+              className="secondary-button"
+              style={{ padding: '10px 18px', fontSize: '13px', fontWeight: 600, borderRadius: '10px' }}
+              onClick={() => setView('Dashboard')}
+            >
+              Về Trang Dashboard
+            </button>
+
+            {!isFinal ? (
+              <button
+                type="button"
+                className="hero-action"
+                style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', margin: 0 }}
+                onClick={startNextBatch}
+              >
+                Bắt đầu Đợt {batchIndex + 2} ({batches[batchIndex + 1]?.length || 12} từ tiếp) <ArrowRight size={16} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="hero-action"
+                style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', margin: 0 }}
+                onClick={() => fetchQueue(true)}
+              >
+                <RefreshCw size={14} /> Ôn Luyện Tự Do Thêm
+              </button>
+            )}
           </div>
         </div>
-        <button className="hero-action" style={{ marginTop: '24px' }} onClick={() => setView('Dashboard')}>
-          Return to Dashboard <ArrowRight size={16} />
-        </button>
       </div>
     )
+  }
+
+  // Format masked sentence for Fill-in-the-Blank
+  const getMaskedSentence = () => {
+    const term = (currentCard.term || '').trim()
+    const sentence = (currentCard.exampleSentence || '').trim()
+
+    if (!sentence) {
+      return (
+        <span>
+          Điền từ tiếng Anh có nghĩa: <strong style={{ color: '#4f46e5' }}>&quot;{currentCard.vietnameseDefinition}&quot;</strong>
+        </span>
+      )
+    }
+
+    if (!term) {
+      return <span>{sentence}</span>
+    }
+
+    const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+    // Find best regex pattern
+    let pattern = `\\b${escapedTerm}\\b`
+    if (!new RegExp(pattern, 'i').test(sentence)) {
+      const stem = escapedTerm.replace(/(ing|ed|es|s|e)$/i, '')
+      if (stem.length >= 3) {
+        pattern = `\\b${stem}[a-z]*\\b`
+      }
+    }
+    if (!new RegExp(pattern, 'i').test(sentence)) {
+      pattern = escapedTerm
+    }
+
+    const splitReg = new RegExp(pattern, 'gi')
+    if (new RegExp(pattern, 'i').test(sentence)) {
+      const parts = sentence.split(splitReg)
+      return (
+        <span>
+          {parts[0]}
+          <span style={{ borderBottom: '2px solid #4f46e5', padding: '0 8px', color: '#4f46e5', fontWeight: 700 }}>
+            [ _____ ]
+          </span>
+          {parts.slice(1).join('[ _____ ]')}
+        </span>
+      )
+    }
+
+    // Fallback: sentence exists but term pattern wasn't found in it
+    return (
+      <span>
+        {sentence}{' '}
+        <span style={{ borderBottom: '2px solid #4f46e5', padding: '0 8px', color: '#4f46e5', fontWeight: 700 }}>
+          [ _____ ]
+        </span>
+      </span>
+    )
+  }
+
+  const getRatingBadgeText = (rating: number) => {
+    switch (rating) {
+      case 4:
+        return { label: '4: Easy', bg: '#e0e7ff', color: '#3730a3', desc: 'Instant recall (<5s, 0 hints)' }
+      case 3:
+        return { label: '3: Good', bg: '#dcfce7', color: '#166534', desc: 'Good recall (0-1 hints)' }
+      case 2:
+        return { label: '2: Hard', bg: '#fef3c7', color: '#92400e', desc: 'Recalled with 2 hints' }
+      case 1:
+      default:
+        return { label: '1: Again', bg: '#fee2e2', color: '#991b1b', desc: 'Incorrect or gave up' }
+    }
   }
 
   return (
     <div className="page-content review-page">
       <div className="review-top">
         <div>
-          <p className="eyebrow">VOCABULARY REVIEW · {currentCard.deckTitle}</p>
+          <p className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            VOCABULARY REVIEW · {currentCard.deckTitle}
+            {batches.length > 1 && (
+              <span
+                style={{
+                  background: '#e0e7ff',
+                  color: '#4f46e5',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                }}
+              >
+                Đợt {batchIndex + 1} / {batches.length}
+              </span>
+            )}
+          </p>
           <h1>Daily review</h1>
-          <p className="subhead">SuperMemo SM-2 automated queue (Offline DB Pre-fetched)</p>
+          <p className="subhead">
+            {batches.length > 1
+              ? `Đợt ${batchIndex + 1}: Luyện tập ${totalBatchUniqueCount} từ vựng (Tổng ${fullQueue.length} từ)`
+              : 'Luyện tập & ghi nhớ từ vựng hàng ngày'}
+          </p>
         </div>
         <div className="review-count">
-          <strong>{currentIndex + 1}</strong>
-          <span>/ {queue.length} cards</span>
+          <strong>{batchCompletedCardIds.size} / {totalBatchUniqueCount}</strong>
+          <span>thành thạo đợt này</span>
         </div>
+      </div>
+
+      {/* Mode Switcher Tabs */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '6px',
+          margin: '14px 0',
+          background: '#f1f5f9',
+          padding: '4px',
+          borderRadius: '12px',
+          width: 'fit-content',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setModeFilter('mixed')}
+          style={{
+            border: 'none',
+            padding: '7px 14px',
+            borderRadius: '8px',
+            fontSize: '12px',
+            fontWeight: modeFilter === 'mixed' ? 700 : 500,
+            background: modeFilter === 'mixed' ? '#ffffff' : 'transparent',
+            color: modeFilter === 'mixed' ? '#4f46e5' : '#64748b',
+            boxShadow: modeFilter === 'mixed' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <RefreshCw size={14} /> 🔀 Trộn lẫn (Mặc định)
+        </button>
+        <button
+          type="button"
+          onClick={() => setModeFilter('flashcard')}
+          style={{
+            border: 'none',
+            padding: '7px 14px',
+            borderRadius: '8px',
+            fontSize: '12px',
+            fontWeight: modeFilter === 'flashcard' ? 700 : 500,
+            background: modeFilter === 'flashcard' ? '#ffffff' : 'transparent',
+            color: modeFilter === 'flashcard' ? '#4f46e5' : '#64748b',
+            boxShadow: modeFilter === 'flashcard' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <Zap size={14} /> 🎴 Flashcards
+        </button>
+        <button
+          type="button"
+          onClick={() => setModeFilter('fill_in_blank')}
+          style={{
+            border: 'none',
+            padding: '7px 14px',
+            borderRadius: '8px',
+            fontSize: '12px',
+            fontWeight: modeFilter === 'fill_in_blank' ? 700 : 500,
+            background: modeFilter === 'fill_in_blank' ? '#ffffff' : 'transparent',
+            color: modeFilter === 'fill_in_blank' ? '#4f46e5' : '#64748b',
+            boxShadow: modeFilter === 'fill_in_blank' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <Sparkles size={14} /> ✍️ Fill-in-the-Blank
+        </button>
       </div>
 
       <div className="session-progress">
-        <span style={{ width: `${((currentIndex + 1) / queue.length) * 100}%` }} />
+        <span style={{ width: `${totalBatchUniqueCount > 0 ? (batchCompletedCardIds.size / totalBatchUniqueCount) * 100 : 0}%` }} />
       </div>
 
-      <div className="review-layout">
-        <div className={`flashcard ${revealed ? 'revealed' : ''}`} onClick={() => setRevealed(!revealed)}>
-          <div className="card-label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '8px' }}>
-            <div className="card-label">{revealed ? 'ENGLISH & PRONUNCIATION' : 'VIETNAMESE DEFINITION'}</div>
-            {currentCard.cefrLevel && (
-              <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
-                {currentCard.cefrLevel}
+      {/* MODE 1: FLASHCARD REVIEW */}
+      {activeMode === 'flashcard' && (
+        <>
+          <div className="review-layout">
+            <div className={`flashcard ${revealed ? 'revealed' : ''}`} onClick={() => setRevealed(!revealed)}>
+              <div className="card-label-row" style={{ position: 'absolute', top: '18px', left: '24px', right: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="card-label">{revealed ? 'ENGLISH & PRONUNCIATION' : 'VIETNAMESE DEFINITION'}</div>
+                {currentCard.cefrLevel && (
+                  <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
+                    {currentCard.cefrLevel}
+                  </span>
+                )}
+              </div>
+
+              {revealed && (
+                <div className="card-media">
+                  {currentCard.imageUrl && !imageError ? (
+                    <img
+                      src={currentCard.imageUrl}
+                      alt={currentCard.term}
+                      loading="lazy"
+                      onError={() => setImageError(true)}
+                    />
+                  ) : (
+                    <div className="card-media-placeholder">
+                      <ImageIcon size={22} />
+                      <span>Hình minh hoạ pre-saved</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="card-word-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+                <div className={`card-word ${!revealed ? 'vietnamese-text' : ''}`}>{revealed ? currentCard.term : currentCard.vietnameseDefinition}</div>
+                {revealed && (
+                  <button
+                    type="button"
+                    className="audio-play-btn"
+                    title="Nghe phát âm (Phím tắt: R / Alt + A)"
+                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                    onClick={playCardAudio}
+                  >
+                    <Volume2 size={18} />
+                  </button>
+                )}
+              </div>
+
+              <p>{revealed ? `${currentCard.phonetic || ''} • ${currentCard.partOfSpeech || ''}` : 'Tap card or press space to reveal answer'}</p>
+
+              {revealed && currentCard.englishMeaning && (
+                <div style={{ fontSize: '13px', opacity: 0.85, marginTop: '4px', fontStyle: 'italic' }}>
+                  &quot;{currentCard.englishMeaning}&quot;
+                </div>
+              )}
+
+              <div className="card-example">
+                {revealed ? currentCard.exampleSentence || 'No example provided' : 'Mental recall challenge'}
+              </div>
+
+              <span className="flip-hint">
+                <Keyboard size={14} /> Press space to flip
               </span>
-            )}
+            </div>
+
+            <div className="rating-panel">
+              <p className="eyebrow">HOW WELL DID YOU KNOW IT?</p>
+              <div className="rating-buttons">
+                {[
+                  ['Again', '< 1d', 'red', 1],
+                  ['Hard', '6d', 'orange', 2],
+                  ['Good', '10d', 'green', 3],
+                  ['Easy', '15d', 'blue', 4],
+                ].map(([name, time, tone, num]) => (
+                  <button
+                    key={String(name)}
+                    className={`rating ${tone}`}
+                    disabled={!revealed || submitting}
+                    onClick={() => handleGrade(Number(num))}
+                  >
+                    <b>{num}</b>
+                    <span>{name}</span>
+                    <small>{time}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {revealed && (
-            <div className="card-media">
-              {currentCard.imageUrl && !imageError ? (
-                <img
-                  src={currentCard.imageUrl}
-                  alt={currentCard.term}
-                  loading="lazy"
-                  onError={() => setImageError(true)}
-                />
-              ) : (
-                <div className="card-media-placeholder">
-                  <ImageIcon size={22} />
-                  <span>Hình minh hoạ pre-saved</span>
+          <div className="keyboard-tip">
+            <Keyboard size={16} />
+            <span>Phím tắt:</span>
+            <kbd>Space</kbd>
+            <small>lật thẻ</small>
+            <kbd>1</kbd>
+            <kbd>2</kbd>
+            <kbd>3</kbd>
+            <kbd>4</kbd>
+            <small>đánh giá</small>
+            <kbd>R</kbd>
+            <small>phát âm</small>
+          </div>
+        </>
+      )}
+
+      {/* MODE 2: FILL-IN-THE-BLANK (DSR EVALUATION) */}
+      {activeMode === 'fill_in_blank' && (
+        <div className="review-layout" style={{ maxWidth: '640px' }}>
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '18px',
+              padding: '28px 24px',
+              boxShadow: '0 6px 20px rgba(0,0,0,0.04)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+            }}
+          >
+            {/* Header info */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1px', color: '#6366f1' }}>
+                FILL-IN-THE-BLANK DRILL
+              </div>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => playCardAudio()}
+                  title="Nghe phát âm (Phím tắt: R)"
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid #cbd5e1',
+                    background: '#ffffff',
+                    color: '#4f46e5',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    marginRight: '4px',
+                  }}
+                >
+                  <Volume2 size={14} />
+                </button>
+                {currentCard.partOfSpeech && (
+                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: '#f1f5f9', color: '#475569', fontWeight: 600 }}>
+                    {currentCard.partOfSpeech}
+                  </span>
+                )}
+                {currentCard.cefrLevel && (
+                  <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
+                    {currentCard.cefrLevel}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Vietnamese Meaning Prompt */}
+            <div style={{ textAlign: 'center', padding: '12px 0 4px' }}>
+              <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>Nghĩa tiếng Việt</span>
+              <h2 style={{ fontSize: '24px', color: '#0f172a', fontWeight: 750, margin: '4px 0 0' }}>
+                {currentCard.vietnameseDefinition}
+              </h2>
+            </div>
+
+            {/* Sentence with Blank */}
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '12px',
+                padding: '16px',
+                fontSize: '15px',
+                lineHeight: '1.6',
+                color: '#334155',
+                textAlign: 'center',
+              }}
+            >
+              {getMaskedSentence()}
+            </div>
+
+            {/* Progressive Hint Options */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleUseHintPattern}
+                  disabled={fillResult !== null || showPattern}
+                  title="Phím tắt: H (bấm 1 lần)"
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    background: showPattern ? '#eef2ff' : '#ffffff',
+                    color: showPattern ? '#4f46e5' : '#475569',
+                    cursor: showPattern || fillResult !== null ? 'default' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                >
+                  💡 Hint 1: Gợi ý chữ cái
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleUseHintPhonetic}
+                  disabled={fillResult !== null || showPhonetic}
+                  title="Phím tắt: H (bấm 2 lần)"
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    border: '1px solid #e2e8f0',
+                    background: showPhonetic ? '#eef2ff' : '#ffffff',
+                    color: showPhonetic ? '#4f46e5' : '#475569',
+                    cursor: showPhonetic || fillResult !== null ? 'default' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                >
+                  🔊 Hint 2: Phiên âm IPA
+                </button>
+              </div>
+
+              {/* Display active hint banners if unlocked */}
+              {(showPattern || showPhonetic) && (
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '12px',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    background: '#eef2ff',
+                    border: '1px solid #c7d2fe',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    color: '#3730a3',
+                  }}
+                >
+                  {showPattern && (
+                    <span>
+                      Pattern: <strong style={{ fontFamily: 'monospace', fontSize: '13px' }}>{buildHintPattern(currentCard.term)}</strong>
+                    </span>
+                  )}
+                  {showPhonetic && (
+                    <span>
+                      IPA: <strong>{currentCard.phonetic || 'N/A'}</strong>
+                    </span>
+                  )}
                 </div>
               )}
             </div>
-          )}
 
-          <div className="card-word-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
-            <div className={`card-word ${!revealed ? 'vietnamese-text' : ''}`}>{revealed ? currentCard.term : currentCard.vietnameseDefinition}</div>
-            {revealed && (
-              <button
-                type="button"
-                className="audio-play-btn"
-                title="Play native audio"
-                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                onClick={playCardAudio}
+            {/* Input Box & Submit Action */}
+            {!fillResult ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleFillSubmit(false)
+                }}
+                style={{ display: 'flex', gap: '8px', marginTop: '8px' }}
               >
-                <Volume2 size={18} />
-              </button>
+                <input
+                  ref={fillInputRef}
+                  type="text"
+                  value={fillInput}
+                  onChange={(e) => setFillInput(e.target.value)}
+                  placeholder="Gõ từ tiếng Anh (ấn Tab để trỏ vào đây)..."
+                  disabled={submitting}
+                  style={{
+                    flex: 1,
+                    padding: '12px 16px',
+                    fontSize: '15px',
+                    borderRadius: '10px',
+                    border: '1.5px solid #cbd5e1',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!fillInput.trim() || submitting}
+                  style={{
+                    padding: '0 20px',
+                    background: '#4f46e5',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: '14px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    cursor: fillInput.trim() && !submitting ? 'pointer' : 'not-allowed',
+                    opacity: fillInput.trim() && !submitting ? 1 : 0.6,
+                  }}
+                >
+                  Nộp bài
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFillSubmit(true)}
+                  disabled={submitting}
+                  style={{
+                    padding: '0 12px',
+                    background: '#f1f5f9',
+                    color: '#64748b',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    borderRadius: '10px',
+                    border: '1px solid #cbd5e1',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                  title="Bỏ cuộc tính là 1: Again (Phím tắt: F)"
+                >
+                  <span>Bỏ cuộc</span>
+                </button>
+              </form>
+            ) : (
+              /* Evaluation Result Panel */
+              <div
+                style={{
+                  marginTop: '12px',
+                  padding: '16px',
+                  borderRadius: '12px',
+                  background: fillResult.isCorrect ? '#f0fdf4' : '#fef2f2',
+                  border: `1px solid ${fillResult.isCorrect ? '#bbf7d0' : '#fecaca'}`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        background: fillResult.isCorrect ? '#16a34a' : '#dc2626',
+                        color: '#fff',
+                        display: 'grid',
+                        placeItems: 'center',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {fillResult.isCorrect ? '✓' : '✕'}
+                    </div>
+                    <span style={{ fontSize: '15px', fontWeight: 750, color: fillResult.isCorrect ? '#166534' : '#991b1b' }}>
+                      {fillResult.isCorrect ? 'Chính xác!' : 'Chưa chính xác'}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: '14px', color: '#1e293b' }}>
+                  Từ đúng: <strong style={{ color: '#4f46e5', fontSize: '16px' }}>{currentCard.term}</strong>
+                  {currentCard.phonetic && <span style={{ marginLeft: '8px', color: '#64748b', fontSize: '13px' }}>{currentCard.phonetic}</span>}
+                  <button
+                    type="button"
+                    onClick={() => playCardAudio()}
+                    title="Nghe phát âm (Phím tắt: R hoặc Alt + A)"
+                    style={{ marginLeft: '8px', background: 'none', border: 'none', cursor: 'pointer', color: '#4f46e5' }}
+                  >
+                    <Volume2 size={16} />
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={advanceToNextCard}
+                  style={{
+                    marginTop: '6px',
+                    padding: '10px 16px',
+                    background: '#4f46e5',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  Chuyển từ tiếp theo (Enter) <ArrowRight size={16} />
+                </button>
+              </div>
             )}
           </div>
 
-          <p>{revealed ? `${currentCard.phonetic || ''} • ${currentCard.partOfSpeech || ''}` : 'Tap card or press space to reveal answer'}</p>
-
-          {revealed && currentCard.englishMeaning && (
-            <div style={{ fontSize: '13px', opacity: 0.85, marginTop: '4px', fontStyle: 'italic' }}>
-              &quot;{currentCard.englishMeaning}&quot;
-            </div>
-          )}
-
-          <div className="card-example">
-            {revealed ? currentCard.exampleSentence || 'No example provided' : 'Mental recall challenge'}
-          </div>
-
-          <span className="flip-hint">
-            <Keyboard size={14} /> Press space to flip
-          </span>
-        </div>
-
-        <div className="rating-panel">
-          <p className="eyebrow">HOW WELL DID YOU KNOW IT?</p>
-          <div className="rating-buttons">
-            {[
-              ['Again', '< 1d', 'red', 1],
-              ['Hard', '6d', 'orange', 2],
-              ['Good', '10d', 'green', 3],
-              ['Easy', '15d', 'blue', 4],
-            ].map(([name, time, tone, num]) => (
-              <button
-                key={String(name)}
-                className={`rating ${tone}`}
-                disabled={!revealed || submitting}
-                onClick={() => handleGrade(Number(num))}
-              >
-                <b>{num}</b>
-                <span>{name}</span>
-                <small>{time}</small>
-              </button>
-            ))}
+          <div className="keyboard-tip" style={{ marginTop: '16px' }}>
+            <Keyboard size={16} />
+            <span>Phím tắt:</span>
+            <kbd>R</kbd>
+            <small>phát âm</small>
+            <kbd>H</kbd>
+            <small>gợi ý (1/2 lần)</small>
+            <kbd>Tab</kbd>
+            <small>vào ô nhập</small>
+            <kbd>Enter</kbd>
+            <small>nộp / từ tiếp</small>
+            <kbd>F</kbd>
+            <small>bỏ cuộc</small>
           </div>
         </div>
-      </div>
-
-      <div className="keyboard-tip">
-        <Keyboard size={16} />
-        <span>Keyboard shortcuts:</span>
-        <kbd>Space</kbd>
-        <small>flip card</small>
-        <kbd>1</kbd>
-        <kbd>2</kbd>
-        <kbd>3</kbd>
-        <kbd>4</kbd>
-        <small>rate card</small>
-      </div>
+      )}
     </div>
   )
 }
@@ -991,8 +1891,22 @@ function Decks() {
     { id: '5', term: '', partOfSpeech: '', level: '', phonetic: '', vietnameseDefinition: '', englishDefinition: '', exampleSentence: '' },
   ])
 
+  // Warning Modal state for incomplete Excel rows
+  const [showIncompleteWarningModal, setShowIncompleteWarningModal] = useState(false)
+  const [validRowsToSave, setValidRowsToSave] = useState<any[]>([])
+  const [skippedIncompleteCount, setSkippedIncompleteCount] = useState(0)
+
   const fetchLiveEnrichment = async (index: number, term: string, type: string) => {
     if (!term || !term.trim() || !type || !type.trim()) return
+
+    setExcelRows((prev) => {
+      const updated = [...prev]
+      if (updated[index]) {
+        updated[index] = { ...updated[index], isLoadingEnrichment: true }
+      }
+      return updated
+    })
+
     try {
       const res = await fetch(`/api/enrich?word=${encodeURIComponent(term.trim())}&type=${encodeURIComponent(type.trim())}`)
       if (!res.ok) return
@@ -1000,38 +1914,31 @@ function Decks() {
       setExcelRows((prev) => {
         const updated = [...prev]
         if (!updated[index]) return prev
-        const current = { ...updated[index] }
+        const current = { ...updated[index], isLoadingEnrichment: false }
         if (data.cefrLevel) current.level = data.cefrLevel
         if (data.phonetic) current.phonetic = data.phonetic
+        if (data.partOfSpeech) current.partOfSpeech = data.partOfSpeech
         if (data.vietnameseMeaning) current.vietnameseDefinition = data.vietnameseMeaning
         if (data.englishMeaning) current.englishDefinition = data.englishMeaning
         if (data.example) current.exampleSentence = data.example
         updated[index] = current
         return updated
       })
-    } catch {}
+    } catch {
+      setExcelRows((prev) => {
+        const updated = [...prev]
+        if (updated[index]) {
+          updated[index] = { ...updated[index], isLoadingEnrichment: false }
+        }
+        return updated
+      })
+    }
   }
 
   const handleExcelCellChange = (index: number, field: string, value: string) => {
     setExcelRows((prev) => {
       const updated = [...prev]
       const current = { ...updated[index], [field]: value }
-
-      const termToUse = field === 'term' ? value : current.term
-      const typeToUse = field === 'partOfSpeech' ? value : current.partOfSpeech
-
-      if (termToUse && typeToUse) {
-        const generated = autoGenerateWordDetails(termToUse, typeToUse)
-        current.level = generated.level
-        current.phonetic = generated.phonetic
-        if (generated.vietnamese) current.vietnameseDefinition = generated.vietnamese
-        if (generated.definition) current.englishDefinition = generated.definition
-        if (generated.example) current.exampleSentence = generated.example
-        current.grammarLabel = generated.grammarLabel
-      } else {
-        current.level = ''
-      }
-
       updated[index] = current
       return updated
     })
@@ -1039,7 +1946,7 @@ function Decks() {
     const targetTerm = field === 'term' ? value : (excelRows[index]?.term || '')
     const targetType = field === 'partOfSpeech' ? value : (excelRows[index]?.partOfSpeech || '')
 
-    // ONLY fetch auto-enrichment if BOTH word AND type are provided by the user!
+    // Live fetch enrichment when word AND type are provided by user so fields preview live on screen
     if (targetTerm.trim().length >= 1 && targetType.trim().length >= 1) {
       fetchLiveEnrichment(index, targetTerm, targetType)
     }
@@ -1126,28 +2033,74 @@ function Decks() {
     setExcelRows((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleSaveExcelBatch = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSaveExcelBatch = async (e?: React.FormEvent, forceSave = false) => {
+    if (e) e.preventDefault()
     if (!selectedDeckId || isSubmitting) return
 
-    const validRows = excelRows.filter((r) => r.term && r.term.trim().length > 0)
-    if (validRows.length === 0) return
+    const rowsWithWord = excelRows.filter((r) => r.term && r.term.trim().length > 0)
+    if (rowsWithWord.length === 0) return
+
+    const validRows = rowsWithWord.filter((r) => r.partOfSpeech && r.partOfSpeech.trim().length > 0)
+    const incompleteRows = rowsWithWord.filter((r) => !r.partOfSpeech || !r.partOfSpeech.trim())
+
+    // If there is at least 1 incomplete row AND not force-saving, show warning modal!
+    if (incompleteRows.length > 0 && !forceSave) {
+      setSkippedIncompleteCount(incompleteRows.length)
+      setValidRowsToSave(validRows)
+      setShowIncompleteWarningModal(true)
+      return
+    }
+
+    const rowsToProcess = forceSave ? validRowsToSave : validRows
+    if (rowsToProcess.length === 0) {
+      setShowIncompleteWarningModal(false)
+      return
+    }
 
     setIsSubmitting(true)
+    setShowIncompleteWarningModal(false)
 
     try {
-      const cardsToInsert = validRows.map((r) => ({
-        term: r.term.trim(),
-        vietnameseDefinition: r.vietnameseDefinition || `Nghĩa tiếng Việt cho ${r.term}`,
-        phonetic: r.phonetic,
-        partOfSpeech: r.partOfSpeech || 'noun',
-        exampleSentence: r.exampleSentence,
-        collocations: {
-          level: r.level,
-          englishDefinition: r.englishDefinition,
-          grammarLabel: r.grammarLabel,
-        },
-      }))
+      // Check ALL words at once when clicking Save!
+      // If any word has missing columns (vietnamese, phonetic, example, etc.), enrich via Gemini 1.5 Flash
+      const cardsToInsert = await Promise.all(
+        rowsToProcess.map(async (r) => {
+          let vietDef = r.vietnameseDefinition
+          let phon = r.phonetic
+          let pos = r.partOfSpeech
+          let ex = r.exampleSentence
+          let engDef = r.englishDefinition
+          let lvl = r.level
+
+          // Single batch check on Save: Enrich missing fields via Gemini 1.5 Flash + Dictionary pipeline
+          if (!vietDef || !phon || !ex || !engDef || !lvl) {
+            try {
+              const res = await fetch(`/api/enrich?word=${encodeURIComponent(r.term.trim())}&type=${encodeURIComponent((pos || '').trim())}`)
+              if (res.ok) {
+                const data = await res.json()
+                if (!vietDef && data.vietnameseMeaning) vietDef = data.vietnameseMeaning
+                if (!phon && data.phonetic) phon = data.phonetic
+                if (!ex && data.example) ex = data.example
+                if (!engDef && data.englishMeaning) engDef = data.englishMeaning
+                if (!lvl && data.cefrLevel) lvl = data.cefrLevel
+              }
+            } catch {}
+          }
+
+          return {
+            term: r.term.trim(),
+            vietnameseDefinition: vietDef || `Nghĩa của ${r.term.trim()}`,
+            phonetic: phon || `/${r.term.trim()}/`,
+            partOfSpeech: pos,
+            exampleSentence: ex || '',
+            collocations: {
+              level: lvl || 'B1',
+              englishDefinition: engDef || '',
+              grammarLabel: r.grammarLabel || '',
+            },
+          }
+        })
+      )
 
       await fetch(`/api/decks/${selectedDeckId}/cards`, {
         method: 'POST',
@@ -1197,19 +2150,43 @@ function Decks() {
     setIsSubmitting(true)
 
     try {
+      let vietDef = newVietDefinition
+      let phon = newPhonetic
+      let pos = newPartOfSpeech
+      let ex = newExampleSentence
+      let engDef = newDefinition
+      let lvl = newLevel
+
+      if (!vietDef || !phon || !ex || !pos || vietDef.startsWith('Nghĩa')) {
+        try {
+          const res = await fetch(`/api/enrich?word=${encodeURIComponent(newTerm.trim())}&type=${encodeURIComponent((pos || '').trim())}`)
+          if (res.ok) {
+            const data = await res.json()
+            if ((!vietDef || vietDef.startsWith('Nghĩa')) && data.vietnameseMeaning) vietDef = data.vietnameseMeaning
+            if (!phon && data.phonetic) phon = data.phonetic
+            if (!pos && data.partOfSpeech) pos = data.partOfSpeech
+            if (!ex && data.example) ex = data.example
+            if (!engDef && data.englishMeaning) engDef = data.englishMeaning
+            if (!lvl && data.cefrLevel) lvl = data.cefrLevel
+          }
+        } catch {}
+      }
+
+      const gen = autoGenerateWordDetails(newTerm, pos || 'noun')
+
       await fetch(`/api/decks/${selectedDeckId}/cards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          term: newTerm,
-          vietnameseDefinition: newVietDefinition || `Nghĩa tiếng Việt cho ${newTerm}`,
-          phonetic: newPhonetic,
-          partOfSpeech: newPartOfSpeech,
-          exampleSentence: newExampleSentence,
+          term: newTerm.trim(),
+          vietnameseDefinition: vietDef || gen.vietnamese || `Nghĩa tiếng Việt của ${newTerm.trim()}`,
+          phonetic: phon || gen.phonetic || `/${newTerm.trim()}/`,
+          partOfSpeech: pos || 'noun',
+          exampleSentence: ex || gen.example || '',
           collocations: {
-            level: newLevel,
-            englishDefinition: newDefinition,
-            grammarLabel: newGrammarLabel,
+            level: lvl || gen.level || 'B1',
+            englishDefinition: engDef || gen.definition || '',
+            grammarLabel: newGrammarLabel || gen.grammarLabel || '',
           },
         }),
       })
@@ -1680,7 +2657,12 @@ function Decks() {
                       {/* TYPE */}
                       <select
                         className="excel-select type-cell"
-                        style={getTypeStyle(row.partOfSpeech)}
+                        style={{
+                          ...getTypeStyle(row.partOfSpeech),
+                          ...(row.term && row.term.trim() && !row.partOfSpeech
+                            ? { border: '1.5px solid #f97316', background: '#fff7ed', color: '#c2410c', fontWeight: 700 }
+                            : {}),
+                        }}
                         value={row.partOfSpeech}
                         onChange={(e) => handleExcelCellChange(idx, 'partOfSpeech', e.target.value)}
                       >
@@ -1855,6 +2837,100 @@ function Decks() {
               >
                 Xác nhận làm mới
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* INCOMPLETE ROWS WARNING MODAL */}
+      {showIncompleteWarningModal && (
+        <div className="modal-overlay" style={{ zIndex: 1150 }} onClick={() => setShowIncompleteWarningModal(false)}>
+          <div
+            className="modal-card"
+            style={{ maxWidth: '440px', padding: '24px', textAlign: 'center' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}
+            >
+              <AlertTriangle size={24} />
+            </div>
+
+            <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>
+              Phát hiện từ chưa chọn Type (Loại từ)!
+            </h3>
+
+            <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.5', marginBottom: '20px' }}>
+              Có <strong style={{ color: '#dc2626' }}>{skippedIncompleteCount} hàng</strong> đã nhập Word nhưng chưa chọn Type.
+              Các hàng này sẽ <strong style={{ color: '#dc2626' }}>BỊ BỎ QUA</strong> khi lưu.
+              {validRowsToSave.length > 0 ? (
+                <span> Bạn có muốn tiếp tục lưu <strong>{validRowsToSave.length} từ</strong> đã chọn Type hợp lệ không?</span>
+              ) : (
+                <span> Vui lòng chọn Type cho ít nhất 1 từ trước khi lưu.</span>
+              )}
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '8px' }}>
+              <button
+                type="button"
+                style={{
+                  flex: 1,
+                  height: '42px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  borderRadius: '10px',
+                  border: '1px solid #cbd5e1',
+                  background: '#f8fafc',
+                  color: '#475569',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.15s ease',
+                }}
+                onClick={() => setShowIncompleteWarningModal(false)}
+              >
+                Quay lại chọn Type
+              </button>
+              {validRowsToSave.length > 0 && (
+                <button
+                  type="button"
+                  style={{
+                    flex: 1,
+                    height: '42px',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    color: '#ffffff',
+                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onClick={() => handleSaveExcelBatch(undefined, true)}
+                >
+                  <Sparkles size={15} />
+                  <span>Bỏ qua & Lưu {validRowsToSave.length} từ</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
