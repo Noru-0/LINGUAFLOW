@@ -26,6 +26,11 @@ export const cards = sqliteTable('cards', {
   partOfSpeech: text('part_of_speech'),
   exampleSentence: text('example_sentence'),
   collocationsJson: text('collocations_json').default('[]'),
+  englishMeaning: text('english_meaning'),
+  cefrLevel: text('cefr_level'),
+  audioUrl: text('audio_url'),
+  imageUrl: text('image_url'),
+  allDefinitionsJson: text('all_definitions_json'),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 })
 

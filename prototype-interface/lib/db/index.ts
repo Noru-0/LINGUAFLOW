@@ -50,9 +50,20 @@ function getSqliteDb() {
         part_of_speech TEXT,
         example_sentence TEXT,
         collocations_json TEXT DEFAULT '[]',
+        english_meaning TEXT,
+        cefr_level TEXT,
+        audio_url TEXT,
+        image_url TEXT,
+        all_definitions_json TEXT,
         created_at TEXT NOT NULL,
         FOREIGN KEY (deck_id) REFERENCES decks(id) ON DELETE CASCADE
       );
+
+      try { sqlite.exec('ALTER TABLE cards ADD COLUMN english_meaning TEXT;') } catch {}
+      try { sqlite.exec('ALTER TABLE cards ADD COLUMN cefr_level TEXT;') } catch {}
+      try { sqlite.exec('ALTER TABLE cards ADD COLUMN audio_url TEXT;') } catch {}
+      try { sqlite.exec('ALTER TABLE cards ADD COLUMN image_url TEXT;') } catch {}
+      try { sqlite.exec('ALTER TABLE cards ADD COLUMN all_definitions_json TEXT;') } catch {}
 
       CREATE TABLE IF NOT EXISTS card_srs_states (
         id TEXT PRIMARY KEY,

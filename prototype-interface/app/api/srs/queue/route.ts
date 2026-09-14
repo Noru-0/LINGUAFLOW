@@ -16,56 +16,88 @@ export async function GET() {
 
     const nowIso = new Date().toISOString()
 
-    // Fetch cards due on or before NOW
-    const dueCards = await db
-      .select({
-        cardId: cards.id,
-        term: cards.term,
-        vietnameseDefinition: cards.vietnameseDefinition,
-        phonetic: cards.phonetic,
-        partOfSpeech: cards.partOfSpeech,
-        exampleSentence: cards.exampleSentence,
-        collocationsJson: cards.collocationsJson,
-        deckTitle: decks.title,
-        repetition: cardSrsStates.repetition,
-        interval: cardSrsStates.interval,
-        easeFactor: cardSrsStates.easeFactor,
-        dueDate: cardSrsStates.dueDate,
-      })
-      .from(cards)
-      .innerJoin(cardSrsStates, eq(cards.id, cardSrsStates.cardId))
-      .innerJoin(decks, eq(cards.deckId, decks.id))
-      .where(and(eq(cardSrsStates.userId, userId), lte(cardSrsStates.dueDate, nowIso)))
-      .limit(30)
+    const fullSelectFields = {
+      cardId: cards.id,
+      term: cards.term,
+      vietnameseDefinition: cards.vietnameseDefinition,
+      englishMeaning: cards.englishMeaning,
+      phonetic: cards.phonetic,
+      partOfSpeech: cards.partOfSpeech,
+      exampleSentence: cards.exampleSentence,
+      collocationsJson: cards.collocationsJson,
+      cefrLevel: cards.cefrLevel,
+      audioUrl: cards.audioUrl,
+      imageUrl: cards.imageUrl,
+      allDefinitionsJson: cards.allDefinitionsJson,
+      deckTitle: decks.title,
+      repetition: cardSrsStates.repetition,
+      interval: cardSrsStates.interval,
+      easeFactor: cardSrsStates.easeFactor,
+      dueDate: cardSrsStates.dueDate,
+    }
 
-    // Fallback: If no cards are due today, return all user cards for practice mode
-    let result = dueCards
-    if (result.length === 0) {
-      result = await db
-        .select({
-          cardId: cards.id,
-          term: cards.term,
-          vietnameseDefinition: cards.vietnameseDefinition,
-          phonetic: cards.phonetic,
-          partOfSpeech: cards.partOfSpeech,
-          exampleSentence: cards.exampleSentence,
-          collocationsJson: cards.collocationsJson,
-          deckTitle: decks.title,
-          repetition: cardSrsStates.repetition,
-          interval: cardSrsStates.interval,
-          easeFactor: cardSrsStates.easeFactor,
-          dueDate: cardSrsStates.dueDate,
-        })
+    const baseSelectFields = {
+      cardId: cards.id,
+      term: cards.term,
+      vietnameseDefinition: cards.vietnameseDefinition,
+      phonetic: cards.phonetic,
+      partOfSpeech: cards.partOfSpeech,
+      exampleSentence: cards.exampleSentence,
+      collocationsJson: cards.collocationsJson,
+      deckTitle: decks.title,
+      repetition: cardSrsStates.repetition,
+      interval: cardSrsStates.interval,
+      easeFactor: cardSrsStates.easeFactor,
+      dueDate: cardSrsStates.dueDate,
+    }
+
+    let dueCards: any[] = []
+    let allUserCards: any[] = []
+
+    try {
+      dueCards = await db
+        .select(fullSelectFields)
         .from(cards)
         .innerJoin(cardSrsStates, eq(cards.id, cardSrsStates.cardId))
         .innerJoin(decks, eq(cards.deckId, decks.id))
-        .where(eq(cardSrsStates.userId, userId))
+        .where(and(eq(cardSrsStates.userId, userId), lte(cardSrsStates.dueDate, nowIso)))
         .limit(30)
+    } catch {
+      dueCards = await db
+        .select(baseSelectFields)
+        .from(cards)
+        .innerJoin(cardSrsStates, eq(cards.id, cardSrsStates.cardId))
+        .innerJoin(decks, eq(cards.deckId, decks.id))
+        .where(and(eq(cardSrsStates.userId, userId), lte(cardSrsStates.dueDate, nowIso)))
+        .limit(30)
+    }
+
+    let result = dueCards
+    if (result.length === 0) {
+      try {
+        allUserCards = await db
+          .select(fullSelectFields)
+          .from(cards)
+          .innerJoin(cardSrsStates, eq(cards.id, cardSrsStates.cardId))
+          .innerJoin(decks, eq(cards.deckId, decks.id))
+          .where(eq(cardSrsStates.userId, userId))
+          .limit(30)
+      } catch {
+        allUserCards = await db
+          .select(baseSelectFields)
+          .from(cards)
+          .innerJoin(cardSrsStates, eq(cards.id, cardSrsStates.cardId))
+          .innerJoin(decks, eq(cards.deckId, decks.id))
+          .where(eq(cardSrsStates.userId, userId))
+          .limit(30)
+      }
+      result = allUserCards
     }
 
     const formattedQueue = result.map((item: any) => ({
       ...item,
       collocations: safeJsonParse(item.collocationsJson, []),
+      allDefinitions: safeJsonParse(item.allDefinitionsJson, []),
     }))
 
     return NextResponse.json({

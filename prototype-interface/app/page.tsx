@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import {
+  AlertTriangle,
   ArrowRight,
   BarChart3,
   BookOpen,
@@ -26,7 +27,8 @@ import {
   Zap,
   X,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Volume2
 } from 'lucide-react'
 
 type View = 'Dashboard' | 'Review' | 'Translate' | 'Decks' | 'Analytics'
@@ -38,6 +40,28 @@ const navItems: { label: View; icon: typeof LayoutDashboard }[] = [
   { label: 'Decks', icon: Library },
   { label: 'Analytics', icon: BarChart3 },
 ]
+
+function getTypeStyle(type: string) {
+  const t = (type || '').toLowerCase().trim()
+  if (!t) return { background: '#eef2ff', color: '#4338ca', border: '1px solid #818cf8', fontWeight: 600 }
+  if (t === 'noun') return { background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', fontWeight: 600 }
+  if (t === 'verb') return { background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', fontWeight: 600 }
+  if (t === 'adjective') return { background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', fontWeight: 600 }
+  if (t === 'adverb') return { background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', fontWeight: 600 }
+  return { background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3', fontWeight: 600 }
+}
+
+function getLevelRedStyle(level: string) {
+  const lvl = (level || '').toUpperCase().trim()
+  if (!lvl) return { background: '#f8fafc', color: '#94a3b8', border: '1px dashed #cbd5e1', fontWeight: 400 }
+  if (lvl === 'A1') return { background: '#fff1f2', color: '#f43f5e', border: '1px solid #ffe4e6', fontWeight: 600 }
+  if (lvl === 'A2') return { background: '#ffe4e6', color: '#e11d48', border: '1px solid #fecdd3', fontWeight: 600 }
+  if (lvl === 'B1') return { background: '#fecdd3', color: '#be123c', border: '1px solid #fda4af', fontWeight: 700 }
+  if (lvl === 'B2') return { background: '#fda4af', color: '#9f1239', border: '1px solid #f43f5e', fontWeight: 700 }
+  if (lvl === 'C1') return { background: '#fb7185', color: '#ffffff', border: '1px solid #f43f5e', fontWeight: 800 }
+  if (lvl === 'C2') return { background: '#e11d48', color: '#ffffff', border: '1px solid #be123c', fontWeight: 800 }
+  return { background: '#fff1f2', color: '#f43f5e', border: '1px solid #ffe4e6', fontWeight: 600 }
+}
 
 function AppLogo() {
   return (
@@ -364,38 +388,24 @@ function Review({ setView }: { setView: (view: View) => void }) {
 
   const currentCard = queue[currentIndex]
 
-  // Load illustration images for the current word (both card faces)
-  useEffect(() => {
-    if (!currentCard?.term) {
-      setCardImages([])
-      return
+  const playCardAudio = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!currentCard?.term) return
+    if (currentCard.audioUrl) {
+      const audio = new Audio(currentCard.audioUrl)
+      audio.play().catch(() => {
+        if ('speechSynthesis' in window) {
+          const u = new SpeechSynthesisUtterance(currentCard.term)
+          u.lang = 'en-US'
+          window.speechSynthesis.speak(u)
+        }
+      })
+    } else if ('speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance(currentCard.term)
+      u.lang = 'en-US'
+      window.speechSynthesis.speak(u)
     }
-
-    let cancelled = false
-    setImagesLoading(true)
-    setImageError(false)
-    setImageIndex(0)
-    setCardImages([])
-
-    fetch(`/api/images?q=${encodeURIComponent(currentCard.term)}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return
-        setCardImages(data.images || [])
-      })
-      .catch(() => {
-        if (!cancelled) setCardImages([])
-      })
-      .finally(() => {
-        if (!cancelled) setImagesLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [currentCard?.term])
-
-  const currentImage = cardImages[imageIndex]
+  }
 
   const handleGrade = async (rating: number) => {
     if (!currentCard || submitting) return
@@ -472,7 +482,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
         <div>
           <p className="eyebrow">VOCABULARY REVIEW · {currentCard.deckTitle}</p>
           <h1>Daily review</h1>
-          <p className="subhead">SuperMemo SM-2 automated queue</p>
+          <p className="subhead">SuperMemo SM-2 automated queue (Offline DB Pre-fetched)</p>
         </div>
         <div className="review-count">
           <strong>{currentIndex + 1}</strong>
@@ -486,56 +496,60 @@ function Review({ setView }: { setView: (view: View) => void }) {
 
       <div className="review-layout">
         <div className={`flashcard ${revealed ? 'revealed' : ''}`} onClick={() => setRevealed(!revealed)}>
-          <div className="card-label">{revealed ? 'ENGLISH' : 'VIETNAMESE DEFINITION'}</div>
+          <div className="card-label-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '8px' }}>
+            <div className="card-label">{revealed ? 'ENGLISH & PRONUNCIATION' : 'VIETNAMESE DEFINITION'}</div>
+            {currentCard.cefrLevel && (
+              <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}>
+                {currentCard.cefrLevel}
+              </span>
+            )}
+          </div>
 
           {revealed && (
             <div className="card-media">
-              {imagesLoading ? (
-                <div className="card-media-placeholder">
-                  <Loader2 className="animate-spin" size={22} />
-                  <span>Đang tìm hình minh hoạ…</span>
-                </div>
-              ) : currentImage && !imageError ? (
-                <>
-                  <img
-                    src={currentImage.url}
-                    alt={currentImage.alt || currentCard.term}
-                    loading="lazy"
-                    onError={() => setImageError(true)}
-                  />
-                  <span className="card-media-credit">
-                    {currentImage.author} · {currentImage.source === 'unsplash' ? 'Unsplash' : 'Openverse'}
-                  </span>
-                  {cardImages.length > 1 && (
-                    <div className="card-media-dots" onClick={(e) => e.stopPropagation()}>
-                      {cardImages.slice(0, 6).map((_: any, i: number) => (
-                        <button
-                          key={i}
-                          className={i === imageIndex ? 'dot active' : 'dot'}
-                          aria-label={`Hình ${i + 1}`}
-                          onClick={() => {
-                            setImageIndex(i)
-                            setImageError(false)
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </>
+              {currentCard.imageUrl && !imageError ? (
+                <img
+                  src={currentCard.imageUrl}
+                  alt={currentCard.term}
+                  loading="lazy"
+                  onError={() => setImageError(true)}
+                />
               ) : (
                 <div className="card-media-placeholder">
                   <ImageIcon size={22} />
-                  <span>Không có hình minh hoạ</span>
+                  <span>Hình minh hoạ pre-saved</span>
                 </div>
               )}
             </div>
           )}
 
-          <div className={`card-word ${!revealed ? 'vietnamese-text' : ''}`}>{revealed ? currentCard.term : currentCard.vietnameseDefinition}</div>
+          <div className="card-word-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+            <div className={`card-word ${!revealed ? 'vietnamese-text' : ''}`}>{revealed ? currentCard.term : currentCard.vietnameseDefinition}</div>
+            {revealed && (
+              <button
+                type="button"
+                className="audio-play-btn"
+                title="Play native audio"
+                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', padding: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={playCardAudio}
+              >
+                <Volume2 size={18} />
+              </button>
+            )}
+          </div>
+
           <p>{revealed ? `${currentCard.phonetic || ''} • ${currentCard.partOfSpeech || ''}` : 'Tap card or press space to reveal answer'}</p>
+
+          {revealed && currentCard.englishMeaning && (
+            <div style={{ fontSize: '13px', opacity: 0.85, marginTop: '4px', fontStyle: 'italic' }}>
+              &quot;{currentCard.englishMeaning}&quot;
+            </div>
+          )}
+
           <div className="card-example">
             {revealed ? currentCard.exampleSentence || 'No example provided' : 'Mental recall challenge'}
           </div>
+
           <span className="flip-hint">
             <Keyboard size={14} /> Press space to flip
           </span>
@@ -753,7 +767,7 @@ const dictionaryDb: Record<string, {
   grammarLabel: string
 }> = {
   accomplish: {
-    level: 'B2',
+    level: 'C1',
     phonetic: '/əˈkʌm.plɪʃ/',
     vietnamese: 'Đạt được, hoàn thành mục tiêu',
     definition: 'To achieve or complete successfully a desired goal.',
@@ -761,7 +775,7 @@ const dictionaryDb: Record<string, {
     grammarLabel: 'Transitive Verb (VT) / Past: -ed',
   },
   resilience: {
-    level: 'C1',
+    level: 'C2',
     phonetic: '/rɪˈzɪl.jəns/',
     vietnamese: 'Khả năng phục hồi, sự kiên cường',
     definition: 'The capacity to recover quickly from difficulties; toughness.',
@@ -769,7 +783,7 @@ const dictionaryDb: Record<string, {
     grammarLabel: 'Uncountable Noun [U]',
   },
   innovative: {
-    level: 'B2',
+    level: 'C1',
     phonetic: '/ˈɪn.ə.veɪ.tɪv/',
     vietnamese: 'Mang tính sáng tạo, đổi mới',
     definition: 'Featuring new methods; advanced and original.',
@@ -832,13 +846,29 @@ const dictionaryDb: Record<string, {
     example: 'The merger created great synergy between both teams.',
     grammarLabel: 'Uncountable Noun [U]',
   },
+  raid: {
+    level: 'C2',
+    phonetic: '/reɪd/',
+    vietnamese: 'Cuộc đột kích / Tấn công bất ngờ',
+    definition: 'A sudden, short and usually unexpected attack, or to make a raid on.',
+    example: 'The police carried out a raid on the gambling den.',
+    grammarLabel: 'Verb [Transitive] / Noun [C]',
+  },
+  perseverance: {
+    level: 'C2',
+    phonetic: '/ˌpɜː.sɪˈvɪə.rəns/',
+    vietnamese: 'Tính kiên trì, sự bền bỉ',
+    definition: 'Continued effort to do or achieve something, even when this is difficult.',
+    example: 'It took a lot of patience and perseverance for all sides to reach an agreement.',
+    grammarLabel: 'Uncountable Noun [U]',
+  },
 }
 
 function autoGenerateWordDetails(term: string, type: string) {
   const cleanTerm = term.trim().toLowerCase()
   if (!cleanTerm) {
     return {
-      level: 'B1',
+      level: '',
       phonetic: '',
       vietnamese: '',
       definition: '',
@@ -861,43 +891,15 @@ function autoGenerateWordDetails(term: string, type: string) {
 
   const len = cleanTerm.length
   const inferredLevel = len >= 10 ? 'C1' : len >= 7 ? 'B2' : len >= 5 ? 'B1' : 'A2'
-  const pseudoPhonetic = `/${cleanTerm.replace(/e$/, 'ə').replace(/tion$/, 'ʃən').replace(/ing$/, 'ɪŋ')}/`
   const capitalized = cleanTerm.charAt(0).toUpperCase() + cleanTerm.slice(1)
-
-  let defaultViet = `Nghĩa tiếng Việt cho từ "${capitalized}"`
-  let defaultDef = `To act or express characteristics associated with "${cleanTerm}".`
-  let defaultExample = `It is important to understand how to use "${cleanTerm}" in context.`
-  let defaultGrammar = 'General Usage'
-
-  if (type === 'noun') {
-    defaultViet = `Danh từ: Khái niệm hoặc đối tượng "${capitalized}"`
-    defaultDef = `The quality, state, or object defined as "${cleanTerm}".`
-    defaultExample = `The project demonstrated impressive ${cleanTerm} during testing.`
-    defaultGrammar = 'Noun [Countable / Uncountable]'
-  } else if (type === 'verb') {
-    defaultViet = `Động từ: Thực hiện hành động "${capitalized}"`
-    defaultDef = `To perform, execute, or initiate the action of "${cleanTerm}".`
-    defaultExample = `We need to ${cleanTerm} key processes to improve results.`
-    defaultGrammar = 'Verb [Transitive / Intransitive]'
-  } else if (type === 'adjective') {
-    defaultViet = `Tính từ: Có tính chất "${capitalized}"`
-    defaultDef = `Describing a state, feature, or characteristic of "${cleanTerm}".`
-    defaultExample = `They presented an exceptionally ${cleanTerm} solution.`
-    defaultGrammar = 'Adjective [Attributive]'
-  } else if (type === 'adverb') {
-    defaultViet = `Trạng từ: Một cách "${capitalized}"`
-    defaultDef = `In a manner related to "${cleanTerm}".`
-    defaultExample = `The team performed ${cleanTerm} under pressure.`
-    defaultGrammar = 'Adverb [Adv]'
-  }
 
   return {
     level: inferredLevel,
-    phonetic: pseudoPhonetic,
-    vietnamese: defaultViet,
-    definition: defaultDef,
-    example: defaultExample,
-    grammarLabel: defaultGrammar,
+    phonetic: `/${cleanTerm}/`,
+    vietnamese: '',
+    definition: '',
+    example: '',
+    grammarLabel: type ? `${type.charAt(0).toUpperCase() + type.slice(1)}` : 'General Usage',
   }
 }
 
@@ -915,6 +917,7 @@ function Decks() {
   const [showNewDeckModal, setShowNewDeckModal] = useState(false)
   const [showNewCardModal, setShowNewCardModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
+  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false)
   const [selectedCardAction, setSelectedCardAction] = useState<any>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
@@ -984,31 +987,62 @@ function Decks() {
     { id: '1', term: 'accomplish', partOfSpeech: 'verb', ...autoGenerateWordDetails('accomplish', 'verb') },
     { id: '2', term: 'resilience', partOfSpeech: 'noun', ...autoGenerateWordDetails('resilience', 'noun') },
     { id: '3', term: 'innovative', partOfSpeech: 'adjective', ...autoGenerateWordDetails('innovative', 'adjective') },
-    { id: '4', term: '', partOfSpeech: 'noun', ...autoGenerateWordDetails('', 'noun') },
-    { id: '5', term: '', partOfSpeech: 'noun', ...autoGenerateWordDetails('', 'noun') },
+    { id: '4', term: '', partOfSpeech: '', level: '', phonetic: '', vietnameseDefinition: '', englishDefinition: '', exampleSentence: '' },
+    { id: '5', term: '', partOfSpeech: '', level: '', phonetic: '', vietnameseDefinition: '', englishDefinition: '', exampleSentence: '' },
   ])
+
+  const fetchLiveEnrichment = async (index: number, term: string, type: string) => {
+    if (!term || !term.trim() || !type || !type.trim()) return
+    try {
+      const res = await fetch(`/api/enrich?word=${encodeURIComponent(term.trim())}&type=${encodeURIComponent(type.trim())}`)
+      if (!res.ok) return
+      const data = await res.json()
+      setExcelRows((prev) => {
+        const updated = [...prev]
+        if (!updated[index]) return prev
+        const current = { ...updated[index] }
+        if (data.cefrLevel) current.level = data.cefrLevel
+        if (data.phonetic) current.phonetic = data.phonetic
+        if (data.vietnameseMeaning) current.vietnameseDefinition = data.vietnameseMeaning
+        if (data.englishMeaning) current.englishDefinition = data.englishMeaning
+        if (data.example) current.exampleSentence = data.example
+        updated[index] = current
+        return updated
+      })
+    } catch {}
+  }
 
   const handleExcelCellChange = (index: number, field: string, value: string) => {
     setExcelRows((prev) => {
       const updated = [...prev]
       const current = { ...updated[index], [field]: value }
 
-      if (field === 'term' || field === 'partOfSpeech') {
-        const generated = autoGenerateWordDetails(
-          field === 'term' ? value : current.term,
-          field === 'partOfSpeech' ? value : current.partOfSpeech
-        )
+      const termToUse = field === 'term' ? value : current.term
+      const typeToUse = field === 'partOfSpeech' ? value : current.partOfSpeech
+
+      if (termToUse && typeToUse) {
+        const generated = autoGenerateWordDetails(termToUse, typeToUse)
         current.level = generated.level
         current.phonetic = generated.phonetic
-        current.vietnameseDefinition = generated.vietnamese
-        current.englishDefinition = generated.definition
-        current.exampleSentence = generated.example
+        if (generated.vietnamese) current.vietnameseDefinition = generated.vietnamese
+        if (generated.definition) current.englishDefinition = generated.definition
+        if (generated.example) current.exampleSentence = generated.example
         current.grammarLabel = generated.grammarLabel
+      } else {
+        current.level = ''
       }
 
       updated[index] = current
       return updated
     })
+
+    const targetTerm = field === 'term' ? value : (excelRows[index]?.term || '')
+    const targetType = field === 'partOfSpeech' ? value : (excelRows[index]?.partOfSpeech || '')
+
+    // ONLY fetch auto-enrichment if BOTH word AND type are provided by the user!
+    if (targetTerm.trim().length >= 1 && targetType.trim().length >= 1) {
+      fetchLiveEnrichment(index, targetTerm, targetType)
+    }
   }
 
   const addExcelRow = (count = 1) => {
@@ -1018,12 +1052,33 @@ function Decks() {
         newRows.push({
           id: String(Date.now() + Math.random()),
           term: '',
-          partOfSpeech: 'noun',
-          ...autoGenerateWordDetails('', 'noun'),
+          partOfSpeech: '',
+          level: '',
+          phonetic: '',
+          vietnameseDefinition: '',
+          englishDefinition: '',
+          exampleSentence: '',
         })
       }
       return [...prev, ...newRows]
     })
+  }
+
+  const resetExcelGrid = () => {
+    const freshRows = []
+    for (let i = 0; i < 5; i++) {
+      freshRows.push({
+        id: String(Date.now() + i + Math.random()),
+        term: '',
+        partOfSpeech: '',
+        level: '',
+        phonetic: '',
+        vietnameseDefinition: '',
+        englishDefinition: '',
+        exampleSentence: '',
+      })
+    }
+    setExcelRows(freshRows)
   }
 
   // Inline Deck Creation State
@@ -1315,8 +1370,8 @@ function Decks() {
                 return (
                   <div className="table-row" key={c.id}>
                     <strong className="word-col">{c.term}</strong>
-                    <span className="type-chip">{c.partOfSpeech || 'noun'}</span>
-                    <span className={`level-chip ${level.toLowerCase()}`}>{level}</span>
+                    <span className="type-chip" style={getTypeStyle(c.partOfSpeech || 'noun')}>{c.partOfSpeech || 'noun'}</span>
+                    <span className="level-chip" style={getLevelRedStyle(level)}>{level}</span>
                     <span className="phonetic-col">{phonetic}</span>
                     <span className="vietnamese-col">{c.vietnameseDefinition}</span>
                     <span className="def-col">{engDef}</span>
@@ -1549,11 +1604,22 @@ function Decks() {
                   </select>
                 )}
 
-                <button type="button" className="secondary-button" style={{ padding: '4px 8px', fontSize: '11px', height: '30px' }} onClick={() => addExcelRow(1)}>
-                  <Plus size={14} /> Thêm 1 hàng
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{ padding: '4px 8px', fontSize: '11px', height: '30px', gap: '4px' }}
+                  onClick={() => setShowResetConfirmModal(true)}
+                  title="Xóa tất cả từ hiện tại và trả về danh sách trống mới"
+                >
+                  <RefreshCw size={13} /> Làm mới
                 </button>
-                <button type="button" className="secondary-button" style={{ padding: '4px 8px', fontSize: '11px', height: '30px' }} onClick={() => addExcelRow(5)}>
-                  <Plus size={14} /> Thêm 5 hàng
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{ padding: '4px 8px', fontSize: '11px', height: '30px', gap: '4px' }}
+                  onClick={() => addExcelRow(5)}
+                >
+                  <Plus size={13} /> Thêm 5 hàng
                 </button>
 
                 <button className="modal-close" onClick={() => setShowNewCardModal(false)}>
@@ -1580,7 +1646,7 @@ function Decks() {
               >
                 <span style={{ fontSize: '14px' }}>💡</span>
                 <span>
-                  <strong>Hướng dẫn:</strong> Bạn chỉ cần nhập <strong>Word</strong> và chọn <strong>Type</strong>. Tất cả các cột có biểu tượng <strong>⚡</strong> sẽ được hệ thống tự động hoàn thiện chi tiết!
+                  <strong>Hướng dẫn:</strong> Bạn cần nhập đủ 2 thông tin là <strong>WORD *</strong> và <strong>TYPE *</strong>. Hệ thống sẽ tự động tra cứu và điền đầy đủ các cột còn lại (biểu tượng <strong>⚡</strong>)!
                 </span>
               </div>
 
@@ -1606,7 +1672,7 @@ function Decks() {
                       {/* WORD */}
                       <input
                         className="excel-input word-cell"
-                        placeholder="Nhập từ (e.g. accomplish)"
+                        placeholder="Nhập từ (e.g. raid)"
                         value={row.term}
                         onChange={(e) => handleExcelCellChange(idx, 'term', e.target.value)}
                       />
@@ -1614,9 +1680,11 @@ function Decks() {
                       {/* TYPE */}
                       <select
                         className="excel-select type-cell"
+                        style={getTypeStyle(row.partOfSpeech)}
                         value={row.partOfSpeech}
                         onChange={(e) => handleExcelCellChange(idx, 'partOfSpeech', e.target.value)}
                       >
+                        <option value="">-- Chọn Type * --</option>
                         <option value="noun">noun</option>
                         <option value="verb">verb</option>
                         <option value="adjective">adjective</option>
@@ -1625,19 +1693,27 @@ function Decks() {
                         <option value="phrasal verb">phrasal verb</option>
                       </select>
 
-                      {/* LEVEL */}
-                      <select
-                        className="excel-select level-cell"
-                        value={row.level}
-                        onChange={(e) => handleExcelCellChange(idx, 'level', e.target.value)}
-                      >
-                        <option value="A1">A1</option>
-                        <option value="A2">A2</option>
-                        <option value="B1">B1</option>
-                        <option value="B2">B2</option>
-                        <option value="C1">C1</option>
-                        <option value="C2">C2</option>
-                      </select>
+                      {/* LEVEL (READ-ONLY WITH RED INTENSITY ACCORDING TO DIFFICULTY) */}
+                      <div className="excel-level-cell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '11.5px',
+                            letterSpacing: '0.5px',
+                            textAlign: 'center',
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            cursor: 'not-allowed',
+                            userSelect: 'none',
+                            ...getLevelRedStyle(row.level || '')
+                          }}
+                          title="Cấp độ CEFR tự động"
+                        >
+                          {row.level || '—'}
+                        </span>
+                      </div>
 
                       {/* PRONUNCIATION */}
                       <input
@@ -1704,6 +1780,82 @@ function Decks() {
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CUSTOM CONFIRMATION MODAL FOR RESET GRID */}
+      {showResetConfirmModal && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setShowResetConfirmModal(false)}>
+          <div
+            className="modal-card"
+            style={{ maxWidth: '420px', padding: '24px', textAlign: 'center' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                background: '#fff7ed',
+                border: '1px solid #ffedd5',
+                color: '#f97316',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}
+            >
+              <AlertTriangle size={24} />
+            </div>
+
+            <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>
+              Xác nhận làm mới danh sách?
+            </h3>
+
+            <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.5', marginBottom: '20px' }}>
+              Tất cả dữ liệu từ vựng đang nhập dở trong bảng sẽ bị xóa và quay về danh sách trống mới. Thao tác này không thể hoàn tác.
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '8px' }}>
+              <button
+                type="button"
+                className="secondary-button"
+                style={{
+                  flex: 1,
+                  height: '38px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  borderRadius: '8px',
+                  justifyContent: 'center',
+                }}
+                onClick={() => setShowResetConfirmModal(false)}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                style={{
+                  flex: 1,
+                  height: '38px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  borderRadius: '8px',
+                  background: '#ef4444',
+                  borderColor: '#dc2626',
+                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.25)',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+                onClick={() => {
+                  resetExcelGrid()
+                  setShowResetConfirmModal(false)
+                }}
+              >
+                Xác nhận làm mới
+              </button>
+            </div>
           </div>
         </div>
       )}
