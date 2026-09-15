@@ -25,6 +25,7 @@
   --border: #e2e8f0;
   --primary: #4f46e5;
   --ring: #4f46e5;
+  --bg-card-secondary: #f8fafc;
 }
 
 * {
@@ -1624,6 +1625,7 @@ nav {
   --border: #1e293b;
   --primary: #6366f1;
   --ring: #6366f1;
+  --bg-card-secondary: #1c263d;
 }
 
 .dark body {

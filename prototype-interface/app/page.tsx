@@ -3980,6 +3980,8 @@ function Decks() {
 function Analytics() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [historyTab, setHistoryTab] = useState<'sentences' | 'paragraphs'>('sentences')
+  const [expandedParaId, setExpandedParaId] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/analytics/overview')
@@ -4005,59 +4007,69 @@ function Analytics() {
   const newCount = data?.memoryStatus?.new ?? 0
   const totalCards = data?.totalCards ?? (learningCount + youngCount + matureCount + newCount)
 
+  const analytics = data?.translationAnalytics || {}
+  const totals = analytics.totals || { sentenceCount: 0, paragraphCount: 0, totalPracticed: 0, sentenceCorrectCount: 0 }
+  const byPattern: any[] = analytics.byPattern || []
+  const byTopic: any[] = analytics.byTopic || []
+  const byLevel: any[] = analytics.byLevel || []
+  const sentenceLogs: any[] = analytics.sentenceLogs || []
+  const paragraphLogs: any[] = analytics.paragraphLogs || []
+
   return (
     <div className="page-content">
       <div className="welcome-row">
         <div>
-          <p className="eyebrow">THỐNG KÊ & PHÂN TÍCH</p>
+          <p className="eyebrow">THỐNG KÊ & PHÂN TÍCH TIẾN ĐỘ</p>
           <h1>Phân tích tiến độ học tập</h1>
-          <p className="subhead">Theo dõi tỷ lệ ghi nhớ, trạng thái trí nhớ và lịch sử luyện tập hàng ngày.</p>
+          <p className="subhead">Tổng hợp chi tiết số lượng bài tập theo dạng bài, chủ đề, trình độ và nhật ký luyện tập.</p>
         </div>
       </div>
 
-      <div className="analytics-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+      {/* 1. Metric Cards Top Row */}
+      <div className="analytics-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '14px' }}>
         <MetricCard
           icon={TrendingUp}
-          label="Tỷ lệ ghi nhớ"
+          label="Tỷ lệ ghi nhớ & Chính xác"
           value={data?.retentionRate || '100.0%'}
-          detail={`Tính trên tổng ${data?.totalSessions || 0} lượt luyện tập`}
+          detail={`Tính trên ${data?.totalSessions || 0} lượt hoàn thành`}
           tone="mint"
         />
         <MetricCard
-          icon={Target}
-          label="Tổng thẻ theo dõi"
-          value={String(totalCards)}
-          detail={`${data?.cardsDue || 0} thẻ đến hạn ôn hôm nay`}
+          icon={Zap}
+          label="Dịch Câu Đơn đã làm"
+          value={`${totals.sentenceCount} câu`}
+          detail={`Đã đúng ${totals.sentenceCorrectCount}/${totals.sentenceCount} câu`}
           tone="blue"
         />
         <MetricCard
-          icon={Zap}
-          label="Chuỗi ngày học"
-          value={`${data?.streak?.current || 0} ngày`}
-          detail={`Kỷ lục: ${data?.streak?.longest || 0} ngày liên tiếp`}
+          icon={BookOpen}
+          label="Dịch Đoạn Văn đã làm"
+          value={`${totals.paragraphCount} đoạn`}
+          detail="Bài viết IELTS / Đoạn văn đã chấm AI"
           tone="purple"
         />
         <MetricCard
-          icon={BookOpen}
-          label="Hôm nay đã học"
-          value={`${data?.reviewedToday || 0} từ`}
-          detail="Từ vựng độc lập trong ngày"
+          icon={Target}
+          label="Chuỗi ngày học"
+          value={`${data?.streak?.current || 0} ngày`}
+          detail={`Kỷ lục: ${data?.streak?.longest || 0} ngày liên tiếp`}
           tone="orange"
         />
       </div>
 
-      <div className="analytics-grid">
-        <section className="panel chart-panel">
+      {/* 2. Memory Breakdown & Trend Line Section (First section after metric cards) */}
+      <div className="analytics-grid" style={{ marginBottom: '14px', alignItems: 'start' }}>
+        <section className="panel chart-panel" style={{ height: 'auto', justifyContent: 'flex-start' }}>
           <div className="panel-header">
             <div>
-              <p className="eyebrow">ĐỘ BỀN TRÍ NHỚ</p>
+              <p className="eyebrow">ĐỘ BỀN TRÍ NHỚ TỪ VỰNG</p>
               <h3>Xu hướng duy trì trí nhớ</h3>
             </div>
             <span className="chart-key">
               <i /> Thống kê tiến độ ghi nhớ
             </span>
           </div>
-          <div className="line-chart">
+          <div className="line-chart" style={{ marginTop: '12px' }}>
             <div className="chart-lines">
               <span />
               <span />
@@ -4072,12 +4084,10 @@ function Analytics() {
                   <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
-              {/* Filled area */}
               <path
                 d="M0 150 C55 135 70 105 130 123 S205 62 260 92 S325 130 365 72 S440 85 480 52 S550 75 600 30 S665 46 700 18 L700 200 L0 200 Z"
                 fill="url(#chartGrad)"
               />
-              {/* Smooth Trend Line */}
               <path
                 d="M0 150 C55 135 70 105 130 123 S205 62 260 92 S325 130 365 72 S440 85 480 52 S550 75 600 30 S665 46 700 18"
                 fill="none"
@@ -4085,7 +4095,6 @@ function Analytics() {
                 strokeWidth="3.5"
                 strokeLinecap="round"
               />
-              {/* Glowing Data Nodes */}
               <circle cx="130" cy="123" r="4.5" fill="#ffffff" stroke="#4f46e5" strokeWidth="3" />
               <circle cx="260" cy="92" r="4.5" fill="#ffffff" stroke="#4f46e5" strokeWidth="3" />
               <circle cx="365" cy="72" r="4.5" fill="#ffffff" stroke="#4f46e5" strokeWidth="3" />
@@ -4103,11 +4112,11 @@ function Analytics() {
           </div>
         </section>
 
-        <section className="panel distribution-panel">
-          <div className="panel-header">
+        <section className="panel distribution-panel" style={{ height: 'auto', justifyContent: 'flex-start' }}>
+          <div className="panel-header" style={{ marginBottom: '16px' }}>
             <div>
               <p className="eyebrow">PHÂN BỔ TRÍ NHỚ</p>
-              <h3>Giai đoạn ghi nhớ</h3>
+              <h3>Giai đoạn ghi nhớ từ vựng</h3>
             </div>
           </div>
           {[
@@ -4120,14 +4129,14 @@ function Analytics() {
             const percent = totalCards > 0 ? Math.round((numVal / totalCards) * 100) : 0
             const toneColor = tone === 'green' ? '#10b981' : tone === 'purple' ? '#8b5cf6' : tone === 'blue' ? '#3b82f6' : '#94a3b8'
             return (
-              <div className="bar-item" key={String(stageName)} style={{ marginBottom: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
-                  <span style={{ fontWeight: 600, color: '#1e293b' }}>
-                    {stageName} <small style={{ color: '#94a3b8', fontWeight: 400, marginLeft: '4px' }}>({subtext})</small>
+              <div className="bar-item" key={String(stageName)} style={{ marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '12.5px' }}>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {stageName} <small style={{ opacity: 0.7, fontWeight: 400, marginLeft: '4px' }}>({subtext})</small>
                   </span>
                   <b style={{ color: toneColor }}>{numVal} thẻ ({percent}%)</b>
                 </div>
-                <div className="bar" style={{ height: '8px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
+                <div className="bar" style={{ height: '7px', background: 'var(--bg-card-secondary, #f1f5f9)', borderRadius: '4px', overflow: 'hidden' }}>
                   <i style={{ width: `${percent}%`, background: toneColor, height: '100%', display: 'block', borderRadius: '4px', transition: 'width 0.4s ease' }} />
                 </div>
               </div>
@@ -4136,32 +4145,342 @@ function Analytics() {
         </section>
       </div>
 
-      <section className="panel history-panel" style={{ marginTop: '20px' }}>
-        <div className="panel-header">
+      {/* 3. Main Aggregations Section (Placed below vocabulary memory section) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px', marginBottom: '14px', alignItems: 'stretch' }}>
+        {/* Aggregation by Mode & CEFR Level */}
+        <section className="panel" style={{ padding: '18px 20px', borderRadius: '14px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+          <div className="panel-header" style={{ marginBottom: '14px' }}>
+            <div>
+              <p className="eyebrow">TỔNG HỢP THEO TRÌNH ĐỘ</p>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Trình độ / Mức độ đã thực hiện</h3>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+            {byLevel.map((lvl) => {
+              const totalAll = totals.totalPracticed || 1
+              const pct = Math.round((lvl.totalCount / totalAll) * 100)
+              const levelColors: Record<string, string> = {
+                A2: '#10b981',
+                B1: '#3b82f6',
+                B2: '#8b5cf6',
+                C1: '#f59e0b',
+                C2: '#ef4444',
+              }
+              const color = levelColors[lvl.level] || '#6366f1'
+
+              return (
+                <div key={lvl.level}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontSize: '12.5px' }}>
+                    <span style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ background: color, color: '#fff', fontSize: '10.5px', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>
+                        {lvl.level}
+                      </span>
+                      <span>Trình độ {lvl.level}</span>
+                    </span>
+                    <span style={{ fontSize: '12px', opacity: 0.85 }}>
+                      <b>{lvl.totalCount} bài</b> ({lvl.sentenceCount} câu, {lvl.paragraphCount} đoạn)
+                    </span>
+                  </div>
+                  <div style={{ height: '7px', background: 'var(--bg-card-secondary, #f1f5f9)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, background: color, height: '100%', borderRadius: '4px', transition: 'width 0.4s' }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* Aggregation by Sentence Pattern */}
+        <section className="panel" style={{ padding: '18px 20px', borderRadius: '14px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+          <div className="panel-header" style={{ marginBottom: '14px' }}>
+            <div>
+              <p className="eyebrow">TỔNG HỢP CÂU ĐƠN</p>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>10 Dạng cấu trúc đã thực hiện</h3>
+            </div>
+          </div>
+
+          {byPattern.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto', paddingRight: '4px', flex: 1 }}>
+              {byPattern.map((p, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    background: 'var(--bg-card-secondary, #f8fafc)',
+                    border: '1px solid var(--border, #e2e8f0)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div style={{ flex: 1, paddingRight: '8px' }}>
+                    <div style={{ fontSize: '12.5px', fontWeight: 650, color: 'var(--text-primary)' }}>{p.name}</div>
+                    <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>
+                      Chính xác: {p.correctCount}/{p.count} câu ({p.accuracy}%)
+                    </div>
+                  </div>
+                  <span style={{ fontSize: '11.5px', fontWeight: 700, background: 'rgba(99, 102, 241, 0.15)', color: 'var(--primary, #4f46e5)', padding: '3px 8px', borderRadius: '6px' }}>
+                    {p.count} câu
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ padding: '16px', textAlign: 'center', opacity: 0.7, fontSize: '13px' }}>
+              Chưa có dữ liệu bài làm câu đơn theo dạng.
+            </div>
+          )}
+        </section>
+
+        {/* Aggregation by IELTS Paragraph Topics */}
+        <section className="panel" style={{ padding: '18px 20px', borderRadius: '14px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+          <div className="panel-header" style={{ marginBottom: '14px' }}>
+            <div>
+              <p className="eyebrow">TỔNG HỢP ĐOẠN VĂN</p>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>Chủ đề đoạn văn IELTS đã thực hiện</h3>
+            </div>
+          </div>
+
+          {byTopic.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto', paddingRight: '4px', flex: 1 }}>
+              {byTopic.map((t, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    background: 'var(--bg-card-secondary, #f8fafc)',
+                    border: '1px solid var(--border, #e2e8f0)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: '12.5px', fontWeight: 650, color: 'var(--text-primary)' }}>
+                    📌 {t.name}
+                  </span>
+                  <span style={{ fontSize: '11.5px', fontWeight: 700, background: 'rgba(126, 34, 206, 0.15)', color: '#a855f7', padding: '3px 8px', borderRadius: '6px' }}>
+                    {t.count} đoạn
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ padding: '16px', textAlign: 'center', opacity: 0.7, fontSize: '13px' }}>
+              Chưa có dữ liệu bài làm đoạn văn theo chủ đề.
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* 4. 2-Mode Practice Log / History Section (Concise Single-Line Rows Layout) */}
+      <section className="panel history-panel" style={{ marginTop: '14px', padding: '18px 20px', borderRadius: '16px', height: 'auto', justifyContent: 'flex-start' }}>
+        <div className="panel-header" style={{ marginBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <p className="eyebrow">NHẬT KÝ LUYỆN TẬP GẦN ĐÂY</p>
-            <h3>Lịch sử dịch câu & kiểm tra</h3>
+            <p className="eyebrow">NHẬT KÝ LUYỆN TẬP BÀI LÀM</p>
+            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>Lịch sử & Nhật ký dịch bài (Hiển thị 1 dòng)</h3>
+          </div>
+
+          {/* Tab buttons for 2 modes */}
+          <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-card-secondary, #f1f5f9)', padding: '4px', borderRadius: '10px' }}>
+            <button
+              type="button"
+              onClick={() => setHistoryTab('sentences')}
+              style={{
+                padding: '6px 14px',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                background: historyTab === 'sentences' ? '#4f46e5' : 'transparent',
+                color: historyTab === 'sentences' ? '#ffffff' : 'var(--text-primary)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span>⚡ Dịch Câu Đơn</span>
+              <span style={{ fontSize: '11px', opacity: 0.8, background: historyTab === 'sentences' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.08)', padding: '1px 6px', borderRadius: '10px' }}>
+                {sentenceLogs.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setHistoryTab('paragraphs')}
+              style={{
+                padding: '6px 14px',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                background: historyTab === 'paragraphs' ? '#7e22ce' : 'transparent',
+                color: historyTab === 'paragraphs' ? '#ffffff' : 'var(--text-primary)',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span>📑 Dịch Đoạn Văn IELTS</span>
+              <span style={{ fontSize: '11px', opacity: 0.8, background: historyTab === 'paragraphs' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.08)', padding: '1px 6px', borderRadius: '10px' }}>
+                {paragraphLogs.length}
+              </span>
+            </button>
           </div>
         </div>
 
-        {data?.recentTranslations?.length > 0 ? (
-          data.recentTranslations.map((log: any) => (
-            <div className="history-row" key={log.id}>
-              <span className={log.isCorrect ? 'success-icon' : 'error-icon'}>
-                {log.isCorrect ? <Check size={15} /> : <X size={15} />}
-              </span>
-              <span>
-                <b>{log.userSubmission}</b>
-                <small>{log.grammarCategory} • {log.vietnameseText}</small>
-              </span>
-              <strong className={log.isCorrect ? 'positive' : 'negative'}>
-                {log.isCorrect ? 'Chính xác' : 'Cần ôn lại'}
-              </strong>
-            </div>
-          ))
-        ) : (
-          <div style={{ padding: '20px', color: '#64748b', textAlign: 'center', fontSize: '13.5px' }}>
-            Chưa có lịch sử câu dịch nào được ghi nhận trong cơ sở dữ liệu.
+        {/* Mode 1: Single Sentences Log (Concise Single-Line Rows) */}
+        {historyTab === 'sentences' && (
+          <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '4px' }}>
+            {sentenceLogs.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {sentenceLogs.map((log: any) => (
+                  <div
+                    key={log.id}
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      background: 'var(--bg-card-secondary, #f8fafc)',
+                      border: '1px solid var(--border, #e2e8f0)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                      {log.isCorrect && (
+                        <span
+                          style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '50%',
+                            background: '#16a34a',
+                            color: '#fff',
+                            display: 'grid',
+                            placeItems: 'center',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Check size={13} />
+                        </span>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
+                        <b style={{ color: 'var(--text-primary)' }}>{log.userSubmission}</b>
+                        <span style={{ opacity: 0.65, marginLeft: '8px', fontSize: '12px' }}>
+                          • {log.vietnameseText}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      <span style={{ fontSize: '11.5px', opacity: 0.8, background: 'var(--card, #ffffff)', padding: '2px 8px', borderRadius: '6px', border: '1px solid var(--border, #e2e8f0)' }}>
+                        {log.grammarCategory}
+                      </span>
+                      {log.difficulty && (
+                        <span style={{ fontSize: '11px', fontWeight: 800, background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', padding: '2px 6px', borderRadius: '4px' }}>
+                          {log.difficulty}
+                        </span>
+                      )}
+                      <span style={{ fontSize: '11px', opacity: 0.55 }}>
+                        {log.createdAt ? new Date(log.createdAt).toLocaleDateString('vi-VN') : ''}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ padding: '24px', color: 'var(--text-secondary, #64748b)', textAlign: 'center', fontSize: '13.5px' }}>
+                Chưa có nhật ký bài tập dịch câu đơn nào.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Mode 2: IELTS Paragraphs Log (Concise Single-Line Rows with Dropdown Expand) */}
+        {historyTab === 'paragraphs' && (
+          <div style={{ maxHeight: '450px', overflowY: 'auto', paddingRight: '4px' }}>
+            {paragraphLogs.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {paragraphLogs.map((log: any) => {
+                  const isExpanded = expandedParaId === log.id
+
+                  return (
+                    <div
+                      key={log.id}
+                      style={{
+                        borderRadius: '10px',
+                        background: 'var(--bg-card-secondary, #f8fafc)',
+                        border: '1px solid var(--border, #e2e8f0)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: '10px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => setExpandedParaId(isExpanded ? null : log.id)}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: '11.5px', fontWeight: 800, background: 'rgba(126, 34, 206, 0.15)', color: '#c084fc', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>
+                            {log.themeCategory}
+                          </span>
+                          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <b style={{ color: 'var(--text-primary)' }}>{log.subTopic}</b>
+                            <span style={{ opacity: 0.65, marginLeft: '8px', fontSize: '12px' }}>
+                              • {log.userTranslation}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                          <span style={{ fontSize: '11px', fontWeight: 700, background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', padding: '2px 6px', borderRadius: '4px' }}>
+                            Band {log.targetBand}
+                          </span>
+                          {log.estimatedCefr && (
+                            <span style={{ fontSize: '11px', fontWeight: 700, background: 'rgba(22, 163, 74, 0.15)', color: '#4ade80', padding: '2px 6px', borderRadius: '4px' }}>
+                              {log.estimatedCefr}
+                            </span>
+                          )}
+                          <span style={{ fontSize: '11px', color: '#818cf8', fontWeight: 650, display: 'flex', alignItems: 'center', gap: '2px' }}>
+                            {isExpanded ? '▲ Thu gọn' : '▼ Chi tiết'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div style={{ padding: '12px 14px', background: 'var(--card, #131b2e)', borderTop: '1px solid var(--border, #e2e8f0)', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12.5px' }}>
+                          <div><b>Đoạn gốc:</b> {log.vietnameseParagraph}</div>
+                          <div><b>Bản dịch của bạn:</b> {log.userTranslation}</div>
+                          {log.overallFeedback && <div><b style={{ color: '#818cf8' }}>Nhận xét AI:</b> {log.overallFeedback}</div>}
+                          <div><b style={{ color: '#4ade80' }}>Bản dịch mẫu:</b> <i style={{ color: 'var(--text-primary)' }}>{log.modelTranslation}</i></div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div style={{ padding: '24px', color: 'var(--text-secondary, #64748b)', textAlign: 'center', fontSize: '13.5px' }}>
+                Chưa có nhật ký bài tập dịch đoạn văn IELTS nào.
+              </div>
+            )}
           </div>
         )}
       </section>
