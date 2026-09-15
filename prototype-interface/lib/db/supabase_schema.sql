@@ -114,6 +114,32 @@ CREATE TABLE IF NOT EXISTS public.user_streaks (
   last_activity_date DATE
 );
 
+-- 9. TRANSLATION PARAGRAPHS TABLE
+CREATE TABLE IF NOT EXISTS public.translation_paragraphs (
+  id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+  theme_category TEXT NOT NULL,
+  sub_topic TEXT NOT NULL,
+  target_band TEXT NOT NULL DEFAULT 'B2',
+  vietnamese_paragraph TEXT NOT NULL,
+  target_collocations_json JSONB DEFAULT '[]',
+  model_translation TEXT NOT NULL,
+  grammar_breakdown TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 10. TRANSLATION PARAGRAPH SUBMISSIONS TABLE
+CREATE TABLE IF NOT EXISTS public.translation_paragraph_submissions (
+  id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+  user_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  paragraph_id TEXT NOT NULL REFERENCES public.translation_paragraphs(id) ON DELETE CASCADE,
+  user_translation TEXT NOT NULL,
+  overall_feedback TEXT,
+  estimated_cefr TEXT,
+  grammar_errors_json JSONB,
+  better_alternatives_json JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Option A: Disable RLS for small study group cohort
 ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.decks DISABLE ROW LEVEL SECURITY;
@@ -124,6 +150,8 @@ ALTER TABLE public.review_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.translation_prompts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.translation_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_streaks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.translation_paragraphs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.translation_paragraph_submissions DISABLE ROW LEVEL SECURITY;
 
 -- Option B: Alternatively create open policies if RLS is enabled
 DO $$ 

@@ -135,6 +135,32 @@ function getSqliteDb() {
         last_activity_date TEXT,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
+
+      CREATE TABLE IF NOT EXISTS translation_paragraphs (
+        id TEXT PRIMARY KEY,
+        theme_category TEXT NOT NULL,
+        sub_topic TEXT NOT NULL,
+        target_band TEXT NOT NULL DEFAULT 'B2',
+        vietnamese_paragraph TEXT NOT NULL,
+        target_collocations_json TEXT DEFAULT '[]',
+        model_translation TEXT NOT NULL,
+        grammar_breakdown TEXT,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS translation_paragraph_submissions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        paragraph_id TEXT NOT NULL,
+        user_translation TEXT NOT NULL,
+        overall_feedback TEXT,
+        estimated_cefr TEXT,
+        grammar_errors_json TEXT,
+        better_alternatives_json TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (paragraph_id) REFERENCES translation_paragraphs(id) ON DELETE CASCADE
+      );
     `)
     initializedSqlite = true
   }
@@ -154,6 +180,32 @@ export function getDb(): any {
           connect_timeout: 10,
           idle_timeout: 10,
         })
+        client.unsafe(`
+          CREATE TABLE IF NOT EXISTS public.translation_paragraphs (
+            id TEXT PRIMARY KEY,
+            theme_category TEXT NOT NULL,
+            sub_topic TEXT NOT NULL,
+            target_band TEXT NOT NULL DEFAULT 'B2',
+            vietnamese_paragraph TEXT NOT NULL,
+            target_collocations_json TEXT DEFAULT '[]',
+            model_translation TEXT NOT NULL,
+            grammar_breakdown TEXT,
+            created_at TEXT NOT NULL DEFAULT NOW()::text
+          );
+
+          CREATE TABLE IF NOT EXISTS public.translation_paragraph_submissions (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+            paragraph_id TEXT NOT NULL REFERENCES public.translation_paragraphs(id) ON DELETE CASCADE,
+            user_translation TEXT NOT NULL,
+            overall_feedback TEXT,
+            estimated_cefr TEXT,
+            grammar_errors_json TEXT,
+            better_alternatives_json TEXT,
+            created_at TEXT NOT NULL DEFAULT NOW()::text
+          );
+        `).catch(() => {})
+
         dbInstance = drizzlePostgres(client, { schema: pgSchema })
         console.log('Connected to Supabase PostgreSQL with Postgres schema dialect.')
       } catch (err) {

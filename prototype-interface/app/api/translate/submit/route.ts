@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { translationPrompts, translationLogs, userStreaks } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
-import { evaluateTranslation } from '@/lib/translation/evaluator'
+import { evaluateSingleSentenceWithDeepSeek } from '@/services/gemini-translation-evaluator'
 import { eq } from 'drizzle-orm'
 import { safeJsonParse } from '@/lib/utils'
 
@@ -33,8 +33,14 @@ export async function POST(request: Request) {
 
     const canonicalAnswers: string[] = safeJsonParse(prompt.canonicalAnswersJson, [])
 
-    // Run evaluation engine
-    const evaluation = evaluateTranslation(userSubmission, canonicalAnswers)
+    // Run DeepSeek evaluation engine for single sentences
+    const evaluation = await evaluateSingleSentenceWithDeepSeek(
+      prompt.vietnameseText,
+      userSubmission,
+      canonicalAnswers,
+      prompt.grammarCategory || '',
+      prompt.grammarNotes || ''
+    )
 
     const nowIso = new Date().toISOString()
 
@@ -45,7 +51,7 @@ export async function POST(request: Request) {
       promptId,
       userSubmission,
       isCorrect: evaluation.isCorrect,
-      matchedCanonical: evaluation.matchedCanonical || canonicalAnswers[0],
+      matchedCanonical: evaluation.suggestedAnswer || canonicalAnswers[0],
       createdAt: nowIso,
     })
 
@@ -76,9 +82,12 @@ export async function POST(request: Request) {
     return NextResponse.json({
       evaluation: {
         isCorrect: evaluation.isCorrect,
-        matchedCanonical: evaluation.matchedCanonical,
+        score: evaluation.score,
+        overallAnalysis: evaluation.overallAnalysis,
         suggestedAnswer: evaluation.suggestedAnswer,
-        grammarNotes: prompt.grammarNotes,
+        detailedFeedback: evaluation.detailedFeedback,
+        grammarNotes: evaluation.grammarNotes,
+        improvementSuggestions: evaluation.improvementSuggestions,
         grammarCategory: prompt.grammarCategory,
         diff: evaluation.diff,
       },

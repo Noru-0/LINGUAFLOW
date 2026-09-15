@@ -8,9 +8,11 @@ import {
   BookOpen,
   Check,
   ChevronDown,
+  ChevronUp,
   CircleHelp,
   Flame,
   GraduationCap,
+  GripVertical,
   Image as ImageIcon,
   Keyboard,
   LayoutDashboard,
@@ -478,24 +480,43 @@ function Review({ setView }: { setView: (view: View) => void }) {
       .catch(() => setLoading(false))
   }
 
-  // Auto-save session progress on state change
+  // Auto-save session progress on state change (debounced 500ms to avoid blocking card switching)
   useEffect(() => {
     if (loading || activeBatchQueue.length === 0) return
-    try {
-      const payload = {
-        batchIndex,
-        activeBatchQueue,
-        batchCompletedCardIds: Array.from(batchCompletedCardIds),
-        gradedCardIds: Array.from(gradedCardIds),
-        currentIndex,
-        fullQueue,
-        batches,
-        hasStartedBatch,
-        timestamp: Date.now(),
-      }
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload))
-    } catch {}
+    const timer = setTimeout(() => {
+      try {
+        const payload = {
+          batchIndex,
+          activeBatchQueue,
+          batchCompletedCardIds: Array.from(batchCompletedCardIds),
+          gradedCardIds: Array.from(gradedCardIds),
+          currentIndex,
+          fullQueue,
+          batches,
+          hasStartedBatch,
+          timestamp: Date.now(),
+        }
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload))
+      } catch {}
+    }, 500)
+    return () => clearTimeout(timer)
   }, [batchIndex, activeBatchQueue, batchCompletedCardIds, gradedCardIds, currentIndex, fullQueue, batches, hasStartedBatch, loading])
+
+  // Asset preloading for upcoming cards (images & audio)
+  useEffect(() => {
+    if (!activeBatchQueue || activeBatchQueue.length === 0) return
+    const nextCards = activeBatchQueue.slice(currentIndex + 1, currentIndex + 4)
+    nextCards.forEach((card) => {
+      if (card?.imageUrl) {
+        const img = new Image()
+        img.src = card.imageUrl
+      }
+      if (card?.audioUrl) {
+        const audio = new Audio()
+        audio.src = card.audioUrl
+      }
+    })
+  }, [currentIndex, activeBatchQueue])
 
   const resetCardState = () => {
     setRevealed(false)
@@ -574,6 +595,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
   }
 
   const advanceToNextCard = () => {
+    resetCardState()
     if (currentIndex + 1 < activeBatchQueue.length) {
       setCurrentIndex((prev) => prev + 1)
     }
@@ -592,44 +614,39 @@ function Review({ setView }: { setView: (view: View) => void }) {
     }
   }
 
-  const handleGrade = async (rating: number) => {
-    if (!currentCard || submitting) return
+  const handleGrade = (rating: number) => {
+    if (!currentCard) return
 
     const cardId = currentCard.cardId
     const isFirstRatingInSession = !gradedCardIds.has(cardId)
 
-    setSubmitting(true)
+    // Optimistic UI update: record result and advance IMMEDIATELY (0ms delay)
+    recordCardResult(rating)
+    advanceToNextCard()
 
-    try {
-      if (isFirstRatingInSession) {
-        // State 1: Call Database SRS / DSR algorithm update ONLY for the FIRST rating of the card
-        await fetch('/api/srs/grade', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            cardId,
-            rating,
-          }),
-        })
-        setGradedCardIds((prev) => {
-          const next = new Set(prev)
-          next.add(cardId)
-          return next
-        })
-      }
+    if (isFirstRatingInSession) {
+      setGradedCardIds((prev) => {
+        const next = new Set(prev)
+        next.add(cardId)
+        return next
+      })
 
-      // State 2: Intra-batch in-memory RAM queue update
-      recordCardResult(rating)
-      advanceToNextCard()
-    } catch (err) {
-      console.error('Error grading card:', err)
-    } finally {
-      setSubmitting(false)
+      // Non-blocking background database update
+      fetch('/api/srs/grade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cardId,
+          rating,
+        }),
+      }).catch((err) => {
+        console.error('Error grading card in background:', err)
+      })
     }
   }
 
-  const handleFillSubmit = async (gaveUp = false) => {
-    if (!currentCard || submitting || fillResult) return
+  const handleFillSubmit = (gaveUp = false) => {
+    if (!currentCard || fillResult) return
 
     const elapsedSeconds = Math.max(1, Math.round((Date.now() - cardStartTime) / 1000))
     const evalRes = evaluateFillInBlank({
@@ -640,52 +657,47 @@ function Review({ setView }: { setView: (view: View) => void }) {
       gaveUp,
     })
 
-    // Correct fill-in always counts as passing grade (rating >= 3, like Good/Easy) => +1 progress
     const effectiveRating = evalRes.isCorrect ? Math.max(3, evalRes.rating) : evalRes.rating
-
     const cardId = currentCard.cardId
     const isFirstRatingInSession = !gradedCardIds.has(cardId)
 
-    setSubmitting(true)
+    // State 2: Intra-batch in-memory RAM queue update (+1 progress if effectiveRating >= 3)
+    recordCardResult(effectiveRating)
 
-    try {
-      let dsrData: any = null
+    setFillResult({
+      isCorrect: evalRes.isCorrect,
+      rating: effectiveRating,
+    })
 
-      if (isFirstRatingInSession) {
-        // State 1: Call Database SRS / DSR algorithm update ONLY for the FIRST rating of the card
-        const res = await fetch('/api/srs/grade', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            cardId,
-            rating: effectiveRating,
-          }),
-        })
-        const data = await res.json()
-        dsrData = data.dsr || data.newState
-        setGradedCardIds((prev) => {
-          const next = new Set(prev)
-          next.add(cardId)
-          return next
-        })
-      }
+    if (evalRes.isCorrect) {
+      playCardAudio()
+    }
 
-      // State 2: Intra-batch in-memory RAM queue update (+1 progress if effectiveRating >= 3)
-      recordCardResult(effectiveRating)
-
-      setFillResult({
-        isCorrect: evalRes.isCorrect,
-        rating: effectiveRating,
-        dsr: dsrData,
+    if (isFirstRatingInSession) {
+      setGradedCardIds((prev) => {
+        const next = new Set(prev)
+        next.add(cardId)
+        return next
       })
 
-      if (evalRes.isCorrect) {
-        playCardAudio()
-      }
-    } catch (err) {
-      console.error('Fill in blank submission error:', err)
-    } finally {
-      setSubmitting(false)
+      fetch('/api/srs/grade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cardId,
+          rating: effectiveRating,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          const dsrData = data.dsr || data.newState
+          if (dsrData) {
+            setFillResult((prev) => (prev ? { ...prev, dsr: dsrData } : prev))
+          }
+        })
+        .catch((err) => {
+          console.error('Fill in blank submission background error:', err)
+        })
     }
   }
 
@@ -729,7 +741,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
       if (e.code === 'Space') {
         e.preventDefault()
         setRevealed((r) => !r)
-      } else if (revealed && !submitting) {
+      } else if (revealed) {
         if (e.key === '1') handleGrade(1)
         if (e.key === '2') handleGrade(2)
         if (e.key === '3') handleGrade(3)
@@ -1101,7 +1113,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
                   <button
                     key={String(name)}
                     className={`rating ${tone}`}
-                    disabled={!revealed || submitting}
+                    disabled={!revealed}
                     onClick={() => handleGrade(Number(num))}
                   >
                     <b>{num}</b>
@@ -1433,38 +1445,234 @@ function Review({ setView }: { setView: (view: View) => void }) {
   )
 }
 
+const TOPICS_BY_LEVEL: Record<string, { code: string; label: string }[]> = {
+  ALL: [
+    { code: 'ALL', label: '🌐 Tất cả chủ đề' },
+    { code: 'Daily', label: '🏠 Daily Life & Routines' },
+    { code: 'Travel', label: '✈️ Travel & Tourism' },
+    { code: 'Work', label: '💼 Work & Career' },
+    { code: 'Education', label: '🎓 Education & Technology' },
+    { code: 'AI', label: '🤖 AI, Ethics & Society' },
+  ],
+  A2: [
+    { code: 'ALL', label: '🌐 Tất cả chủ đề (A2)' },
+    { code: 'Daily', label: '🏠 Daily Life & Family' },
+    { code: 'Food', label: '🍲 Food & Cooking' },
+    { code: 'Sports', label: '⚽ Sports & Fitness' },
+  ],
+  B1: [
+    { code: 'ALL', label: '🌐 Tất cả chủ đề (B1)' },
+    { code: 'Travel', label: '✈️ Travel & Tourism' },
+    { code: 'Hometown', label: '🏡 Hometown & Living' },
+    { code: 'Transport', label: '🚌 Transport & Traffic' },
+  ],
+  B2: [
+    { code: 'ALL', label: '🌐 Tất cả chủ đề (B2)' },
+    { code: 'Work', label: '💼 Work & Career' },
+    { code: 'Education', label: '🎓 Education & Schooling' },
+    { code: 'Environment', label: '🌿 Environment & Green Living' },
+    { code: 'Technology', label: '📱 Modern Technology' },
+  ],
+  C1: [
+    { code: 'ALL', label: '🌐 Tất cả chủ đề (C1)' },
+    { code: 'Education', label: '🎓 AI & Higher Education' },
+    { code: 'Economy', label: '📈 Global Economy & Trade' },
+    { code: 'Crime', label: '⚖️ Crime & Law Enforcement' },
+  ],
+  C2: [
+    { code: 'ALL', label: '🌐 Tất cả chủ đề (C2)' },
+    { code: 'AI', label: '🤖 Automation & Ethics' },
+    { code: 'Philosophy', label: '🧠 Philosophy & Society' },
+    { code: 'Science', label: '🚀 Space & Science' },
+  ],
+}
+
+const SENTENCE_PATTERNS = [
+  { code: 'ALL', label: '🌐 Tất cả dạng câu', color: '#64748b' },
+  { code: 'Core', label: '1. Khung 5 cấu trúc cơ bản', color: '#16a34a' },
+  { code: 'Passive', label: '2. Bị động & Bị động khách quan', color: '#2563eb' },
+  { code: 'Causative', label: '3. Thể nhờ vả & Thể tồn tại', color: '#0891b2' },
+  { code: 'Gerund', label: '4. Danh động từ & V-ing', color: '#7c3aed' },
+  { code: 'Participle', label: '5. Cụm phân từ rút gọn', color: '#d97706' },
+  { code: 'Cleft', label: '6. Câu chẻ & Đảo ngữ', color: '#dc2626' },
+  { code: 'Conditionals', label: '7. Câu điều kiện & Giả định', color: '#e11d48' },
+  { code: 'Reported', label: '8. Câu gián tiếp / Tường thuật', color: '#4f46e5' },
+  { code: 'Relative', label: '9. Mệnh đề quan hệ', color: '#059669' },
+  { code: 'Adverbial', label: '10. Mệnh đề trạng ngữ logic', color: '#b45309' },
+]
+
 // ----------------------------------------------------
-// Translate View (Bilingual Drills)
+// Translate View (Bilingual Drills & IELTS Paragraph Translation)
 // ----------------------------------------------------
 function Translate({ setView }: { setView: (view: View) => void }) {
+  const [activeTab, setActiveTab] = useState<'sentence' | 'paragraph'>('paragraph')
+  const [selectedLevel, setSelectedLevel] = useState<'ALL' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'>('ALL')
+  const [selectedTopic, setSelectedTopic] = useState<string>('ALL')
+  const [selectedPattern, setSelectedPattern] = useState<string>('ALL')
+  const [showCollocations, setShowCollocations] = useState<boolean>(false)
+  const [streakCount, setStreakCount] = useState(0)
+
+  // Split-pane layout resizer state
+  const [leftPanePercent, setLeftPanePercent] = useState<number>(50)
+  const [isDragging, setIsDragging] = useState<boolean>(false)
+  const layoutRef = useRef<HTMLDivElement>(null)
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !layoutRef.current) return
+      const rect = layoutRef.current.getBoundingClientRect()
+      const offsetX = e.clientX - rect.left
+      const percent = (offsetX / rect.width) * 100
+      const clamped = Math.min(Math.max(percent, 25), 75)
+      setLeftPanePercent(clamped)
+    }
+
+    const handleMouseUp = () => {
+      if (isDragging) {
+        setIsDragging(false)
+      }
+    }
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging])
+
+  // Sentence Mode State
   const [prompts, setPrompts] = useState<any[]>([])
+  const [completedPromptIds, setCompletedPromptIds] = useState<Set<string>>(new Set())
+  const [activePromptId, setActivePromptId] = useState<string | null>(null)
   const [promptIndex, setPromptIndex] = useState(0)
   const [userSubmission, setUserSubmission] = useState('')
   const [evaluation, setEvaluation] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [streakCount, setStreakCount] = useState(0)
+  const [loadingSentence, setLoadingSentence] = useState(true)
+  const [submittingSentence, setSubmittingSentence] = useState(false)
+  const [sentenceSubmitError, setSentenceSubmitError] = useState<string | null>(null)
+  const [sentenceRetryCount, setSentenceRetryCount] = useState<number>(0)
+
+  // Paragraph Mode State
+  const [paragraphPrompts, setParagraphPrompts] = useState<any[]>([])
+  const [completedParagraphIds, setCompletedParagraphIds] = useState<Set<string>>(new Set())
+  const [activeParagraphId, setActiveParagraphId] = useState<string | null>(null)
+  const [paragraphIndex, setParagraphIndex] = useState(0)
+  const [userParagraphSubmission, setUserParagraphSubmission] = useState('')
+  const [paragraphEvaluation, setParagraphEvaluation] = useState<any>(null)
+  const [modelParagraph, setModelParagraph] = useState<any>(null)
+  const [loadingParagraph, setLoadingParagraph] = useState(true)
+  const [submittingParagraph, setSubmittingParagraph] = useState(false)
+  const [paragraphSubmitError, setParagraphSubmitError] = useState<string | null>(null)
+  const [paragraphRetryCount, setParagraphRetryCount] = useState<number>(0)
+  const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false)
+  const [isGeneratingWeeklySentence, setIsGeneratingWeeklySentence] = useState(false)
+  const [weeklyIngestMsg, setWeeklyIngestMsg] = useState<string | null>(null)
 
   useEffect(() => {
+    // Fetch sentence prompts
     fetch('/api/translate/prompt')
       .then((res) => res.json())
       .then((data) => {
-        setPrompts(data.prompts || [])
-        setLoading(false)
+        const fetchedPrompts = data.prompts || []
+        setPrompts(fetchedPrompts)
+        const done = new Set<string>(data.completedPromptIds || [])
+        setCompletedPromptIds(done)
+        const firstUncompleted = fetchedPrompts.find((p: any) => !done.has(p.id))
+        if (firstUncompleted) {
+          setActivePromptId(firstUncompleted.id)
+        } else if (fetchedPrompts[0]) {
+          setActivePromptId(fetchedPrompts[0].id)
+        }
+        setLoadingSentence(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => setLoadingSentence(false))
 
+    // Fetch paragraph prompts
+    fetch('/api/translate/paragraph/prompt')
+      .then((res) => res.json())
+      .then((data) => {
+        const fetchedParagraphs = data.paragraphs || []
+        setParagraphPrompts(fetchedParagraphs)
+        const done = new Set<string>(data.completedParagraphIds || [])
+        setCompletedParagraphIds(done)
+        const firstUncompleted = fetchedParagraphs.find((p: any) => !done.has(p.id))
+        if (firstUncompleted) {
+          setActiveParagraphId(firstUncompleted.id)
+        } else if (fetchedParagraphs[0]) {
+          setActiveParagraphId(fetchedParagraphs[0].id)
+        }
+        setLoadingParagraph(false)
+      })
+      .catch(() => setLoadingParagraph(false))
+
+    // Fetch streak analytics
     fetch('/api/analytics/overview')
       .then((res) => res.json())
       .then((data) => setStreakCount(data?.streak?.current || 0))
       .catch(() => {})
   }, [])
 
-  const currentPrompt = prompts[promptIndex]
+  // Filter queues by selected level and topic / pattern (retaining active prompt while viewing)
+  const filteredPrompts = prompts.filter((p) => {
+    const matchPattern =
+      selectedPattern === 'ALL' ||
+      (p.grammarCategory || '').toLowerCase().includes(selectedPattern.toLowerCase()) ||
+      (p.grammarNotes || '').toLowerCase().includes(selectedPattern.toLowerCase())
+    const isUncompletedOrActive = !completedPromptIds.has(p.id) || p.id === activePromptId
+    return matchPattern && isUncompletedOrActive
+  })
 
-  const handleSubmit = async () => {
-    if (!currentPrompt || !userSubmission.trim() || submitting) return
-    setSubmitting(true)
+  const filteredParagraphs = paragraphPrompts.filter((p) => {
+    const matchLevel = selectedLevel === 'ALL' || (p.targetBand || '').toUpperCase() === selectedLevel
+    const matchTopic =
+      selectedTopic === 'ALL' ||
+      (p.themeCategory || '').toLowerCase().includes(selectedTopic.toLowerCase()) ||
+      (p.subTopic || '').toLowerCase().includes(selectedTopic.toLowerCase())
+    const isUncompletedOrActive = !completedParagraphIds.has(p.id) || p.id === activeParagraphId
+    return matchLevel && matchTopic && isUncompletedOrActive
+  })
+
+  const currentPrompt =
+    (activePromptId ? filteredPrompts.find((p) => p.id === activePromptId) : null) ||
+    filteredPrompts.find((p) => !completedPromptIds.has(p.id)) ||
+    filteredPrompts[0] ||
+    null
+
+  const currentParagraph =
+    (activeParagraphId ? filteredParagraphs.find((p) => p.id === activeParagraphId) : null) ||
+    filteredParagraphs.find((p) => !completedParagraphIds.has(p.id)) ||
+    filteredParagraphs[0] ||
+    null
+
+  // Sync active IDs on load or filter change
+  useEffect(() => {
+    if (!activePromptId && currentPrompt?.id) {
+      setActivePromptId(currentPrompt.id)
+    }
+  }, [currentPrompt, activePromptId])
+
+  useEffect(() => {
+    if (!activeParagraphId && currentParagraph?.id) {
+      setActiveParagraphId(currentParagraph.id)
+    }
+  }, [currentParagraph, activeParagraphId])
+
+  // Sentence Submit
+  const handleSentenceSubmit = async () => {
+    if (!currentPrompt || !userSubmission.trim() || submittingSentence) return
+    if (sentenceSubmitError && sentenceRetryCount >= 1) return
+
+    setSubmittingSentence(true)
+    const isRetry = sentenceSubmitError !== null
 
     try {
       const res = await fetch('/api/translate/submit', {
@@ -1476,25 +1684,183 @@ function Translate({ setView }: { setView: (view: View) => void }) {
         }),
       })
       const data = await res.json()
+
+      if (!res.ok || data.error || !data.evaluation) {
+        throw new Error(data.error || 'LLM AI chưa phản hồi hoặc phản hồi lỗi.')
+      }
+
       setEvaluation(data.evaluation)
-    } catch (err) {
-      console.error('Translation error:', err)
+      setSentenceSubmitError(null)
+      setSentenceRetryCount(0)
+      if (currentPrompt?.id) {
+        setActivePromptId(currentPrompt.id)
+        setCompletedPromptIds((prev) => new Set([...Array.from(prev), currentPrompt.id]))
+      }
+    } catch (err: any) {
+      console.error('Translation sentence error:', err)
+      setSentenceSubmitError(err?.message || 'Có lỗi xảy ra khi chấm AI.')
+      if (isRetry) {
+        setSentenceRetryCount(1)
+      }
     } finally {
-      setSubmitting(false)
+      setSubmittingSentence(false)
     }
   }
 
-  const handleNext = () => {
+  const handleNextSentence = () => {
     setEvaluation(null)
     setUserSubmission('')
-    if (promptIndex + 1 < prompts.length) {
-      setPromptIndex((i) => i + 1)
+    setSentenceSubmitError(null)
+    setSentenceRetryCount(0)
+    const uncompletedList = filteredPrompts.filter((p) => !completedPromptIds.has(p.id))
+    if (uncompletedList.length > 0) {
+      const currIdx = uncompletedList.findIndex((p) => p.id === activePromptId)
+      const nextIdx = currIdx >= 0 && currIdx + 1 < uncompletedList.length ? currIdx + 1 : 0
+      setActivePromptId(uncompletedList[nextIdx].id)
     } else {
-      setPromptIndex(0)
+      const currIdx = filteredPrompts.findIndex((p) => p.id === activePromptId)
+      const nextIdx = currIdx >= 0 && currIdx + 1 < filteredPrompts.length ? currIdx + 1 : 0
+      if (filteredPrompts[nextIdx]) {
+        setActivePromptId(filteredPrompts[nextIdx].id)
+      }
     }
   }
 
-  if (loading) {
+  // Paragraph Submit
+  const handleParagraphSubmit = async () => {
+    if (!currentParagraph || !userParagraphSubmission.trim() || submittingParagraph) return
+    if (paragraphSubmitError && paragraphRetryCount >= 1) return
+
+    setSubmittingParagraph(true)
+    const isRetry = paragraphSubmitError !== null
+
+    try {
+      const res = await fetch('/api/translate/paragraph/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paragraphId: currentParagraph.id,
+          userTranslation: userParagraphSubmission,
+        }),
+      })
+      const data = await res.json()
+
+      if (!res.ok || data.error || !data.evaluation) {
+        throw new Error(data.error || 'LLM AI chưa phản hồi hoặc phản hồi lỗi.')
+      }
+
+      setParagraphEvaluation(data.evaluation)
+      setModelParagraph(data.modelParagraph)
+      setParagraphSubmitError(null)
+      setParagraphRetryCount(0)
+      if (currentParagraph?.id) {
+        setActiveParagraphId(currentParagraph.id)
+        setCompletedParagraphIds((prev) => new Set([...Array.from(prev), currentParagraph.id]))
+      }
+    } catch (err: any) {
+      console.error('Paragraph translation error:', err)
+      setParagraphSubmitError(err?.message || 'Có lỗi xảy ra khi chấm AI.')
+      if (isRetry) {
+        setParagraphRetryCount(1)
+      }
+    } finally {
+      setSubmittingParagraph(false)
+    }
+  }
+
+  const handleNextParagraph = () => {
+    setParagraphEvaluation(null)
+    setModelParagraph(null)
+    setUserParagraphSubmission('')
+    setParagraphSubmitError(null)
+    setParagraphRetryCount(0)
+    const uncompletedList = filteredParagraphs.filter((p) => !completedParagraphIds.has(p.id))
+    if (uncompletedList.length > 0) {
+      const currIdx = uncompletedList.findIndex((p) => p.id === activeParagraphId)
+      const nextIdx = currIdx >= 0 && currIdx + 1 < uncompletedList.length ? currIdx + 1 : 0
+      setActiveParagraphId(uncompletedList[nextIdx].id)
+    } else {
+      const currIdx = filteredParagraphs.findIndex((p) => p.id === activeParagraphId)
+      const nextIdx = currIdx >= 0 && currIdx + 1 < filteredParagraphs.length ? currIdx + 1 : 0
+      if (filteredParagraphs[nextIdx]) {
+        setActiveParagraphId(filteredParagraphs[nextIdx].id)
+      }
+    }
+  }
+
+  // Weekly Ingestion Handler
+  const handleGenerateWeeklyBatch = async () => {
+    if (isGeneratingWeekly) return
+    setIsGeneratingWeekly(true)
+    setWeeklyIngestMsg(null)
+
+    try {
+      const res = await fetch('/api/translate/paragraph/generate-weekly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: 25 }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Lỗi khi tự động tạo bài mới')
+
+      setWeeklyIngestMsg(data.message)
+
+      // Refetch paragraphs
+      const promptRes = await fetch('/api/translate/paragraph/prompt')
+      const promptData = await promptRes.json()
+      if (promptData.paragraphs) {
+        setParagraphPrompts(promptData.paragraphs)
+      }
+    } catch (err: any) {
+      setWeeklyIngestMsg(`⚠️ ${err?.message || 'Không thể tạo bài mới.'}`)
+    } finally {
+      setIsGeneratingWeekly(false)
+    }
+  }
+
+  // Weekly Sentence Ingestion Handler
+  const handleGenerateWeeklySentenceBatch = async () => {
+    if (isGeneratingWeeklySentence) return
+    setIsGeneratingWeeklySentence(true)
+    setWeeklyIngestMsg(null)
+
+    try {
+      const res = await fetch('/api/translate/sentence/generate-weekly', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: 30 }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Lỗi khi tự động tạo câu mới')
+
+      setWeeklyIngestMsg(data.message)
+
+      // Refetch sentence prompts
+      const promptRes = await fetch('/api/translate/prompt')
+      const promptData = await promptRes.json()
+      if (promptData.prompts) {
+        setPrompts(promptData.prompts)
+      }
+    } catch (err: any) {
+      setWeeklyIngestMsg(`⚠️ ${err?.message || 'Không thể tạo câu mới.'}`)
+    } finally {
+      setIsGeneratingWeeklySentence(false)
+    }
+  }
+
+  const getLevelBadge = (lvl?: string) => {
+    const code = (lvl || 'B2').toUpperCase()
+    if (code === 'A2') return { label: 'A2 · Elementary', class: 'green-tag' }
+    if (code === 'B1') return { label: 'B1 · Intermediate', class: 'blue-tag' }
+    if (code === 'B2') return { label: 'B2 · Vantage', class: 'purple-tag' }
+    if (code === 'C1') return { label: 'C1 · Effective', class: 'rose-tag' }
+    if (code === 'C2') return { label: 'C2 · Mastery', class: 'gold-tag' }
+    return { label: code, class: 'purple-tag' }
+  }
+
+  const isLoading = activeTab === 'sentence' ? loadingSentence : loadingParagraph
+
+  if (isLoading) {
     return (
       <div className="page-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
         <Loader2 className="animate-spin" size={32} />
@@ -1506,90 +1872,783 @@ function Translate({ setView }: { setView: (view: View) => void }) {
     <div className="page-content">
       <div className="welcome-row">
         <div>
-          <p className="eyebrow">GRAMMAR WORKOUT</p>
-          <h1>Translate in context</h1>
-          <p className="subhead">Turn understanding into confident expression.</p>
+          <p className="eyebrow">GRAMMAR & WRITING WORKOUT</p>
+          <h1>Luyện Dịch & Chấm Điểm AI</h1>
+          <p className="subhead">
+            {activeTab === 'paragraph'
+              ? 'Lựa chọn bài tập đoạn văn theo trình độ cá nhân từ A2 đến C2.'
+              : 'Lựa chọn bài tập câu đơn theo từng dạng cấu trúc ngữ pháp trọng tâm.'}
+          </p>
         </div>
         <div className="streak-chip">
           <Flame size={17} /> {streakCount} day streak
         </div>
       </div>
 
-      <div className="translate-layout">
-        <section className="prompt-card">
-          <div className="prompt-top">
-            <span className="tag purple-tag">{currentPrompt?.grammarCategory || 'GRAMMAR'}</span>
-            <span className="prompt-number">
-              Prompt {promptIndex + 1} of {prompts.length}
-            </span>
-          </div>
-          <p className="eyebrow">TRANSLATE THIS SENTENCE TO ENGLISH</p>
-          <h2>{currentPrompt?.vietnameseText || 'Loading prompt...'}</h2>
-          <p className="prompt-note">{currentPrompt?.grammarNotes || 'Focus on correct sentence structure.'}</p>
+      {/* Mode Switcher Tabs */}
+      <div className="mode-switcher-container" style={{ marginBottom: '14px' }}>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('paragraph')
+            setParagraphIndex(0)
+            setParagraphEvaluation(null)
+          }}
+          className={`mode-switcher-tab ${activeTab === 'paragraph' ? 'active' : ''}`}
+        >
+          <BookOpen size={15} /> 📝 Đoạn văn IELTS (AI Evaluator)
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('sentence')
+            setPromptIndex(0)
+            setEvaluation(null)
+          }}
+          className={`mode-switcher-tab ${activeTab === 'sentence' ? 'active' : ''}`}
+        >
+          <Zap size={15} /> ⚡ Câu đơn (Sentence Drills)
+        </button>
+      </div>
 
-          <div className="answer-area">
-            <label htmlFor="translation">Your translation</label>
-            <textarea
-              id="translation"
-              placeholder="Type your English translation here..."
-              value={userSubmission}
-              onChange={(e) => setUserSubmission(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !evaluation) {
-                  e.preventDefault()
-                  handleSubmit()
-                }
-              }}
-            />
-            <div className="answer-footer">
-              <span>
-                <Keyboard size={14} /> Press Enter to submit
-              </span>
-              <button className="hero-action" disabled={submitting || !userSubmission.trim()} onClick={handleSubmit}>
-                {submitting ? 'Evaluating...' : 'Submit translation'} <ArrowRight size={16} />
-              </button>
+      {/* Level / Pattern Filter Bar */}
+      <div className="level-filter-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+        {activeTab === 'paragraph' ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
+              <span className="level-filter-label">Trình độ cá nhân:</span>
+              {[
+                { code: 'ALL', label: 'Tất cả (All Levels)', color: '#64748b' },
+                { code: 'A2', label: 'A2 · Cơ bản', color: '#16a34a' },
+                { code: 'B1', label: 'B1 · Trung cấp', color: '#2563eb' },
+                { code: 'B2', label: 'B2 · IELTS 6.0', color: '#7c3aed' },
+                { code: 'C1', label: 'C1 · IELTS 7.5', color: '#e11d48' },
+                { code: 'C2', label: 'C2 · Thành thạo', color: '#d97706' },
+              ].map((lvl) => (
+                <button
+                  key={lvl.code}
+                  type="button"
+                  onClick={() => {
+                    setSelectedLevel(lvl.code as any)
+                    setSelectedTopic('ALL')
+                    setActiveParagraphId(null)
+                    setParagraphIndex(0)
+                    setParagraphEvaluation(null)
+                    setModelParagraph(null)
+                    setUserParagraphSubmission('')
+                    setParagraphSubmitError(null)
+                    setParagraphRetryCount(0)
+                  }}
+                  className={`level-pill-btn ${selectedLevel === lvl.code ? 'active' : ''}`}
+                  style={{
+                    borderColor: selectedLevel === lvl.code ? lvl.color : '#e2e8f0',
+                    color: selectedLevel === lvl.code ? lvl.color : '#64748b',
+                    backgroundColor: selectedLevel === lvl.code ? `${lvl.color}15` : '#ffffff',
+                    fontWeight: selectedLevel === lvl.code ? 700 : 500,
+                  }}
+                >
+                  {lvl.label}
+                </button>
+              ))}
             </div>
-          </div>
-        </section>
 
-        <aside className={`feedback-card ${evaluation ? 'visible' : ''}`}>
-          {evaluation ? (
-            <>
-              <div className="feedback-title">
-                <span className={evaluation.isCorrect ? 'success-icon' : 'error-icon'}>
-                  {evaluation.isCorrect ? <Check size={18} /> : <X size={18} />}
-                </span>
-                <div>
-                  <p className="eyebrow">{evaluation.isCorrect ? 'GREAT WORK' : 'NEEDS REVISION'}</p>
-                  <h3>{evaluation.isCorrect ? "That's correct!" : 'Review feedback'}</h3>
+            {/* Topic Selector Dropdown */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="level-filter-label">Chủ đề:</span>
+              <select
+                className="topic-dropdown-select"
+                value={selectedTopic}
+                onChange={(e) => {
+                  setSelectedTopic(e.target.value)
+                  setActiveParagraphId(null)
+                  setParagraphIndex(0)
+                  setParagraphEvaluation(null)
+                  setModelParagraph(null)
+                  setUserParagraphSubmission('')
+                  setParagraphSubmitError(null)
+                  setParagraphRetryCount(0)
+                }}
+              >
+                {(TOPICS_BY_LEVEL[selectedLevel] || TOPICS_BY_LEVEL['ALL']).map((t) => (
+                  <option key={t.code} value={t.code}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', flex: 1 }}>
+            <span className="level-filter-label">Dạng cấu trúc câu:</span>
+            {SENTENCE_PATTERNS.map((pat) => (
+              <button
+                key={pat.code}
+                type="button"
+                onClick={() => {
+                  setSelectedPattern(pat.code)
+                  setActivePromptId(null)
+                  setPromptIndex(0)
+                  setEvaluation(null)
+                  setUserSubmission('')
+                  setSentenceSubmitError(null)
+                  setSentenceRetryCount(0)
+                }}
+                className={`level-pill-btn ${selectedPattern === pat.code ? 'active' : ''}`}
+                style={{
+                  borderColor: selectedPattern === pat.code ? pat.color : '#e2e8f0',
+                  color: selectedPattern === pat.code ? pat.color : '#64748b',
+                  backgroundColor: selectedPattern === pat.code ? `${pat.color}15` : '#ffffff',
+                  fontWeight: selectedPattern === pat.code ? 700 : 500,
+                }}
+              >
+                {pat.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+
+      </div>
+
+      {weeklyIngestMsg && (
+        <div
+          style={{
+            margin: '0 0 16px',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            color: '#059669',
+            fontSize: '13px',
+            fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>✨ {weeklyIngestMsg}</span>
+          <button
+            onClick={() => setWeeklyIngestMsg(null)}
+            style={{ background: 'none', border: 'none', color: '#059669', cursor: 'pointer' }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* MODE 1: IELTS PARAGRAPH TRANSLATION */}
+      {activeTab === 'paragraph' && (
+        <div
+          ref={layoutRef}
+          className="translate-paragraph-layout"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `calc(${leftPanePercent}% - 8px) 16px calc(${100 - leftPanePercent}% - 8px)`,
+            gap: '0',
+            alignItems: 'start',
+          }}
+        >
+          {filteredParagraphs.length > 0 && currentParagraph ? (
+            <section className="prompt-card paragraph-prompt-card">
+              <div className="prompt-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span className="tag purple-tag">{currentParagraph?.themeCategory || 'IELTS ACADEMIC'}</span>
+                  <span className={`tag ${getLevelBadge(currentParagraph?.targetBand).class}`}>
+                    {getLevelBadge(currentParagraph?.targetBand).label}
+                  </span>
+                  <span className="prompt-number">
+                    Đề {paragraphIndex + 1} / {filteredParagraphs.length}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleNextParagraph}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '5px 12px',
+                    fontSize: '12.5px',
+                    fontWeight: 650,
+                    borderRadius: '8px',
+                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                    color: '#4f46e5',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Chuyển sang đề/đoạn văn khác"
+                >
+                  <RefreshCw size={13} /> Đổi bài
+                </button>
+              </div>
+
+              <h2 style={{ fontSize: '18px', fontWeight: 700, margin: '12px 0 6px', color: '#4f46e5' }}>
+                {currentParagraph?.subTopic || 'IELTS Writing Topic'}
+              </h2>
+
+              <p className="eyebrow" style={{ marginTop: '8px' }}>ĐOẠN VĂN TIẾNG VIỆT GỐC (3–5 CÂU)</p>
+              <div className="paragraph-vietnamese-box">
+                <p>{currentParagraph?.vietnameseParagraph || 'Đang tải đề bài...'}</p>
+              </div>
+
+              {/* Target IELTS Collocations Hints (Collapsible, default collapsed) */}
+              {currentParagraph?.targetCollocations && currentParagraph.targetCollocations.length > 0 && (
+                <div className="collocations-hint-box">
+                  <button
+                    type="button"
+                    className="collocations-toggle-btn"
+                    onClick={() => setShowCollocations(!showCollocations)}
+                  >
+                    <span>
+                      💡 IELTS Collocations gợi ý ({currentParagraph.targetCollocations.length} cụm từ)
+                    </span>
+                    {showCollocations ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                  {showCollocations && (
+                    <div className="collocation-chips" style={{ marginTop: '8px' }}>
+                      {currentParagraph.targetCollocations.map((c: any, idx: number) => (
+                        <span key={idx} className="collocation-chip" title={c.meaning}>
+                          <b>{c.term}</b> ({c.meaning})
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="answer-area" style={{ marginTop: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label htmlFor="paragraphTranslation" style={{ fontWeight: 700, fontSize: '14px' }}>Bản dịch tiếng Anh của bạn</label>
+                  <span style={{ fontSize: '12px', opacity: 0.7 }}>
+                    {userParagraphSubmission.trim().split(/\s+/).filter(Boolean).length} từ · {userParagraphSubmission.length} ký tự
+                  </span>
+                </div>
+                <textarea
+                  id="paragraphTranslation"
+                  rows={6}
+                  placeholder="Nhập bản dịch tiếng Anh của bạn tại đây (sử dụng câu phức, liên từ nối và collocations gợi ý)..."
+                  value={userParagraphSubmission}
+                  onChange={(e) => setUserParagraphSubmission(e.target.value)}
+                />
+                {paragraphSubmitError && (
+                  <div
+                    className="submit-error-banner"
+                    style={{
+                      marginTop: '10px',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      color: '#ef4444',
+                      fontSize: '12.5px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+                    <span>
+                      {paragraphRetryCount >= 1
+                        ? '⚠️ Đã thử chấm lại 1 lần cho bài này nhưng hệ thống AI vẫn không phản hồi. Vui lòng chuyển bài tiếp theo hoặc thử lại sau.'
+                        : `⚠️ Hệ thống AI phản hồi lỗi: ${paragraphSubmitError}. Bạn có thể bấm "Chấm lại AI" bên dưới (cho phép tối đa 1 lượt).`}
+                    </span>
+                  </div>
+                )}
+                <div className="answer-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', opacity: 0.8 }}>
+                    <Sparkles size={14} style={{ display: 'inline', marginRight: '4px' }} /> Phân tích bằng DeepSeek v4 Flash
+                  </span>
+                  <button
+                    className="hero-action"
+                    disabled={
+                      submittingParagraph ||
+                      !userParagraphSubmission.trim() ||
+                      paragraphEvaluation !== null ||
+                      (paragraphSubmitError !== null && paragraphRetryCount >= 1)
+                    }
+                    onClick={handleParagraphSubmit}
+                    style={
+                      paragraphEvaluation !== null
+                        ? {
+                            backgroundColor: '#94a3b8',
+                            borderColor: '#cbd5e1',
+                            cursor: 'not-allowed',
+                          }
+                        : paragraphSubmitError
+                        ? {
+                            backgroundColor: paragraphRetryCount >= 1 ? '#94a3b8' : '#f59e0b',
+                            borderColor: paragraphRetryCount >= 1 ? '#cbd5e1' : '#d97706',
+                          }
+                        : undefined
+                    }
+                  >
+                    {submittingParagraph ? (
+                      <>
+                        <Loader2 className="animate-spin" size={16} /> {paragraphSubmitError ? 'Đang chấm lại AI...' : 'Đang chấm điểm...'}
+                      </>
+                    ) : paragraphSubmitError ? (
+                      paragraphRetryCount >= 1 ? (
+                        <>
+                          Đã thử chấm lại (1/1) <RefreshCw size={16} />
+                        </>
+                      ) : (
+                        <>
+                          Chấm lại AI (Còn 1 lượt) <RefreshCw size={16} />
+                        </>
+                      )
+                    ) : (
+                      <>
+                        Nộp bài & Chấm điểm <ArrowRight size={16} />
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
-
-              <div className="comparison">
-                <span>Your submission</span>
-                <p>{userSubmission}</p>
-                <span>Canonical Answer</span>
-                <p>{evaluation.suggestedAnswer}</p>
-              </div>
-
-              <div className="rule-box">
-                <b>Grammar note</b>
-                <p>{evaluation.grammarNotes}</p>
-              </div>
-
-              <button className="next-button" onClick={handleNext}>
-                Next sentence <ArrowRight size={16} />
-              </button>
-            </>
+            </section>
           ) : (
-            <div className="empty-feedback">
-              <Sparkles size={25} />
-              <h3>Your feedback will appear here</h3>
-              <p>Submit your translation to see automated string normalization evaluation and detailed grammar notes.</p>
+            <div className="prompt-card paragraph-prompt-card" style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <CircleHelp size={32} style={{ color: '#94a3b8', margin: '0 auto 12px' }} />
+              <h3>Chưa có bài tập cho trình độ {selectedLevel} {selectedTopic !== 'ALL' ? `· Chủ đề ${selectedTopic}` : ''}</h3>
+              <p style={{ color: '#64748b', fontSize: '13px', margin: '8px 0 16px' }}>
+                Bạn có thể chọn trình độ hoặc chủ đề khác, hoặc nhấn xem tất cả đề bài.
+              </p>
+              <button
+                className="hero-action"
+                onClick={() => {
+                  setSelectedLevel('ALL')
+                  setSelectedTopic('ALL')
+                }}
+                style={{ margin: '0 auto' }}
+              >
+                Xem tất cả bài tập
+              </button>
             </div>
           )}
-        </aside>
-      </div>
+
+          {/* Draggable Split Resizer Bar */}
+          <div
+            className={`split-resizer ${isDragging ? 'dragging' : ''}`}
+            onMouseDown={handleMouseDown}
+            title="Kéo sang trái hoặc phải để điều chỉnh kích thước khung"
+          >
+            <div className="resizer-handle-pill">
+              <GripVertical size={14} />
+            </div>
+          </div>
+
+          {/* AI EVALUATION & FEEDBACK PANEL */}
+          <aside className={`feedback-card paragraph-feedback-card ${paragraphEvaluation ? 'visible' : ''}`}>
+            {paragraphEvaluation ? (
+              <div className="paragraph-feedback-content">
+                {/* Overall Feedback Header */}
+                <div className="feedback-header-box">
+                  <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: 750, margin: 0 }}>Đánh Giá Tổng Quan</h3>
+                    <p style={{ fontSize: '13.5px', marginTop: '4px', opacity: 0.9 }}>
+                      {paragraphEvaluation.overallFeedback}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 1. Grammar Errors Table */}
+                {paragraphEvaluation.grammarErrors && paragraphEvaluation.grammarErrors.length > 0 && (
+                  <div className="evaluation-section">
+                    <h4>⚠️ Bảng Sửa Lỗi Ngữ Pháp & Dùng Từ ({paragraphEvaluation.grammarErrors.length})</h4>
+                    <div className="errors-table-container">
+                      <table className="eval-table">
+                        <thead>
+                          <tr>
+                            <th>Đoạn bị lỗi</th>
+                            <th>Gợi ý sửa</th>
+                            <th>Giải thích ngữ pháp</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paragraphEvaluation.grammarErrors.map((err: any, idx: number) => (
+                            <tr key={idx}>
+                              <td className="orig-cell">{err.originalSegment}</td>
+                              <td className="corr-cell">{err.correction}</td>
+                              <td className="expl-cell">{err.ruleExplanation}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Actionable Grammar Improvement Suggestions */}
+                {paragraphEvaluation.grammarSuggestions && paragraphEvaluation.grammarSuggestions.length > 0 && (
+                  <div className="evaluation-section">
+                    <h4>💡 Gợi Ý Cải Thiện Cấu Trúc Ngữ Pháp (Nâng Band Score)</h4>
+                    <div className="suggestions-list">
+                      {paragraphEvaluation.grammarSuggestions.map((sug: any, idx: number) => (
+                        <div key={idx} className="suggestion-card">
+                          <div className="sug-header">
+                            <span className="sug-point">📌 {sug.point}</span>
+                          </div>
+                          <p className="sug-text">{sug.suggestion}</p>
+                          {sug.example && (
+                            <div className="sug-example">
+                              <b>Ví dụ áp dụng:</b> <code>{sug.example}</code>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Academic Upgrades */}
+                {paragraphEvaluation.betterAlternatives && paragraphEvaluation.betterAlternatives.length > 0 && (
+                  <div className="evaluation-section">
+                    <h4>🚀 Gợi Ý Nâng Cấp Từ Vựng IELTS</h4>
+                    <div className="upgrades-list">
+                      {paragraphEvaluation.betterAlternatives.map((upg: any, idx: number) => (
+                        <div key={idx} className="upgrade-card">
+                          <div className="upg-terms">
+                            <span className="orig-term">{upg.original}</span>
+                            <ArrowRight size={14} />
+                            <span className="upg-term">{upg.academicUpgrade}</span>
+                          </div>
+                          <p className="upg-reason">{upg.reason}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Model Paragraph Band 8.0+ */}
+                {modelParagraph && (
+                  <div className="evaluation-section model-section">
+                    <h4>✨ Bài Dịch Mẫu Tham Khảo (Band 8.0+)</h4>
+                    <div className="model-paragraph-box">
+                      <p>{modelParagraph.text}</p>
+                    </div>
+                    {modelParagraph.grammarBreakdown && (
+                      <div className="breakdown-box">
+                        <b>Cấu trúc ngữ pháp đắt giá trong bài mẫu:</b>
+                        <pre>{modelParagraph.grammarBreakdown}</pre>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <button className="next-button" onClick={handleNextParagraph} style={{ marginTop: '16px', width: '100%' }}>
+                  Chuyển sang đoạn văn tiếp theo <ArrowRight size={16} />
+                </button>
+              </div>
+            ) : (
+              <div className="paragraph-feedback-placeholder">
+                <div className="placeholder-icon">
+                  <Sparkles size={32} style={{ color: '#4f46e5' }} />
+                </div>
+                <h3>Khung Kết Quả Chấm AI</h3>
+                <p>
+                  Nhập bản dịch tiếng Anh của bạn ở khung bài tập bên trái và bấm <strong>"Nộp bài & Chấm điểm"</strong> để DeepSeek v4 Flash AI đánh giá band điểm, phát hiện lỗi sai và nhận bài mẫu Band 8.0+.
+                </p>
+                <div className="placeholder-features">
+                  <div className="placeholder-chip">✨ Đánh giá Band CEFR (A2–C2)</div>
+                  <div className="placeholder-chip">⚠️ Sửa lỗi ngữ pháp & từ vựng</div>
+                  <div className="placeholder-chip">🚀 Gợi ý nâng cấp từ vựng Academic</div>
+                  <div className="placeholder-chip">🏆 Đoạn văn mẫu IELTS Band 8.0+</div>
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
+
+      {/* MODE 2: SINGLE SENTENCE DRILLS */}
+      {activeTab === 'sentence' && (
+        <div
+          ref={layoutRef}
+          className="translate-sentence-layout"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `calc(${leftPanePercent}% - 8px) 16px calc(${100 - leftPanePercent}% - 8px)`,
+            gap: '0',
+            alignItems: 'start',
+          }}
+        >
+          {filteredPrompts.length > 0 && currentPrompt ? (
+            <section className="prompt-card sentence-prompt-card">
+              <div className="prompt-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span className="tag purple-tag">{currentPrompt?.grammarCategory || 'GRAMMAR'}</span>
+                  <span className={`tag ${getLevelBadge(currentPrompt?.difficulty).class}`}>
+                    {getLevelBadge(currentPrompt?.difficulty).label}
+                  </span>
+                  <span className="prompt-number">
+                    Câu {promptIndex + 1} / {filteredPrompts.length}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleNextSentence}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '5px 12px',
+                    fontSize: '12.5px',
+                    fontWeight: 650,
+                    borderRadius: '8px',
+                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                    color: '#4f46e5',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Chuyển sang câu khác"
+                >
+                  <RefreshCw size={13} /> Đổi câu
+                </button>
+              </div>
+              <p className="eyebrow">TRANSLATE THIS SENTENCE TO ENGLISH</p>
+              <h2>{currentPrompt?.vietnameseText || 'Loading prompt...'}</h2>
+              <p className="prompt-note">{currentPrompt?.grammarNotes || 'Focus on correct sentence structure.'}</p>
+
+              <div className="answer-area">
+                <label htmlFor="translation">Your translation</label>
+                <textarea
+                  id="translation"
+                  placeholder="Type your English translation here..."
+                  value={userSubmission}
+                  onChange={(e) => setUserSubmission(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && !evaluation) {
+                      e.preventDefault()
+                      handleSentenceSubmit()
+                    }
+                  }}
+                />
+                {sentenceSubmitError && (
+                  <div
+                    className="submit-error-banner"
+                    style={{
+                      marginTop: '10px',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      color: '#ef4444',
+                      fontSize: '12.5px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+                    <span>
+                      {sentenceRetryCount >= 1
+                        ? '⚠️ Đã thử chấm lại 1 lần cho câu này. Vui lòng chuyển bài tiếp theo hoặc thử lại sau.'
+                        : `⚠️ Hệ thống AI phản hồi lỗi: ${sentenceSubmitError}. Bấm "Chấm lại AI" (cho phép 1 lượt).`}
+                    </span>
+                  </div>
+                )}
+                <div className="answer-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Keyboard size={14} /> Press Enter to submit
+                  </span>
+                  <button
+                    className="hero-action"
+                    disabled={
+                      submittingSentence ||
+                      !userSubmission.trim() ||
+                      evaluation !== null ||
+                      (sentenceSubmitError !== null && sentenceRetryCount >= 1)
+                    }
+                    onClick={handleSentenceSubmit}
+                    style={
+                      evaluation !== null
+                        ? {
+                            backgroundColor: '#94a3b8',
+                            borderColor: '#cbd5e1',
+                            cursor: 'not-allowed',
+                          }
+                        : sentenceSubmitError
+                        ? {
+                            backgroundColor: sentenceRetryCount >= 1 ? '#94a3b8' : '#f59e0b',
+                            borderColor: sentenceRetryCount >= 1 ? '#cbd5e1' : '#d97706',
+                          }
+                        : undefined
+                    }
+                  >
+                    {submittingSentence ? (
+                      <>
+                        <Loader2 className="animate-spin" size={16} /> {sentenceSubmitError ? 'Đang chấm lại AI...' : 'Evaluating...'}
+                      </>
+                    ) : evaluation !== null ? (
+                      <>
+                        Đã nộp bài <Check size={16} />
+                      </>
+                    ) : sentenceSubmitError ? (
+                      sentenceRetryCount >= 1 ? (
+                        <>
+                          Đã thử chấm lại (1/1) <RefreshCw size={16} />
+                        </>
+                      ) : (
+                        <>
+                          Chấm lại AI (Còn 1 lượt) <RefreshCw size={16} />
+                        </>
+                      )
+                    ) : (
+                      <>
+                        Submit translation <ArrowRight size={16} />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <div className="prompt-card sentence-prompt-card" style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <CircleHelp size={32} style={{ color: '#94a3b8', margin: '0 auto 12px' }} />
+              <h3>Chưa có câu đơn cho dạng ngữ pháp này</h3>
+              <p style={{ color: '#64748b', fontSize: '13px', margin: '8px 0 16px' }}>
+                Bạn có thể chọn dạng ngữ pháp khác hoặc nhấn xem tất cả bài tập.
+              </p>
+              <button
+                className="hero-action"
+                onClick={() => setSelectedPattern('ALL')}
+                style={{ margin: '0 auto' }}
+              >
+                Xem tất cả bài tập
+              </button>
+            </div>
+          )}
+
+          {/* Draggable Split Resizer Bar */}
+          <div
+            className={`split-resizer ${isDragging ? 'dragging' : ''}`}
+            onMouseDown={handleMouseDown}
+            title="Kéo sang trái hoặc phải để điều chỉnh kích thước khung"
+          >
+            <div className="resizer-handle-pill">
+              <GripVertical size={14} />
+            </div>
+          </div>
+
+          <aside className={`feedback-card ${evaluation ? 'visible' : ''}`}>
+            {evaluation ? (
+              <>
+                <div className="feedback-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span className={evaluation.isCorrect ? 'success-icon' : 'error-icon'}>
+                      {evaluation.isCorrect ? <Check size={18} /> : <X size={18} />}
+                    </span>
+                    <div>
+                      <p className="eyebrow">{evaluation.isCorrect ? 'EXCELLENT TRANSLATION' : 'NEEDS REVISION'}</p>
+                      <h3>{evaluation.isCorrect ? "Hoàn thành xuất sắc!" : 'Cần điều chỉnh bài dịch'}</h3>
+                    </div>
+                  </div>
+                  {evaluation.score !== undefined && (
+                    <span
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '20px',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        backgroundColor: evaluation.isCorrect ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                        color: evaluation.isCorrect ? '#10b981' : '#f59e0b',
+                        border: evaluation.isCorrect ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)',
+                      }}
+                    >
+                      Score: {evaluation.score}/100
+                    </span>
+                  )}
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    margin: '10px 0 14px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#6366f1',
+                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                  }}
+                >
+                  <Sparkles size={14} /> Phân tích chuyên sâu bằng AI (DeepSeek v4 Flash)
+                </div>
+
+                {/* Overall Analysis */}
+                {evaluation.overallAnalysis && (
+                  <div className="sentence-feedback-box">
+                    <b style={{ color: '#4f46e5', display: 'block', marginBottom: '2px' }}>💡 Nhận xét của AI:</b>
+                    <span>{evaluation.overallAnalysis}</span>
+                  </div>
+                )}
+
+                <div className="comparison">
+                  <span>Bài dịch của bạn</span>
+                  <p style={{ fontWeight: 500 }}>{userSubmission}</p>
+                  <span>Đáp án mẫu gợi ý</span>
+                  <p style={{ fontWeight: 600, color: '#10b981' }}>{evaluation.suggestedAnswer}</p>
+                </div>
+
+                {/* Detailed Feedback Breakdown */}
+                {evaluation.detailedFeedback && (
+                  <div style={{ margin: '14px 0', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12.5px' }}>
+                    <div className="sentence-breakdown-card">
+                      <strong className="breakdown-title-accuracy" style={{ color: '#0284c7' }}>🎯 Độ chính xác ngữ nghĩa:</strong>{' '}
+                      <span>{evaluation.detailedFeedback.accuracy}</span>
+                    </div>
+                    <div className="sentence-breakdown-card">
+                      <strong className="breakdown-title-grammar" style={{ color: '#7c3aed' }}>📐 Ngữ pháp & Cấu trúc:</strong>{' '}
+                      <span>{evaluation.detailedFeedback.grammarAndStructure}</span>
+                    </div>
+                    <div className="sentence-breakdown-card">
+                      <strong className="breakdown-title-word" style={{ color: '#059669' }}>✍️ Cách dùng từ:</strong>{' '}
+                      <span>{evaluation.detailedFeedback.wordChoice}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Improvement Suggestions */}
+                {evaluation.improvementSuggestions && evaluation.improvementSuggestions.length > 0 && (
+                  <div style={{ margin: '14px 0' }}>
+                    <b style={{ fontSize: '13px', color: '#4f46e5', display: 'block', marginBottom: '8px' }}>🚀 Gợi ý nâng cấp & sửa lỗi:</b>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {evaluation.improvementSuggestions.map((sug: any, idx: number) => (
+                        <div key={idx} className="sentence-suggestion-card">
+                          <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: '#6366f1', color: '#ffffff', textTransform: 'uppercase', marginRight: '6px' }}>
+                            {sug.type || 'Gợi ý'}
+                          </span>
+                          <span className="sug-orig-text" style={{ textDecoration: 'line-through', opacity: 0.7, marginRight: '6px' }}>{sug.original}</span>
+                          <span style={{ fontWeight: 700, color: '#10b981', marginRight: '6px' }}>➔ {sug.suggested}</span>
+                          <p className="sug-reason-text" style={{ margin: '4px 0 0', color: '#64748b', fontSize: '12px' }}>{sug.reason}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="rule-box">
+                  <b>📚 Trọng tâm ngữ pháp bài học</b>
+                  <p>{evaluation.grammarNotes}</p>
+                </div>
+
+                <button className="next-button" onClick={handleNextSentence} style={{ marginTop: '16px' }}>
+                  Next sentence <ArrowRight size={16} />
+                </button>
+              </>
+            ) : (
+              <div className="empty-feedback">
+                <Sparkles size={25} />
+                <h3>Your feedback will appear here</h3>
+                <p>Submit your translation to see automated DeepSeek AI analysis, score breakdown, and vocabulary suggestions.</p>
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
     </div>
   )
 }
@@ -3367,7 +4426,9 @@ export default function Page() {
 
         {view === 'Dashboard' && <Dashboard setView={setView} user={user} />}
         {view === 'Review' && <Review setView={setView} />}
-        {view === 'Translate' && <Translate setView={setView} />}
+        <div style={{ display: view === 'Translate' ? 'block' : 'none' }}>
+          <Translate setView={setView} />
+        </div>
         {view === 'Decks' && <Decks />}
         {view === 'Analytics' && <Analytics />}
       </section>

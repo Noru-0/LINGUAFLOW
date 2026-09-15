@@ -94,3 +94,28 @@ export const userStreaks = sqliteTable('user_streaks', {
   longestStreak: integer('longest_streak').notNull().default(0),
   lastActivityDate: text('last_activity_date'),
 })
+
+export const translationParagraphs = sqliteTable('translation_paragraphs', {
+  id: text('id').primaryKey(),
+  themeCategory: text('theme_category').notNull(),
+  subTopic: text('sub_topic').notNull(),
+  targetBand: text('target_band').notNull().default('B2'),
+  vietnameseParagraph: text('vietnamese_paragraph').notNull(),
+  targetCollocationsJson: text('target_collocations_json').default('[]'),
+  modelTranslation: text('model_translation').notNull(),
+  grammarBreakdown: text('grammar_breakdown'),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const translationParagraphSubmissions = sqliteTable('translation_paragraph_submissions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  paragraphId: text('paragraph_id').notNull().references(() => translationParagraphs.id, { onDelete: 'cascade' }),
+  userTranslation: text('user_translation').notNull(),
+  overallFeedback: text('overall_feedback'),
+  estimatedCefr: text('estimated_cefr'),
+  grammarErrorsJson: text('grammar_errors_json'),
+  betterAlternativesJson: text('better_alternatives_json'),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+

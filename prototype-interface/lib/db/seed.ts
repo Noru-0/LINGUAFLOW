@@ -1,6 +1,11 @@
 import { db, fallbackToSqlite } from './index'
-import { users, decks, cards, cardSrsStates, translationPrompts, userStreaks } from './schema'
+import { users, decks, cards, cardSrsStates, translationPrompts, translationParagraphs, userStreaks } from './schema'
 import { hashPassword } from '../auth/password'
+import { initial100Paragraphs } from './initial_100_paragraphs'
+import { initial500Sentences } from './initial_500_sentences'
+
+export const sampleParagraphs = initial100Paragraphs
+export const sampleSentences = initial500Sentences
 
 export async function seedDatabase() {
   let activeDb = db
@@ -8,6 +13,26 @@ export async function seedDatabase() {
   try {
     const existingUsers = await activeDb.select().from(users).limit(1)
     if (existingUsers.length > 0) {
+      // Ensure translationParagraphs & translationPrompts have entries
+      try {
+        const existingParas = await activeDb.select().from(translationParagraphs)
+        if (existingParas.length < 50) {
+          const existingIds = new Set(existingParas.map((p: any) => p.id))
+          const newParagraphs = initial100Paragraphs.filter((p) => !existingIds.has(p.id))
+          if (newParagraphs.length > 0) {
+            await activeDb.insert(translationParagraphs).values(newParagraphs)
+          }
+        }
+
+        const existingPrompts = await activeDb.select().from(translationPrompts)
+        if (existingPrompts.length < 50) {
+          const existingIds = new Set(existingPrompts.map((p: any) => p.id))
+          const newPrompts = initial500Sentences.filter((p) => !existingIds.has(p.id))
+          if (newPrompts.length > 0) {
+            await activeDb.insert(translationPrompts).values(newPrompts)
+          }
+        }
+      } catch {}
       return { status: 'already_seeded' }
     }
   } catch (err: any) {
@@ -23,6 +48,25 @@ export async function seedDatabase() {
     try {
       const existingUsers = await activeDb.select().from(users).limit(1)
       if (existingUsers.length > 0) {
+        try {
+          const existingParas = await activeDb.select().from(translationParagraphs)
+          if (existingParas.length < 50) {
+            const existingIds = new Set(existingParas.map((p: any) => p.id))
+            const newParagraphs = initial100Paragraphs.filter((p) => !existingIds.has(p.id))
+            if (newParagraphs.length > 0) {
+              await activeDb.insert(translationParagraphs).values(newParagraphs)
+            }
+          }
+
+          const existingPrompts = await activeDb.select().from(translationPrompts)
+          if (existingPrompts.length < 50) {
+            const existingIds = new Set(existingPrompts.map((p: any) => p.id))
+            const newPrompts = initial500Sentences.filter((p) => !existingIds.has(p.id))
+            if (newPrompts.length > 0) {
+              await activeDb.insert(translationPrompts).values(newPrompts)
+            }
+          }
+        } catch {}
         return { status: 'already_seeded' }
       }
     } catch {
@@ -99,8 +143,8 @@ export async function seedDatabase() {
         vietnameseDefinition: 'Đáng tin cậy, có thể dựa vào',
         phonetic: '/rɪˈlaɪ.ə.bəl/',
         partOfSpeech: 'adjective',
-        exampleSentence: 'He is a reliable team member who always delivers on time.',
-        collocationsJson: JSON.stringify(['reliable partner', 'reliable source of information']),
+        exampleSentence: 'We need a reliable partner for this project.',
+        collocationsJson: JSON.stringify(['highly reliable', 'reliable source', 'reliable service']),
       },
       {
         id: 'card_negotiate',
@@ -146,10 +190,8 @@ export async function seedDatabase() {
 
     await activeDb.insert(cards).values(sampleCards)
 
-    // Initialize SRS state for each card for the demo user
-    const now = new Date()
-    const todayIso = now.toISOString()
-
+    // Create default SRS states for demo cards
+    const todayIso = new Date().toISOString().split('T')[0]
     for (const card of sampleCards) {
       await activeDb.insert(cardSrsStates).values({
         id: `srs_${card.id}`,
@@ -162,71 +204,9 @@ export async function seedDatabase() {
       })
     }
 
-    // 4. Create Grammar Translation Prompts
-    const prompts = [
-      {
-        id: 'prompt_inversion_1',
-        vietnameseText: 'Chỉ khi cô ấy đến, chúng tôi mới bắt đầu cuộc họp.',
-        canonicalAnswersJson: JSON.stringify([
-          'Only when she arrived did we start the meeting',
-          'Only when she arrived did we begin the meeting',
-          'Only when she came did we start the meeting',
-        ]),
-        grammarCategory: 'Inversion',
-        grammarNotes: 'After "only when", use inverted structure: auxiliary + subject + verb (did we start).',
-        difficulty: 'intermediate',
-      },
-      {
-        id: 'prompt_conditional_1',
-        vietnameseText: 'Nếu tôi biết trước điều đó, tôi đã không đưa ra quyết định sai lầm.',
-        canonicalAnswersJson: JSON.stringify([
-          'If I had known that beforehand, I would not have made a mistake',
-          'If I had known that in advance, I would not have made the wrong decision',
-          'Had I known that in advance, I would not have made the wrong decision',
-        ]),
-        grammarCategory: 'Conditionals (Third)',
-        grammarNotes: 'Third conditional requires: If + past perfect (had known), main clause: would have + V3/ed.',
-        difficulty: 'advanced',
-      },
-      {
-        id: 'prompt_inversion_2',
-        vietnameseText: 'Ngay khi anh ấy vừa bước vào phòng, đèn phụt tắt.',
-        canonicalAnswersJson: JSON.stringify([
-          'No sooner had he entered the room than the lights went out',
-          'Hardly had he entered the room when the lights went out',
-          'Scarcely had he entered the room when the lights went out',
-        ]),
-        grammarCategory: 'Inversion',
-        grammarNotes: 'No sooner + had + S + V3/ed + than + S + V2/ed. Note that "No sooner" pairs with "than".',
-        difficulty: 'advanced',
-      },
-      {
-        id: 'prompt_gerund_1',
-        vietnameseText: 'Cô ấy quen với việc dậy sớm vào buổi sáng.',
-        canonicalAnswersJson: JSON.stringify([
-          'She is used to waking up early in the morning',
-          'She is accustomed to waking up early in the morning',
-          'She is used to getting up early in the morning',
-        ]),
-        grammarCategory: 'Gerunds & Infinitives',
-        grammarNotes: 'Be used to + V-ing (gerund) denotes habituation, unlike "used to + infinitive" (past habit).',
-        difficulty: 'intermediate',
-      },
-      {
-        id: 'prompt_subjunctive_1',
-        vietnameseText: 'Anh ấy đề nghị chúng tôi nên hoãn cuộc họp lại.',
-        canonicalAnswersJson: JSON.stringify([
-          'He suggested that we postpone the meeting',
-          'He suggested that we should postpone the meeting',
-          'He proposed that we postpone the meeting',
-        ]),
-        grammarCategory: 'Subjunctive Mood',
-        grammarNotes: 'Suggest + that + clause uses base verb (postpone) in subjunctive mood.',
-        difficulty: 'intermediate',
-      },
-    ]
-
-    await activeDb.insert(translationPrompts).values(prompts)
+    // 4. Create 500 Sentence Translation Prompts & 100 Paragraph Prompts
+    await activeDb.insert(translationPrompts).values(initial500Sentences)
+    await activeDb.insert(translationParagraphs).values(initial100Paragraphs)
   } catch (insertErr) {
     console.warn('[Database Seed Warning] Non-critical error during initial data insert:', insertErr)
   }
