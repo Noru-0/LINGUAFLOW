@@ -28,67 +28,46 @@ export async function GET() {
     const nowIso = new Date().toISOString()
     const todayStr = extractDateStr(nowIso)
 
-    // 1. Fetch Streak
-    const streaks = await db.select().from(userStreaks).where(eq(userStreaks.userId, userId)).limit(1)
-    const streakInfo = streaks[0] || { currentStreak: 0, longestStreak: 0 }
-
-    // 2. Fetch Cards Due Today
-    const dueCountRes = await db
-      .select({ val: count() })
-      .from(cardSrsStates)
-      .where(and(eq(cardSrsStates.userId, userId), lte(cardSrsStates.dueDate, nowIso)))
-    const dueCount = dueCountRes[0]?.val || 0
-
-    // 3. Fetch Total Decks
-    const totalDecksRes = await db
-      .select({ val: count() })
-      .from(decks)
-      .where(eq(decks.userId, userId))
-    const totalDecks = totalDecksRes[0]?.val || 0
-
-    // 4. Fetch Real Memory Status Breakdown & Total Cards
-    const totalCardsRes = await db.select({ val: count() }).from(cards)
-    const totalCardsInDb = totalCardsRes[0]?.val || 0
-
-    const srsStates = await db.select().from(cardSrsStates).where(eq(cardSrsStates.userId, userId))
-
-    let masteredCount = 0
-    let reviewingCount = 0
-    let learningCount = 0
-
-    for (const s of srsStates) {
-      if (s.repetition > 0) {
-        if (s.interval >= 30) masteredCount++
-        else if (s.interval >= 2) reviewingCount++
-        else learningCount++
-      }
-    }
-
-    const newCardsCount = Math.max(0, totalCardsInDb - (masteredCount + reviewingCount + learningCount))
-
-    // 5. Fetch Translation Logs (Single Sentences)
-    const sentenceLogs = await db
-      .select({
-        id: translationLogs.id,
-        promptId: translationLogs.promptId,
-        userSubmission: translationLogs.userSubmission,
-        isCorrect: translationLogs.isCorrect,
-        matchedCanonical: translationLogs.matchedCanonical,
-        createdAt: translationLogs.createdAt,
-        vietnameseText: translationPrompts.vietnameseText,
-        grammarCategory: translationPrompts.grammarCategory,
-        grammarNotes: translationPrompts.grammarNotes,
-        difficulty: translationPrompts.difficulty,
-      })
-      .from(translationLogs)
-      .innerJoin(translationPrompts, eq(translationLogs.promptId, translationPrompts.id))
-      .where(eq(translationLogs.userId, userId))
-      .orderBy(desc(translationLogs.createdAt))
-
-    // 5b. Fetch Paragraph Translation Submissions (IELTS Paragraphs)
-    let paragraphLogs: any[] = []
-    try {
-      paragraphLogs = await db
+    // Fetch all analytics datasets in parallel to eliminate waterfall latency
+    const [
+      streaks,
+      dueCountRes,
+      totalDecksRes,
+      totalCardsRes,
+      srsStates,
+      sentenceLogs,
+      paragraphLogsRes,
+      userReviewLogs,
+    ] = await Promise.all([
+      db.select().from(userStreaks).where(eq(userStreaks.userId, userId)).limit(1),
+      db
+        .select({ val: count() })
+        .from(cardSrsStates)
+        .where(and(eq(cardSrsStates.userId, userId), lte(cardSrsStates.dueDate, nowIso))),
+      db
+        .select({ val: count() })
+        .from(decks)
+        .where(eq(decks.userId, userId)),
+      db.select({ val: count() }).from(cards),
+      db.select().from(cardSrsStates).where(eq(cardSrsStates.userId, userId)),
+      db
+        .select({
+          id: translationLogs.id,
+          promptId: translationLogs.promptId,
+          userSubmission: translationLogs.userSubmission,
+          isCorrect: translationLogs.isCorrect,
+          matchedCanonical: translationLogs.matchedCanonical,
+          createdAt: translationLogs.createdAt,
+          vietnameseText: translationPrompts.vietnameseText,
+          grammarCategory: translationPrompts.grammarCategory,
+          grammarNotes: translationPrompts.grammarNotes,
+          difficulty: translationPrompts.difficulty,
+        })
+        .from(translationLogs)
+        .innerJoin(translationPrompts, eq(translationLogs.promptId, translationPrompts.id))
+        .where(eq(translationLogs.userId, userId))
+        .orderBy(desc(translationLogs.createdAt)),
+      db
         .select({
           id: translationParagraphSubmissions.id,
           paragraphId: translationParagraphSubmissions.paragraphId,
@@ -108,12 +87,29 @@ export async function GET() {
         .innerJoin(translationParagraphs, eq(translationParagraphSubmissions.paragraphId, translationParagraphs.id))
         .where(eq(translationParagraphSubmissions.userId, userId))
         .orderBy(desc(translationParagraphSubmissions.createdAt))
-    } catch (e) {
-      paragraphLogs = []
+        .catch(() => []),
+      db.select().from(reviewLogs).where(eq(reviewLogs.userId, userId)),
+    ])
+
+    const streakInfo = streaks[0] || { currentStreak: 0, longestStreak: 0 }
+    const dueCount = dueCountRes[0]?.val || 0
+    const totalDecks = totalDecksRes[0]?.val || 0
+    const totalCardsInDb = totalCardsRes[0]?.val || 0
+    const paragraphLogs = paragraphLogsRes || []
+
+    let masteredCount = 0
+    let reviewingCount = 0
+    let learningCount = 0
+
+    for (const s of srsStates) {
+      if (s.repetition > 0) {
+        if (s.interval >= 30) masteredCount++
+        else if (s.interval >= 2) reviewingCount++
+        else learningCount++
+      }
     }
 
-    // 6. Real Retention Rate & Activity Sessions
-    const userReviewLogs = await db.select().from(reviewLogs).where(eq(reviewLogs.userId, userId))
+    const newCardsCount = Math.max(0, totalCardsInDb - (masteredCount + reviewingCount + learningCount))
     const userTranslationLogs = sentenceLogs
 
     const goodReviews = userReviewLogs.filter((r: any) => r.rating >= 3).length

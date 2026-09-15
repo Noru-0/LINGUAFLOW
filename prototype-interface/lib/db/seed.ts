@@ -7,7 +7,10 @@ import { initial500Sentences } from './initial_500_sentences'
 export const sampleParagraphs = initial100Paragraphs
 export const sampleSentences = initial500Sentences
 
+let isSeededInMemory = false
+
 export async function seedDatabase() {
+  if (isSeededInMemory) return { status: 'already_seeded' }
   let activeDb = db
 
   try {
@@ -33,6 +36,7 @@ export async function seedDatabase() {
           }
         }
       } catch {}
+      isSeededInMemory = true
       return { status: 'already_seeded' }
     }
   } catch (err: any) {

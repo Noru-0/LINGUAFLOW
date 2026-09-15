@@ -9,6 +9,8 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   CircleHelp,
   Flame,
   GraduationCap,
@@ -135,9 +137,11 @@ function MetricCard({
 // ----------------------------------------------------
 // Dashboard View
 // ----------------------------------------------------
+let cachedDashboardMetrics: any = null
+
 function Dashboard({ setView, user }: { setView: (view: View) => void; user: any }) {
-  const [metrics, setMetrics] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [metrics, setMetrics] = useState<any>(cachedDashboardMetrics)
+  const [loading, setLoading] = useState(!cachedDashboardMetrics)
   const [activityPeriod, setActivityPeriod] = useState('12m')
   const [heatTooltip, setHeatTooltip] = useState<{ x: number; y: number; text: string } | null>(null)
 
@@ -145,6 +149,7 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
     fetch('/api/analytics/overview')
       .then((res) => res.json())
       .then((data) => {
+        cachedDashboardMetrics = data
         setMetrics(data)
         setLoading(false)
       })
@@ -2811,6 +2816,10 @@ function Decks() {
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+
   // Modals state
   const [showNewDeckModal, setShowNewDeckModal] = useState(false)
   const [showNewCardModal, setShowNewCardModal] = useState(false)
@@ -2878,7 +2887,12 @@ function Decks() {
 
   useEffect(() => {
     fetchCards()
+    setCurrentPage(1)
   }, [selectedDeckId])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search])
 
   // Excel Batch Grid State
   const [excelRows, setExcelRows] = useState<any[]>([
@@ -3260,6 +3274,24 @@ function Decks() {
     }
   }
 
+  const filteredCards = cardsList.filter((c) =>
+    `${c.term} ${c.vietnameseDefinition} ${c.partOfSpeech}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  )
+
+  const totalFiltered = filteredCards.length
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+
+  const paginatedCards = filteredCards.slice(
+    (safeCurrentPage - 1) * pageSize,
+    safeCurrentPage * pageSize
+  )
+
+  const startRecord = totalFiltered > 0 ? (safeCurrentPage - 1) * pageSize + 1 : 0
+  const endRecord = Math.min(safeCurrentPage * pageSize, totalFiltered)
+
   return (
     <div className="page-content">
       <div className="welcome-row">
@@ -3294,14 +3326,40 @@ function Decks() {
       </div>
 
       <div className="panel cards-panel">
-        <div className="table-toolbar">
-          <div className="search-box">
+        <div className="table-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div className="search-box" style={{ flex: 1, minWidth: '240px' }}>
             <Search size={17} />
             <input
               placeholder="Search Word, Type, Vietnamese, Level..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', color: 'var(--muted, #64748b)' }}>
+            <span style={{ fontWeight: 500 }}>Hiển thị:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value))
+                setCurrentPage(1)
+              }}
+              style={{
+                padding: '5px 10px',
+                borderRadius: '8px',
+                border: '1px solid var(--border, #e2e8f0)',
+                background: 'var(--card, #ffffff)',
+                color: 'var(--foreground, #0f172a)',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <option value={10}>10 từ / trang</option>
+              <option value={20}>20 từ / trang</option>
+              <option value={50}>50 từ / trang</option>
+              <option value={100}>100 từ / trang</option>
+            </select>
           </div>
         </div>
 
@@ -3321,44 +3379,117 @@ function Decks() {
             <div style={{ padding: '24px', textAlign: 'center' }}>
               <Loader2 className="animate-spin" size={24} />
             </div>
-          ) : cardsList.length === 0 ? (
-            <div style={{ padding: '32px', color: '#64748b', textAlign: 'center' }}>
-              No vocabulary words in this deck. Click <strong>Thêm list từ vựng</strong> to generate your first word list!
+          ) : totalFiltered === 0 ? (
+            <div style={{ padding: '32px', color: 'var(--muted, #64748b)', textAlign: 'center' }}>
+              {cardsList.length === 0 ? (
+                <>No vocabulary words in this deck. Click <strong>Thêm list từ vựng</strong> to generate your first word list!</>
+              ) : (
+                <>Không tìm thấy từ vựng nào khớp với từ khóa tìm kiếm.</>
+              )}
             </div>
           ) : (
-            cardsList
-              .filter((c) =>
-                `${c.term} ${c.vietnameseDefinition} ${c.partOfSpeech}`
-                  .toLowerCase()
-                  .includes(search.toLowerCase())
-              )
-              .map((c) => {
-                const meta =
-                  typeof c.collocations === 'object' && c.collocations !== null && !Array.isArray(c.collocations)
-                    ? c.collocations
-                    : {}
-                const autoGen = autoGenerateWordDetails(c.term, c.partOfSpeech || 'noun')
-                const level = meta.level || autoGen.level
-                const engDef = meta.englishDefinition || autoGen.definition
-                const phonetic = c.phonetic || autoGen.phonetic
+            paginatedCards.map((c) => {
+              const meta =
+                typeof c.collocations === 'object' && c.collocations !== null && !Array.isArray(c.collocations)
+                  ? c.collocations
+                  : {}
+              const autoGen = autoGenerateWordDetails(c.term, c.partOfSpeech || 'noun')
+              const level = meta.level || autoGen.level
+              const engDef = meta.englishDefinition || autoGen.definition
+              const phonetic = c.phonetic || autoGen.phonetic
 
-                return (
-                  <div className="table-row" key={c.id}>
-                    <strong className="word-col">{c.term}</strong>
-                    <span className="type-chip" style={getTypeStyle(c.partOfSpeech || 'noun')}>{c.partOfSpeech || 'noun'}</span>
-                    <span className="level-chip" style={getLevelRedStyle(level)}>{level}</span>
-                    <span className="phonetic-col">{phonetic}</span>
-                    <span className="vietnamese-col">{c.vietnameseDefinition}</span>
-                    <span className="def-col">{engDef}</span>
-                    <span className="example-col">{c.exampleSentence || '—'}</span>
-                    <button className="more-btn" title="Tùy chọn từ vựng" onClick={() => setSelectedCardAction(c)}>
-                      <MoreHorizontal size={17} />
-                    </button>
-                  </div>
-                )
-              })
+              return (
+                <div className="table-row" key={c.id}>
+                  <strong className="word-col">{c.term}</strong>
+                  <span className="type-chip" style={getTypeStyle(c.partOfSpeech || 'noun')}>{c.partOfSpeech || 'noun'}</span>
+                  <span className="level-chip" style={getLevelRedStyle(level)}>{level}</span>
+                  <span className="phonetic-col">{phonetic}</span>
+                  <span className="vietnamese-col">{c.vietnameseDefinition}</span>
+                  <span className="def-col">{engDef}</span>
+                  <span className="example-col">{c.exampleSentence || '—'}</span>
+                  <button className="more-btn" title="Tùy chọn từ vựng" onClick={() => setSelectedCardAction(c)}>
+                    <MoreHorizontal size={17} />
+                  </button>
+                </div>
+              )
+            })
           )}
         </div>
+
+        {/* PAGINATION BAR */}
+        {totalFiltered > 0 && (
+          <div
+            className="table-pagination"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 16px',
+              borderTop: '1px solid var(--border, #e2e8f0)',
+              background: 'var(--bg-card-secondary, #f8fafc)',
+              borderRadius: '0 0 12px 12px',
+              flexWrap: 'wrap',
+              gap: '12px',
+              fontSize: '12.5px',
+            }}
+          >
+            <div style={{ color: 'var(--muted, #64748b)', fontWeight: 500 }}>
+              Hiển thị <b style={{ color: 'var(--foreground, #0f172a)' }}>{startRecord} - {endRecord}</b> trong tổng số <b style={{ color: 'var(--foreground, #0f172a)' }}>{totalFiltered}</b> từ vựng
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage <= 1}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border, #e2e8f0)',
+                  background: safeCurrentPage <= 1 ? 'transparent' : 'var(--card, #ffffff)',
+                  color: 'var(--foreground, #0f172a)',
+                  opacity: safeCurrentPage <= 1 ? 0.4 : 1,
+                  cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                }}
+              >
+                <ChevronLeft size={15} /> Trang trước
+              </button>
+
+              <span style={{ padding: '0 8px', fontWeight: 700, color: 'var(--foreground, #0f172a)' }}>
+                Trang {safeCurrentPage} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage >= totalPages}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border, #e2e8f0)',
+                  background: safeCurrentPage >= totalPages ? 'transparent' : 'var(--card, #ffffff)',
+                  color: 'var(--foreground, #0f172a)',
+                  opacity: safeCurrentPage >= totalPages ? 0.4 : 1,
+                  cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                }}
+              >
+                Trang sau <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* CARD ACTION DETAILS & DELETE MODAL */}
@@ -3977,9 +4108,11 @@ function Decks() {
 // ----------------------------------------------------
 // Analytics View
 // ----------------------------------------------------
+let cachedAnalyticsData: any = null
+
 function Analytics() {
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<any>(cachedAnalyticsData)
+  const [loading, setLoading] = useState(!cachedAnalyticsData)
   const [historyTab, setHistoryTab] = useState<'sentences' | 'paragraphs'>('sentences')
   const [expandedParaId, setExpandedParaId] = useState<string | null>(null)
 
@@ -3987,6 +4120,7 @@ function Analytics() {
     fetch('/api/analytics/overview')
       .then((res) => res.json())
       .then((resData) => {
+        cachedAnalyticsData = resData
         setData(resData)
         setLoading(false)
       })
