@@ -55,6 +55,7 @@ export default function AdminDashboardPage() {
   // User Progress Modal State
   const [selectedUserProgress, setSelectedUserProgress] = useState<any>(null)
   const [progressLoading, setProgressLoading] = useState<boolean>(false)
+  const [modalLogTab, setModalLogTab] = useState<'sentence' | 'paragraph' | 'speaking'>('sentence')
 
   // Modals & Forms
   const [showAddUserModal, setShowAddUserModal] = useState(false)
@@ -833,7 +834,7 @@ export default function AdminDashboardPage() {
       {/* MODAL: USER PROGRESS MONITORING INSPECTOR */}
       {selectedUserProgress && (
         <div className="fixed inset-0 z-[99990] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl flex flex-col gap-5 text-xs custom-scrollbar">
+          <div className="bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 p-6 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col gap-6 text-xs custom-scrollbar">
             {/* Modal Header */}
             <div className="flex items-start justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
               <div className="flex items-center gap-3">
@@ -844,7 +845,7 @@ export default function AdminDashboardPage() {
                   <h3 className="font-extrabold text-base flex items-center gap-2">
                     {selectedUserProgress.user.name}
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
                         selectedUserProgress.user.role === 'admin'
                           ? 'bg-rose-500/10 text-rose-600 border border-rose-500/30'
                           : 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/30'
@@ -865,88 +866,327 @@ export default function AdminDashboardPage() {
               </button>
             </div>
 
-            {/* Quick Metrics */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 bg-slate-100/70 dark:bg-slate-800/70 rounded-xl border border-slate-200/50 dark:border-slate-700">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Streak Hiện Tại</p>
-                <p className="text-lg font-extrabold text-amber-500 flex items-center gap-1 mt-0.5">
-                  <Flame size={18} /> {selectedUserProgress.streak?.currentStreak || 0} Ngày
+            {/* Top 4 Metrics Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              {/* Metric 1: Retention & Accuracy */}
+              <div className="p-4 bg-gradient-to-br from-indigo-50/80 to-blue-50/80 dark:from-indigo-950/40 dark:to-blue-950/40 rounded-2xl border border-indigo-200/60 dark:border-indigo-800/60 shadow-sm flex flex-col justify-between">
+                <div>
+                  <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                    Tỷ lệ ghi nhớ & Chính xác
+                  </p>
+                  <h3 className="text-2xl font-black text-indigo-700 dark:text-indigo-300 mt-1">
+                    {selectedUserProgress.overview?.accuracyRate ?? 0}%
+                  </h3>
+                </div>
+                <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-2">
+                  Tính trên {selectedUserProgress.overview?.totalCompletedTurns ?? 0} lượt hoàn thành
                 </p>
               </div>
 
-              <div className="p-3 bg-slate-100/70 dark:bg-slate-800/70 rounded-xl border border-slate-200/50 dark:border-slate-700">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Bộ từ Decks</p>
-                <p className="text-lg font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5">
-                  {selectedUserProgress.overview?.totalDecks || 0}
+              {/* Metric 2: Single Sentence Translation */}
+              <div className="p-4 bg-gradient-to-br from-purple-50/80 to-violet-50/80 dark:from-purple-950/40 dark:to-violet-950/40 rounded-2xl border border-purple-200/60 dark:border-purple-800/60 shadow-sm flex flex-col justify-between">
+                <div>
+                  <p className="text-[11px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                    Dịch Câu Đơn đã làm
+                  </p>
+                  <h3 className="text-2xl font-black text-purple-700 dark:text-purple-300 mt-1">
+                    {selectedUserProgress.overview?.singleSentence?.total ?? 0} câu
+                  </h3>
+                </div>
+                <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-2">
+                  Đã đúng {selectedUserProgress.overview?.singleSentence?.correct ?? 0}/{selectedUserProgress.overview?.singleSentence?.total ?? 0} câu
                 </p>
               </div>
 
-              <div className="p-3 bg-slate-100/70 dark:bg-slate-800/70 rounded-xl border border-slate-200/50 dark:border-slate-700">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Lần Ôn Flashcard</p>
-                <p className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  {selectedUserProgress.overview?.totalReviewsCount || 0}
+              {/* Metric 3: Paragraph Translation */}
+              <div className="p-4 bg-gradient-to-br from-emerald-50/80 to-teal-50/80 dark:from-emerald-950/40 dark:to-teal-950/40 rounded-2xl border border-emerald-200/60 dark:border-emerald-800/60 shadow-sm flex flex-col justify-between">
+                <div>
+                  <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                    Dịch Đoạn Văn đã làm
+                  </p>
+                  <h3 className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-1">
+                    {selectedUserProgress.overview?.paragraph?.total ?? 0} đoạn
+                  </h3>
+                </div>
+                <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-2">
+                  Bài viết IELTS / Đoạn văn đã chấm AI
                 </p>
               </div>
 
-              <div className="p-3 bg-slate-100/70 dark:bg-slate-800/70 rounded-xl border border-slate-200/50 dark:border-slate-700">
-                <p className="text-[10px] font-bold text-slate-400 uppercase">Bài Tập Speaking</p>
-                <p className="text-lg font-extrabold text-violet-600 dark:text-violet-400 mt-0.5">
-                  {selectedUserProgress.overview?.totalSpeakingSubmissions || 0}
+              {/* Metric 4: Streak */}
+              <div className="p-4 bg-gradient-to-br from-amber-50/80 to-orange-50/80 dark:from-amber-950/40 dark:to-orange-950/40 rounded-2xl border border-amber-200/60 dark:border-amber-800/60 shadow-sm flex flex-col justify-between">
+                <div>
+                  <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                    Chuỗi ngày học
+                  </p>
+                  <h3 className="text-2xl font-black text-amber-700 dark:text-amber-300 flex items-center gap-1 mt-1">
+                    <Flame size={20} className="text-amber-500 fill-amber-500" />
+                    {selectedUserProgress.streak?.currentStreak ?? 0} ngày
+                  </h3>
+                </div>
+                <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-2">
+                  Kỷ lục: {selectedUserProgress.streak?.longestStreak ?? 0} ngày liên tiếp
                 </p>
               </div>
             </div>
 
-            {/* Speaking History Audit */}
-            <div className="flex flex-col gap-2">
-              <h4 className="font-bold text-sm flex items-center gap-2">
-                <Mic size={16} className="text-violet-500" />
-                Lịch sử làm bài Speaking & Điểm IELTS Band
-              </h4>
+            {/* PHÂN BỔ TRÍ NHỚ (Memory Distribution Section) */}
+            <div className="bg-slate-50/60 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800 flex flex-col gap-3">
+              <div>
+                <h4 className="font-extrabold text-sm text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
+                  <BarChart3 size={16} className="text-indigo-500" />
+                  PHÂN BỔ TRÍ NHỚ
+                </h4>
+                <p className="text-[11px] font-semibold text-slate-400">Giai đoạn ghi nhớ từ vựng (SRS Spaced Repetition)</p>
+              </div>
 
-              {selectedUserProgress.speakingSubmissions?.length === 0 ? (
-                <p className="text-slate-400 italic p-3 bg-slate-100/40 dark:bg-slate-800/40 rounded-xl">Học viên chưa thực hiện bài nộp Speaking nào.</p>
-              ) : (
-                <div className="space-y-2">
-                  {selectedUserProgress.speakingSubmissions?.map((s: any) => (
-                    <div key={s.id} className="p-3 bg-slate-100/60 dark:bg-slate-800/60 rounded-xl border border-slate-200/50 dark:border-slate-700 flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-indigo-600 dark:text-indigo-400">{s.topic} (Part {s.part})</span>
-                        <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold px-2 py-0.5 rounded-md">
-                          IELTS Band {s.estimatedBand || 'N/A'}
-                        </span>
-                      </div>
-                      <p className="text-slate-700 dark:text-slate-300 font-medium">"{s.questionPrompt}"</p>
-                      <div className="p-2 bg-white/60 dark:bg-slate-900/60 rounded-lg text-slate-500 italic">
-                        Bài nói: {s.transcribedText}
-                      </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {/* Stage 1: New */}
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-2 shadow-2xs">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                      Từ mới (Chưa học)
+                    </span>
+                    <p className="font-extrabold text-sm text-slate-800 dark:text-slate-200 mt-0.5">
+                      {selectedUserProgress.overview?.memoryStages?.new?.count ?? 0} thẻ ({selectedUserProgress.overview?.memoryStages?.new?.percentage ?? 0}%)
+                    </p>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-sky-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${selectedUserProgress.overview?.memoryStages?.new?.percentage ?? 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Stage 2: Learning */}
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-2 shadow-2xs">
+                  <div>
+                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase">
+                      Đang học (Khoảng cách &lt; 2 ngày)
+                    </span>
+                    <p className="font-extrabold text-sm text-slate-800 dark:text-slate-200 mt-0.5">
+                      {selectedUserProgress.overview?.memoryStages?.learning?.count ?? 0} thẻ ({selectedUserProgress.overview?.memoryStages?.learning?.percentage ?? 0}%)
+                    </p>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-amber-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${selectedUserProgress.overview?.memoryStages?.learning?.percentage ?? 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Stage 3: Consolidating */}
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-2 shadow-2xs">
+                  <div>
+                    <span className="text-[10px] font-bold text-violet-600 dark:text-violet-400 uppercase">
+                      Đang củng cố (Khoảng cách 2 - 30 ngày)
+                    </span>
+                    <p className="font-extrabold text-sm text-slate-800 dark:text-slate-200 mt-0.5">
+                      {selectedUserProgress.overview?.memoryStages?.consolidating?.count ?? 0} thẻ ({selectedUserProgress.overview?.memoryStages?.consolidating?.percentage ?? 0}%)
+                    </p>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-violet-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${selectedUserProgress.overview?.memoryStages?.consolidating?.percentage ?? 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Stage 4: Mastered */}
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between gap-2 shadow-2xs">
+                  <div>
+                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">
+                      Thành thạo (Khoảng cách ≥ 30 ngày)
+                    </span>
+                    <p className="font-extrabold text-sm text-slate-800 dark:text-slate-200 mt-0.5">
+                      {selectedUserProgress.overview?.memoryStages?.mastered?.count ?? 0} thẻ ({selectedUserProgress.overview?.memoryStages?.mastered?.percentage ?? 0}%)
+                    </p>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${selectedUserProgress.overview?.memoryStages?.mastered?.percentage ?? 0}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* NHẬT KÝ LUYỆN TẬP BÀI LÀM (Practice Log & History) */}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-800 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
+                    <FileText size={16} className="text-indigo-500" />
+                    NHẬT KÝ LUYỆN TẬP BÀI LÀM
+                  </h4>
+                  <p className="text-[11px] font-semibold text-slate-400">Lịch sử & Nhật ký dịch bài</p>
+                </div>
+
+                {/* Log Tabs switcher */}
+                <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl">
+                  <button
+                    onClick={() => setModalLogTab('sentence')}
+                    className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                      modalLogTab === 'sentence'
+                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    Dịch Câu Đơn ({selectedUserProgress.sentenceLogs?.length ?? 0})
+                  </button>
+                  <button
+                    onClick={() => setModalLogTab('paragraph')}
+                    className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                      modalLogTab === 'paragraph'
+                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    Dịch Đoạn Văn ({selectedUserProgress.paragraphSubmissions?.length ?? 0})
+                  </button>
+                  <button
+                    onClick={() => setModalLogTab('speaking')}
+                    className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                      modalLogTab === 'speaking'
+                        ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    Speaking AI ({selectedUserProgress.speakingSubmissions?.length ?? 0})
+                  </button>
+                </div>
+              </div>
+
+              {/* Tab 1: Single Sentence Translations Log */}
+              {modalLogTab === 'sentence' && (
+                <div>
+                  {selectedUserProgress.sentenceLogs?.length === 0 ? (
+                    <p className="text-slate-400 italic p-4 bg-slate-100/40 dark:bg-slate-800/40 rounded-xl text-center">
+                      Học viên chưa có nhật ký dịch câu đơn nào.
+                    </p>
+                  ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                      {selectedUserProgress.sentenceLogs?.map((log: any) => (
+                        <div
+                          key={log.id}
+                          className="p-3 bg-slate-50/70 dark:bg-slate-800/50 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex flex-col gap-1.5"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-slate-700 dark:text-slate-200 text-xs">
+                              {log.vietnameseText || 'Câu dịch đơn'}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                log.isCorrect
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                              }`}
+                            >
+                              {log.isCorrect ? 'Đã đúng' : 'Chưa đúng'}
+                            </span>
+                          </div>
+                          <p className="text-slate-600 dark:text-slate-300 font-medium text-[11px]">
+                            Bài làm: "{log.userSubmission}"
+                          </p>
+                          {log.matchedCanonical && (
+                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 italic">
+                              Đáp án chuẩn: {log.matchedCanonical}
+                            </p>
+                          )}
+                          <p className="text-[9px] text-slate-400 text-right">
+                            {new Date(log.createdAt).toLocaleString('vi-VN')}
+                          </p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
-            </div>
 
-            {/* Paragraph Submissions Audit */}
-            <div className="flex flex-col gap-2">
-              <h4 className="font-bold text-sm flex items-center gap-2">
-                <FileText size={16} className="text-indigo-500" />
-                Lịch sử dịch đoạn văn & Điểm CEFR
-              </h4>
-
-              {selectedUserProgress.paragraphSubmissions?.length === 0 ? (
-                <p className="text-slate-400 italic p-3 bg-slate-100/40 dark:bg-slate-800/40 rounded-xl">Học viên chưa nộp bài dịch đoạn văn nào.</p>
-              ) : (
-                <div className="space-y-2">
-                  {selectedUserProgress.paragraphSubmissions?.map((p: any) => (
-                    <div key={p.id} className="p-3 bg-slate-100/60 dark:bg-slate-800/60 rounded-xl border border-slate-200/50 dark:border-slate-700 flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold">{p.subTopic}</span>
-                        <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold px-2 py-0.5 rounded-md">
-                          {p.estimatedCefr || 'B2'}
-                        </span>
-                      </div>
-                      <p className="text-slate-600 dark:text-slate-300">Bài dịch: {p.userTranslation}</p>
+              {/* Tab 2: Paragraph Submissions Log */}
+              {modalLogTab === 'paragraph' && (
+                <div>
+                  {selectedUserProgress.paragraphSubmissions?.length === 0 ? (
+                    <p className="text-slate-400 italic p-4 bg-slate-100/40 dark:bg-slate-800/40 rounded-xl text-center">
+                      Học viên chưa thực hiện bài dịch đoạn văn nào.
+                    </p>
+                  ) : (
+                    <div className="space-y-2.5 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                      {selectedUserProgress.paragraphSubmissions?.map((p: any) => (
+                        <div
+                          key={p.id}
+                          className="p-3.5 bg-slate-50/70 dark:bg-slate-800/50 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex flex-col gap-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-indigo-600 dark:text-indigo-400">
+                              {p.subTopic || 'Đoạn văn dịch'}
+                            </span>
+                            <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold px-2.5 py-0.5 rounded-full border border-emerald-500/30 text-[10px]">
+                              CEFR {p.estimatedCefr || 'B2'}
+                            </span>
+                          </div>
+                          <p className="text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed">
+                            <strong className="text-slate-900 dark:text-slate-100">Bài dịch:</strong> "{p.userTranslation}"
+                          </p>
+                          {p.overallFeedback && (
+                            <div className="p-2 bg-indigo-50/60 dark:bg-indigo-950/40 rounded-lg text-indigo-700 dark:text-indigo-300 text-[10px]">
+                              <strong className="block mb-0.5">Nhận xét AI:</strong> {p.overallFeedback}
+                            </div>
+                          )}
+                          <p className="text-[9px] text-slate-400 text-right">
+                            {new Date(p.createdAt).toLocaleString('vi-VN')}
+                          </p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                </div>
+              )}
+
+              {/* Tab 3: Speaking Submissions Log */}
+              {modalLogTab === 'speaking' && (
+                <div>
+                  {selectedUserProgress.speakingSubmissions?.length === 0 ? (
+                    <p className="text-slate-400 italic p-4 bg-slate-100/40 dark:bg-slate-800/40 rounded-xl text-center">
+                      Học viên chưa thực hiện bài nói Speaking nào.
+                    </p>
+                  ) : (
+                    <div className="space-y-2.5 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                      {selectedUserProgress.speakingSubmissions?.map((s: any) => (
+                        <div
+                          key={s.id}
+                          className="p-3.5 bg-slate-50/70 dark:bg-slate-800/50 rounded-xl border border-slate-200/60 dark:border-slate-700/60 flex flex-col gap-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-extrabold text-violet-600 dark:text-violet-400">
+                              {s.topic} (Part {s.part})
+                            </span>
+                            <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 font-extrabold px-2.5 py-0.5 rounded-full border border-amber-500/30 text-[10px]">
+                              IELTS Band {s.estimatedBand || 'N/A'}
+                            </span>
+                          </div>
+                          <p className="text-slate-800 dark:text-slate-200 font-bold text-[11px]">
+                            Prompt: "{s.questionPrompt}"
+                          </p>
+                          <div className="p-2 bg-white/70 dark:bg-slate-900/70 rounded-lg text-slate-600 dark:text-slate-300 text-[11px] italic">
+                            Bài nói ghi âm: "{s.transcribedText}"
+                          </div>
+                          {s.improvedVersion && (
+                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                              <strong>Gợi ý nâng cấp:</strong> {s.improvedVersion}
+                            </p>
+                          )}
+                          <p className="text-[9px] text-slate-400 text-right">
+                            {new Date(s.createdAt).toLocaleString('vi-VN')}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

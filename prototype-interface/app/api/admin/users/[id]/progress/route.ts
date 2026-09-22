@@ -12,6 +12,8 @@ import {
   translationParagraphSubmissions,
   speakingPrompts,
   translationParagraphs,
+  translationLogs,
+  translationPrompts,
 } from '@/lib/db/schema'
 import { eq, desc, count } from 'drizzle-orm'
 import { verifyAdminSession, unauthorizedAdminResponse } from '@/lib/auth/admin'
@@ -42,22 +44,67 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     // 3. Fetch User Decks & Cards
     const userDecks = await db.select().from(decks).where(eq(decks.userId, userId)).orderBy(desc(decks.createdAt)).catch(() => [])
 
-    // 4. Fetch SRS & DSR States
+    // 4. Fetch SRS States & Calculate 4 Memory Stages
     const srsStates = await db.select().from(cardSrsStates).where(eq(cardSrsStates.userId, userId)).catch(() => [])
-    const dsrStates = await db.select().from(cardDsrStates).where(eq(cardDsrStates.userId, userId)).catch(() => [])
 
-    const todayIso = new Date().toISOString().split('T')[0]
-    const dueSrsCount = srsStates.filter((s: any) => s.dueDate <= todayIso).length
-
-    // 5. Fetch Review Logs (SM2/DSR rating distribution)
-    const logs = await db.select().from(reviewLogs).where(eq(reviewLogs.userId, userId)).orderBy(desc(reviewLogs.createdAt)).limit(100).catch(() => [])
-
-    const ratingCounts = {
-      again: logs.filter((l: any) => l.rating === 1).length,
-      hard: logs.filter((l: any) => l.rating === 2).length,
-      good: logs.filter((l: any) => l.rating === 3).length,
-      easy: logs.filter((l: any) => l.rating === 4).length,
+    const totalCards = srsStates.length
+    const memoryStages = {
+      new: { count: 0, percentage: 0 },
+      learning: { count: 0, percentage: 0 },
+      consolidating: { count: 0, percentage: 0 },
+      mastered: { count: 0, percentage: 0 },
     }
+
+    srsStates.forEach((state: any) => {
+      const rep = state.repetition || 0
+      const interval = state.interval || 0
+
+      if (rep === 0) {
+        memoryStages.new.count++
+      } else if (interval < 2) {
+        memoryStages.learning.count++
+      } else if (interval >= 2 && interval < 30) {
+        memoryStages.consolidating.count++
+      } else {
+        memoryStages.mastered.count++
+      }
+    })
+
+    if (totalCards > 0) {
+      memoryStages.new.percentage = Math.round((memoryStages.new.count / totalCards) * 100)
+      memoryStages.learning.percentage = Math.round((memoryStages.learning.count / totalCards) * 100)
+      memoryStages.consolidating.percentage = Math.round((memoryStages.consolidating.count / totalCards) * 100)
+      memoryStages.mastered.percentage = Math.round((memoryStages.mastered.count / totalCards) * 100)
+    }
+
+    // 5. Fetch Review Logs & Single Sentence Translation Logs for Accuracy Rate
+    const cardReviews = await db.select().from(reviewLogs).where(eq(reviewLogs.userId, userId)).orderBy(desc(reviewLogs.createdAt)).catch(() => [])
+    const sentenceLogs = await db
+      .select({
+        id: translationLogs.id,
+        userSubmission: translationLogs.userSubmission,
+        isCorrect: translationLogs.isCorrect,
+        matchedCanonical: translationLogs.matchedCanonical,
+        createdAt: translationLogs.createdAt,
+        vietnameseText: translationPrompts.vietnameseText,
+        grammarCategory: translationPrompts.grammarCategory,
+      })
+      .from(translationLogs)
+      .leftJoin(translationPrompts, eq(translationLogs.promptId, translationPrompts.id))
+      .where(eq(translationLogs.userId, userId))
+      .orderBy(desc(translationLogs.createdAt))
+      .catch(() => [])
+
+    const totalCardReviews = cardReviews.length
+    const correctCardReviews = cardReviews.filter((l: any) => l.rating >= 3).length
+
+    const totalSentenceLogs = sentenceLogs.length
+    const correctSentenceLogs = sentenceLogs.filter((s: any) => s.isCorrect).length
+
+    const totalCompletedTurns = totalCardReviews + totalSentenceLogs
+    const totalCorrectTurns = correctCardReviews + correctSentenceLogs
+
+    const accuracyRate = totalCompletedTurns > 0 ? parseFloat(((totalCorrectTurns / totalCompletedTurns) * 100).toFixed(1)) : 0.0
 
     // 6. Fetch Speaking Submissions
     const speakingSubs = await db
@@ -79,7 +126,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       .leftJoin(speakingPrompts, eq(speakingSubmissions.promptId, speakingPrompts.id))
       .where(eq(speakingSubmissions.userId, userId))
       .orderBy(desc(speakingSubmissions.createdAt))
-      .limit(10)
       .catch(() => [])
 
     // 7. Fetch Paragraph Submissions
@@ -97,7 +143,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       .leftJoin(translationParagraphs, eq(translationParagraphSubmissions.paragraphId, translationParagraphs.id))
       .where(eq(translationParagraphSubmissions.userId, userId))
       .orderBy(desc(translationParagraphSubmissions.createdAt))
-      .limit(10)
       .catch(() => [])
 
     return NextResponse.json({
@@ -112,17 +157,26 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       streak,
       overview: {
         totalDecks: userDecks.length,
-        totalSrsCardsTracked: srsStates.length,
-        totalCardsDueToday: dueSrsCount,
-        totalReviewsCount: logs.length,
-        ratingCounts,
-        totalSpeakingSubmissions: speakingSubs.length,
-        totalParagraphSubmissions: paragraphSubs.length,
+        totalSrsCardsTracked: totalCards,
+        accuracyRate,
+        totalCompletedTurns,
+        singleSentence: {
+          total: totalSentenceLogs,
+          correct: correctSentenceLogs,
+        },
+        paragraph: {
+          total: paragraphSubs.length,
+        },
+        speaking: {
+          total: speakingSubs.length,
+        },
+        memoryStages,
       },
       decks: userDecks,
       speakingSubmissions: speakingSubs,
       paragraphSubmissions: paragraphSubs,
-      recentReviewLogs: logs.slice(0, 15),
+      sentenceLogs,
+      recentReviewLogs: cardReviews.slice(0, 15),
     })
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })

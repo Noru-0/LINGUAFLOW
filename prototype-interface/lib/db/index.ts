@@ -265,6 +265,8 @@ export function getDb(): any {
           idle_timeout: 10,
         })
         client.unsafe(`
+          ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
+
           CREATE TABLE IF NOT EXISTS public.translation_paragraphs (
             id TEXT PRIMARY KEY,
             theme_category TEXT NOT NULL,
