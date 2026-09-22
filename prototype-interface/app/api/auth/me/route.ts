@@ -12,5 +12,15 @@ export async function GET() {
     return NextResponse.json({ user: null, isDemo: false })
   }
 
-  return NextResponse.json({ user: session, isDemo: false })
+  // Fetch role from DB
+  const { verifyAdminSession } = await import('@/lib/auth/admin')
+  const { isAdmin } = await verifyAdminSession()
+
+  return NextResponse.json({
+    user: {
+      ...session,
+      role: isAdmin ? 'admin' : (session as any).role || 'user',
+    },
+    isDemo: false,
+  })
 }

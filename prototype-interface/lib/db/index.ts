@@ -30,8 +30,11 @@ function getSqliteDb() {
         email TEXT NOT NULL UNIQUE,
         password_hash TEXT NOT NULL,
         name TEXT NOT NULL,
+        role TEXT DEFAULT 'user',
         created_at TEXT NOT NULL
       );
+
+      try { sqlite.exec("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user';"); } catch {}
 
       CREATE TABLE IF NOT EXISTS decks (
         id TEXT PRIMARY KEY,

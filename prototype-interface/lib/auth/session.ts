@@ -11,6 +11,7 @@ export interface UserSessionPayload {
   userId: string
   email: string
   name: string
+  role?: string
 }
 
 export async function createSession(payload: UserSessionPayload): Promise<string> {

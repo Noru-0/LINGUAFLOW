@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   AlertTriangle,
   ArrowRight,
@@ -44,6 +45,7 @@ import {
   UserPlus,
   Mic,
   Layers,
+  Shield,
 } from 'lucide-react'
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -4952,6 +4954,7 @@ function Resources() {
 // Main App Component
 // ----------------------------------------------------
 export default function Page() {
+  const router = useRouter()
   const [view, setView] = useState<View>('Dashboard')
   const [user, setUser] = useState<any>(null)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -5104,6 +5107,10 @@ export default function Page() {
         </nav>
 
         <div className="sidebar-bottom" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <button className="nav-item" onClick={() => router.push('/admin')}>
+            <Shield size={18} className="text-indigo-500" />
+            <span>Admin Panel</span>
+          </button>
           <button className="nav-item" onClick={() => setShowHelpModal(true)}>
             <CircleHelp size={18} />
             <span>Help center</span>
