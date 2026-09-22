@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Be_Vietnam_Pro, Plus_Jakarta_Sans } from 'next/font/google'
+import { AnimatedBackground } from '@/components/ui/AnimatedBackground'
 import './globals.css'
 
 const beVietnamPro = Be_Vietnam_Pro({
@@ -54,17 +55,18 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="vi" className={`${beVietnamPro.variable} ${plusJakartaSans.variable} bg-background`} suppressHydrationWarning>
+    <html lang="vi" className={`${beVietnamPro.variable} ${plusJakartaSans.variable}`} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
             __html: `
               try {
                 const theme = localStorage.getItem('theme');
-                if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.remove('dark', 'pink');
+                if (theme === 'pink') {
+                  document.documentElement.classList.add('pink');
+                } else if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                   document.documentElement.classList.add('dark');
-                } else {
-                  document.documentElement.classList.remove('dark');
                 }
               } catch (e) {}
             `,
@@ -72,6 +74,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased" suppressHydrationWarning>
+        <AnimatedBackground />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

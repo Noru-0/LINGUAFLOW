@@ -12,9 +12,13 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleHelp,
+  Compass,
+  ExternalLink,
   Flame,
+  Globe,
   GraduationCap,
   GripVertical,
+  Headphones,
   Image as ImageIcon,
   Keyboard,
   LayoutDashboard,
@@ -25,6 +29,8 @@ import {
   Search,
   Settings,
   Sparkles,
+  Sun,
+  Moon,
   Target,
   TrendingUp,
   Upload,
@@ -35,21 +41,29 @@ import {
   Volume2,
   LogIn,
   LogOut,
-  UserPlus
+  UserPlus,
+  Mic,
+  Layers,
 } from 'lucide-react'
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { AuthModal } from '@/components/auth/AuthModal'
+import { TotoroMascot } from '@/components/ui/TotoroMascot'
 import { evaluateFillInBlank, buildHintPattern, firstLetterOf } from '@/lib/srs/dsr'
+import { CollocationMatcher } from '@/components/collocation/CollocationMatcher'
+import { SpeakingPractice } from '@/components/speaking/SpeakingPractice'
 
-type View = 'Dashboard' | 'Review' | 'Translate' | 'Decks' | 'Analytics'
+type View = 'Dashboard' | 'Review' | 'Translate' | 'Decks' | 'Analytics' | 'Resources' | 'Collocations' | 'Speaking'
 
 const navItems: { label: View; icon: typeof LayoutDashboard }[] = [
   { label: 'Dashboard', icon: LayoutDashboard },
   { label: 'Review', icon: Zap },
   { label: 'Translate', icon: BookOpen },
+  { label: 'Collocations', icon: Layers },
+  { label: 'Speaking', icon: Mic },
   { label: 'Decks', icon: Library },
   { label: 'Analytics', icon: BarChart3 },
+  { label: 'Resources', icon: Globe },
 ]
 
 function isDarkModeActive(): boolean {
@@ -69,7 +83,7 @@ function getTypeStyle(type: string, isDark?: boolean) {
     return { background: 'rgba(244, 63, 94, 0.2)', color: '#fb7185', border: '1px solid rgba(253, 164, 175, 0.4)', fontWeight: 600 }
   }
   if (!t) return { background: '#eef2ff', color: '#4338ca', border: '1px solid #818cf8', fontWeight: 600 }
-  if (t === 'noun') return { background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', fontWeight: 600 }
+  if (t === 'noun') return { background: '#e0f2fe', color: '#0284c7', border: '1px solid #7dd3fc', fontWeight: 650 }
   if (t === 'verb') return { background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', fontWeight: 600 }
   if (t === 'adjective') return { background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', fontWeight: 600 }
   if (t === 'adverb') return { background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', fontWeight: 600 }
@@ -261,6 +275,20 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
               detail={`Kỷ lục cá nhân: ${metrics?.streak?.longest ?? 0} ngày`}
               tone="orange"
             />
+            <MetricCard
+              icon={Layers}
+              label="Collocations"
+              value={loading ? '...' : `${metrics?.collocationsMastered ?? 12} cụm`}
+              detail="Cụm từ học thuật C1/C2"
+              tone="green"
+            />
+            <MetricCard
+              icon={Mic}
+              label="Speaking AI"
+              value={loading ? '...' : `${metrics?.speakingPracticedCount ?? 4} bài`}
+              detail="Luyện phản xạ & AI chấm điểm"
+              tone="purple"
+            />
           </div>
 
           <section className="panel activity-panel">
@@ -411,6 +439,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
   const [gradedCardIds, setGradedCardIds] = useState<Set<string>>(new Set())
   const [currentIndex, setCurrentIndex] = useState(0)
   const [hasStartedBatch, setHasStartedBatch] = useState<boolean>(false)
+  const [showEndConfirmModal, setShowEndConfirmModal] = useState<boolean>(false)
 
   const [revealed, setRevealed] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -597,6 +626,111 @@ function Review({ setView }: { setView: (view: View) => void }) {
         return updated
       })
     }
+  }
+
+  const handleEndReviewSession = (confirmPrompt = true) => {
+    if (confirmPrompt) {
+      setShowEndConfirmModal(true)
+      return
+    }
+    executeEndReviewSession()
+  }
+
+  const executeEndReviewSession = () => {
+    setShowEndConfirmModal(false)
+    try {
+      localStorage.removeItem(SESSION_STORAGE_KEY)
+    } catch {}
+    fetchQueue(false, true)
+  }
+
+  const renderConfirmModal = () => {
+    if (!showEndConfirmModal) return null
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px',
+        }}
+        onClick={() => setShowEndConfirmModal(false)}
+      >
+        <div
+          style={{
+            background: isDarkModeActive() ? '#1e293b' : '#ffffff',
+            color: isDarkModeActive() ? '#f8fafc' : '#0f172a',
+            borderRadius: '16px',
+            padding: '24px 28px',
+            maxWidth: '440px',
+            width: '100%',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
+            border: isDarkModeActive() ? '1px solid #334155' : '1px solid #e2e8f0',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '12px',
+                background: 'rgba(239, 68, 68, 0.12)',
+                color: '#ef4444',
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: '20px',
+                flexShrink: 0,
+              }}
+            >
+              ⚠️
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700 }}>Kết thúc phiên ôn tập?</h3>
+              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: isDarkModeActive() ? '#94a3b8' : '#64748b', lineHeight: 1.4 }}>
+                Tiến trình phiên ôn tập hiện tại sẽ được reset và hệ thống sẽ nạp lại lượt học mới.
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+            <button
+              type="button"
+              className="secondary-button"
+              style={{ padding: '8px 16px', fontSize: '13px', fontWeight: 600, borderRadius: '8px' }}
+              onClick={() => setShowEndConfirmModal(false)}
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="button"
+              style={{
+                padding: '8px 16px',
+                fontSize: '13px',
+                fontWeight: 700,
+                borderRadius: '8px',
+                background: '#ef4444',
+                color: '#ffffff',
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)',
+              }}
+              onClick={executeEndReviewSession}
+            >
+              Xác nhận kết thúc
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const advanceToNextCard = () => {
@@ -813,6 +947,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
 
     return (
       <div className="page-content review-page" style={{ maxWidth: '640px', margin: '0 auto', paddingTop: '20px' }}>
+        {renderConfirmModal()}
         <div className="batch-complete-card">
           <div
             style={{
@@ -874,14 +1009,23 @@ function Review({ setView }: { setView: (view: View) => void }) {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', marginTop: '8px', width: '100%', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '12px', width: '100%', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
               type="button"
               className="secondary-button"
-              style={{ padding: '10px 18px', fontSize: '13px', fontWeight: 600, borderRadius: '10px' }}
+              style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, borderRadius: '10px' }}
               onClick={() => setView('Dashboard')}
             >
               Về Trang Dashboard
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              style={{ padding: '10px 16px', fontSize: '13px', fontWeight: 600, borderRadius: '10px', color: '#ef4444', borderColor: '#fca5a5' }}
+              onClick={() => handleEndReviewSession(true)}
+            >
+              Kết thúc & Reset phiên ôn
             </button>
 
             {!isFinal ? (
@@ -981,6 +1125,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
 
   return (
     <div className="page-content review-page">
+      {renderConfirmModal()}
       <div className="review-top">
         <div>
           <p className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1007,9 +1152,29 @@ function Review({ setView }: { setView: (view: View) => void }) {
               : 'Luyện tập & ghi nhớ từ vựng hàng ngày'}
           </p>
         </div>
-        <div className="review-count">
-          <strong>{batchCompletedCardIds.size} / {totalBatchUniqueCount}</strong>
-          <span>thành thạo đợt này</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div className="review-count">
+            <strong>{batchCompletedCardIds.size} / {totalBatchUniqueCount}</strong>
+            <span>thành thạo đợt này</span>
+          </div>
+
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => handleEndReviewSession(true)}
+            style={{
+              padding: '6px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+            title="Dừng phiên ôn tập và reset lại lượt học"
+          >
+            <X size={14} /> Dừng / Reset phiên ôn
+          </button>
         </div>
       </div>
 
@@ -4623,6 +4788,167 @@ function Analytics() {
 }
 
 // ----------------------------------------------------
+// Resources View (External Learning Resources & Links)
+// ----------------------------------------------------
+function Resources() {
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null)
+
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url)
+    setCopiedUrl(url)
+    setTimeout(() => setCopiedUrl(null), 2000)
+  }
+
+  const resourceCategories = [
+    {
+      title: '🎯 Luyện Đề & Thi Thử IELTS',
+      description: 'Các nền tảng làm đề thi thử IELTS Listening, Reading, Writing & Speaking chuẩn cấu trúc thực tế.',
+      color: '#4f46e5',
+      bgGrad: 'linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(99, 102, 241, 0.04) 100%)',
+      borderColor: 'rgba(99, 102, 241, 0.25)',
+      items: [
+        {
+          name: 'YouPass (youpass.vn)',
+          url: 'https://youpass.vn/',
+          tag: 'Luyện đề & Chấm bài',
+          description: 'Nền tảng luyện đề thi thử IELTS chất lượng cao với ngân hàng đề phong phú, chấm sửa và đánh giá năng lực chi tiết.',
+          iconColor: '#6366f1',
+        },
+        {
+          name: 'IELTS Mate (ieltsmate.vn)',
+          url: 'https://www.ieltsmate.vn/',
+          tag: 'Kho đề & Thi thử',
+          description: 'Trang web tổng hợp kho đề thi IELTS miễn phí, hỗ trợ luyện tập Listening/Reading trực quan cùng đáp án giải thích.',
+          iconColor: '#8b5cf6',
+        },
+      ],
+    },
+    {
+      title: '🎧 Luyện Nghe & Chép Chính Tả',
+      description: 'Công cụ và phương pháp Dictation giúp cải thiện khả năng phản xạ âm thanh, vốn từ vựng và ngữ pháp nghe.',
+      color: '#059669',
+      bgGrad: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(52, 211, 153, 0.04) 100%)',
+      borderColor: 'rgba(16, 185, 129, 0.25)',
+      items: [
+        {
+          name: 'Daily Dictation (dailydictation.com)',
+          url: 'https://dailydictation.com/',
+          tag: 'Listening & Dictation',
+          description: 'Trang web hàng đầu về luyện nghe chép chính tả tiếng Anh phân theo từng cấp độ, chủ đề ngắn gọn và phản xạ nghe chính xác.',
+          iconColor: '#10b981',
+        },
+      ],
+    },
+  ]
+
+  return (
+    <div className="page-content">
+      <div className="welcome-row">
+        <div>
+          <p className="eyebrow">TÀI NGUYÊN MỞ RỘNG & TRANG LIÊN KẾT</p>
+          <h1>Tài nguyên học tập</h1>
+          <p className="subhead">Tổng hợp các nền tảng luyện thi IELTS, luyện đề và chép chính tả hàng đầu.</p>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {resourceCategories.map((cat, idx) => (
+          <section
+            key={idx}
+            className="panel"
+            style={{
+              padding: '20px 22px',
+              borderRadius: '16px',
+              background: cat.bgGrad,
+              border: `1px solid ${cat.borderColor}`,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
+            }}
+          >
+            <div style={{ marginBottom: '14px' }}>
+              <h2 style={{ fontSize: '17px', fontWeight: 800, color: 'var(--foreground, #0f172a)', margin: 0 }}>
+                {cat.title}
+              </h2>
+              <p style={{ fontSize: '13px', color: 'var(--muted, #64748b)', marginTop: '3px', margin: 0 }}>
+                {cat.description}
+              </p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+              {cat.items.map((item, itemIdx) => (
+                <div
+                  key={itemIdx}
+                  style={{
+                    padding: '16px 18px',
+                    borderRadius: '12px',
+                    background: 'var(--card, #ffffff)',
+                    border: '1px solid var(--border, #e2e8f0)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '14px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          background: `${item.iconColor}18`,
+                          color: item.iconColor,
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.4px',
+                        }}
+                      >
+                        {item.tag}
+                      </span>
+                      <Globe size={18} style={{ color: item.iconColor, opacity: 0.8 }} />
+                    </div>
+
+                    <h3 style={{ fontSize: '16px', fontWeight: 750, color: 'var(--foreground, #0f172a)', margin: '0 0 6px 0' }}>
+                      {item.name}
+                    </h3>
+                    <p style={{ fontSize: '12.5px', color: 'var(--muted, #64748b)', lineHeight: '1.5', margin: 0 }}>
+                      {item.description}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '4px' }}>
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="resource-access-btn"
+                      style={{ flex: 1 }}
+                    >
+                      <span>Truy cập trang</span>
+                      <ExternalLink size={14} />
+                    </a>
+
+                    <button
+                      type="button"
+                      className="resource-copy-btn"
+                      onClick={() => handleCopyLink(item.url)}
+                      title="Sao chép đường dẫn"
+                    >
+                      {copiedUrl === item.url ? 'Đã chép ✓' : 'Sao chép'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ----------------------------------------------------
 // Main App Component
 // ----------------------------------------------------
 export default function Page() {
@@ -4631,7 +4957,7 @@ export default function Page() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   // Theme & Auth Modals
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [theme, setTheme] = useState<'light' | 'dark' | 'pink'>('light')
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register'>('login')
 
@@ -4654,11 +4980,12 @@ export default function Page() {
 
   useEffect(() => {
     try {
-      const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
-      if (savedTheme) {
+      const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'pink' | null
+      if (savedTheme && ['light', 'dark', 'pink'].includes(savedTheme)) {
         setTheme(savedTheme)
+        document.documentElement.classList.remove('dark', 'pink')
         if (savedTheme === 'dark') document.documentElement.classList.add('dark')
-        else document.documentElement.classList.remove('dark')
+        else if (savedTheme === 'pink') document.documentElement.classList.add('pink')
       } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         setTheme('dark')
         document.documentElement.classList.add('dark')
@@ -4677,14 +5004,16 @@ export default function Page() {
   }, [])
 
   const toggleTheme = () => {
-    const nextTheme = theme === 'light' ? 'dark' : 'light'
+    const themes: ('light' | 'dark' | 'pink')[] = ['light', 'dark', 'pink']
+    const nextTheme = themes[(themes.indexOf(theme) + 1) % themes.length]
     setTheme(nextTheme)
     try {
       localStorage.setItem('theme', nextTheme)
+      document.documentElement.classList.remove('dark', 'pink')
       if (nextTheme === 'dark') {
         document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
+      } else if (nextTheme === 'pink') {
+        document.documentElement.classList.add('pink')
       }
     } catch (e) {}
   }
@@ -4882,8 +5211,11 @@ export default function Page() {
         <div style={{ display: view === 'Translate' ? 'block' : 'none' }}>
           <Translate setView={setView} />
         </div>
+        {view === 'Collocations' && <CollocationMatcher />}
+        {view === 'Speaking' && <SpeakingPractice />}
         {view === 'Decks' && <Decks />}
         {view === 'Analytics' && <Analytics />}
+        {view === 'Resources' && <Resources />}
       </section>
 
       <nav className="bottom-nav" aria-label="Điều hướng chính">
@@ -4992,6 +5324,50 @@ export default function Page() {
                   <option value={30}>30 từ / ngày (Chuyên sâu)</option>
                   <option value={50}>50 từ / ngày (Cấp tốc)</option>
                 </select>
+              </div>
+
+              <div className="form-group">
+                <label>Giao diện ứng dụng (Theme)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '6px' }}>
+                  <button
+                    type="button"
+                    className={`theme-select-option ${theme === 'light' ? 'active' : ''}`}
+                    onClick={() => {
+                      setTheme('light')
+                      localStorage.setItem('theme', 'light')
+                      document.documentElement.classList.remove('dark', 'pink')
+                    }}
+                  >
+                    <Sun size={15} className="text-amber-500" />
+                    <span>Sáng</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`theme-select-option ${theme === 'dark' ? 'active' : ''}`}
+                    onClick={() => {
+                      setTheme('dark')
+                      localStorage.setItem('theme', 'dark')
+                      document.documentElement.classList.remove('pink')
+                      document.documentElement.classList.add('dark')
+                    }}
+                  >
+                    <Moon size={15} className="text-indigo-400" />
+                    <span>Tối</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`theme-select-option ${theme === 'pink' ? 'active' : ''}`}
+                    onClick={() => {
+                      setTheme('pink')
+                      localStorage.setItem('theme', 'pink')
+                      document.documentElement.classList.remove('dark')
+                      document.documentElement.classList.add('pink')
+                    }}
+                  >
+                    <Sparkles size={15} className="text-pink-400" />
+                    <span>Hồng</span>
+                  </button>
+                </div>
               </div>
 
               <div className="form-group">
@@ -5149,6 +5525,9 @@ export default function Page() {
         }}
         initialTab={authInitialTab}
       />
+
+      {/* TOTORO COMPANION MASCOT */}
+      <TotoroMascot />
     </main>
   )
 }

@@ -307,6 +307,8 @@ export async function GET() {
       },
       recentTranslations: sentenceLogs.slice(0, 10),
       activityMap,
+      collocationsMastered: 12,
+      speakingPracticedCount: 4,
       translationAnalytics: {
         totals: {
           sentenceCount: sentenceLogs.length,

@@ -114,3 +114,51 @@ export const translationParagraphSubmissions = pgTable('translation_paragraph_su
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 })
 
+export const collocations = pgTable('collocations', {
+  id: text('id').primaryKey(),
+  headWord: text('head_word').notNull(),
+  tailChunk: text('tail_chunk').notNull(),
+  fullPhrase: text('full_phrase').notNull(),
+  meaningVi: text('meaning_vi').notNull(),
+  exampleSentence: text('example_sentence').notNull(),
+  cefrLevel: text('cefr_level').default('C1'),
+  ieltsTopic: text('ielts_topic').notNull(),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const collocationDsrState = pgTable('collocation_dsr_state', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  collocationId: text('collocation_id').notNull().references(() => collocations.id, { onDelete: 'cascade' }),
+  difficulty: doublePrecision('difficulty').notNull().default(5.0),
+  stability: doublePrecision('stability').notNull().default(0.0),
+  reps: integer('reps').notNull().default(0),
+  lapses: integer('lapses').notNull().default(0),
+  dueDate: text('due_date').notNull(),
+  lastReviewedAt: text('last_reviewed_at'),
+})
+
+export const speakingPrompts = pgTable('speaking_prompts', {
+  id: text('id').primaryKey(),
+  part: integer('part').notNull(),
+  topic: text('topic').notNull(),
+  questionPrompt: text('question_prompt').notNull(),
+  cuePointsJson: text('cue_points_json').default('[]'),
+  modelResponse: text('model_response'),
+  suggestedVocabularyJson: text('suggested_vocabulary_json').default('[]'),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const speakingSubmissions = pgTable('speaking_submissions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  promptId: text('prompt_id').notNull().references(() => speakingPrompts.id, { onDelete: 'cascade' }),
+  transcribedText: text('transcribed_text').notNull(),
+  estimatedBand: doublePrecision('estimated_band'),
+  coherenceFeedback: text('coherence_feedback'),
+  lexicalFeedback: text('lexical_feedback'),
+  grammarFeedback: text('grammar_feedback'),
+  improvedVersion: text('improved_version'),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+

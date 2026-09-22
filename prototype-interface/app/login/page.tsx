@@ -19,11 +19,12 @@ import {
   ArrowRight
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { TotoroMascot } from '@/components/ui/TotoroMascot'
 
 export default function LoginPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login')
-  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [theme, setTheme] = useState<'light' | 'dark' | 'pink'>('light')
 
   // Login Form
   const [loginEmail, setLoginEmail] = useState('')
@@ -44,11 +45,12 @@ export default function LoginPage() {
 
   useEffect(() => {
     try {
-      const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
-      if (savedTheme) {
+      const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'pink' | null
+      if (savedTheme && ['light', 'dark', 'pink'].includes(savedTheme)) {
         setTheme(savedTheme)
+        document.documentElement.classList.remove('dark', 'pink')
         if (savedTheme === 'dark') document.documentElement.classList.add('dark')
-        else document.documentElement.classList.remove('dark')
+        else if (savedTheme === 'pink') document.documentElement.classList.add('pink')
       } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         setTheme('dark')
         document.documentElement.classList.add('dark')
@@ -57,14 +59,16 @@ export default function LoginPage() {
   }, [])
 
   const toggleTheme = () => {
-    const nextTheme = theme === 'light' ? 'dark' : 'light'
+    const themes: ('light' | 'dark' | 'pink')[] = ['light', 'dark', 'pink']
+    const nextTheme = themes[(themes.indexOf(theme) + 1) % themes.length]
     setTheme(nextTheme)
     try {
       localStorage.setItem('theme', nextTheme)
+      document.documentElement.classList.remove('dark', 'pink')
       if (nextTheme === 'dark') {
         document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
+      } else if (nextTheme === 'pink') {
+        document.documentElement.classList.add('pink')
       }
     } catch (e) {}
   }
@@ -413,6 +417,7 @@ export default function LoginPage() {
           </div>
         </div>
       </main>
+      <TotoroMascot />
     </div>
   )
 }

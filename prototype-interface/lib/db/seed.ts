@@ -1,8 +1,10 @@
 import { db, fallbackToSqlite } from './index'
-import { users, decks, cards, cardSrsStates, translationPrompts, translationParagraphs, userStreaks } from './schema'
+import { users, decks, cards, cardSrsStates, translationPrompts, translationParagraphs, userStreaks, collocations, speakingPrompts } from './schema'
 import { hashPassword } from '../auth/password'
 import { initial100Paragraphs } from './initial_100_paragraphs'
 import { initial500Sentences } from './initial_500_sentences'
+import { INITIAL_COLLOCATIONS } from './initial_collocations'
+import { INITIAL_SPEAKING_PROMPTS } from './initial_speaking_prompts'
 
 export const sampleParagraphs = initial100Paragraphs
 export const sampleSentences = initial500Sentences
@@ -34,6 +36,35 @@ export async function seedDatabase() {
           if (newPrompts.length > 0) {
             await activeDb.insert(translationPrompts).values(newPrompts)
           }
+        }
+
+        const existingCols = await activeDb.select().from(collocations)
+        if (existingCols.length === 0) {
+          const formattedCols = INITIAL_COLLOCATIONS.map((c) => ({
+            id: c.id,
+            headWord: c.head_word,
+            tailChunk: c.tail_chunk,
+            fullPhrase: c.full_phrase,
+            meaningVi: c.meaning_vi,
+            exampleSentence: c.example_sentence,
+            cefrLevel: c.cefr_level,
+            ieltsTopic: c.ielts_topic,
+          }))
+          await activeDb.insert(collocations).values(formattedCols)
+        }
+
+        const existingSpks = await activeDb.select().from(speakingPrompts)
+        if (existingSpks.length === 0) {
+          const formattedSpks = INITIAL_SPEAKING_PROMPTS.map((sp) => ({
+            id: sp.id,
+            part: sp.part,
+            topic: sp.topic,
+            questionPrompt: sp.question_prompt,
+            cuePointsJson: sp.cue_points_json,
+            modelResponse: sp.model_response,
+            suggestedVocabularyJson: sp.suggested_vocabulary_json,
+          }))
+          await activeDb.insert(speakingPrompts).values(formattedSpks)
         }
       } catch {}
       isSeededInMemory = true
