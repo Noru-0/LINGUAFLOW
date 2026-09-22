@@ -2154,51 +2154,22 @@ function Translate({ setView }: { setView: (view: View) => void }) {
           </>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              {/* Level Filter Pills for Sentence Mode */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
-                <span className="level-filter-label">Trình độ:</span>
-                {[
-                  { code: 'ALL', label: 'Tất cả trình độ', color: '#64748b' },
-                  { code: 'A2', label: 'A2 · Cơ bản', color: '#16a34a' },
-                  { code: 'B1', label: 'B1 · Trung cấp', color: '#2563eb' },
-                  { code: 'B2', label: 'B2 · IELTS 6.0', color: '#7c3aed' },
-                  { code: 'C1', label: 'C1 · IELTS 7.5', color: '#e11d48' },
-                  { code: 'C2', label: 'C2 · Thành thạo', color: '#d97706' },
-                ].map((lvl) => (
-                  <button
-                    key={lvl.code}
-                    type="button"
-                    onClick={() => {
-                      setSelectedLevel(lvl.code as any)
-                      setActivePromptId(null)
-                      setPromptIndex(0)
-                      setEvaluation(null)
-                      setUserSubmission('')
-                      setSentenceSubmitError(null)
-                      setSentenceRetryCount(0)
-                    }}
-                    className={`level-pill-btn ${selectedLevel === lvl.code ? 'active' : ''}`}
-                    style={{
-                      borderColor: selectedLevel === lvl.code ? lvl.color : '#e2e8f0',
-                      color: selectedLevel === lvl.code ? lvl.color : '#64748b',
-                      backgroundColor: selectedLevel === lvl.code ? `${lvl.color}15` : '#ffffff',
-                      fontWeight: selectedLevel === lvl.code ? 700 : 500,
-                    }}
-                  >
-                    {lvl.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Pattern Selector Dropdown */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span className="level-filter-label">Cấu trúc:</span>
-                <select
-                  className="topic-dropdown-select"
-                  value={selectedPattern}
-                  onChange={(e) => {
-                    setSelectedPattern(e.target.value)
+            {/* Level Filter Pills for Sentence Mode */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', width: '100%' }}>
+              <span className="level-filter-label">Trình độ:</span>
+              {[
+                { code: 'ALL', label: 'Tất cả trình độ', color: '#64748b' },
+                { code: 'A2', label: 'A2 · Cơ bản', color: '#16a34a' },
+                { code: 'B1', label: 'B1 · Trung cấp', color: '#2563eb' },
+                { code: 'B2', label: 'B2 · IELTS 6.0', color: '#7c3aed' },
+                { code: 'C1', label: 'C1 · IELTS 7.5', color: '#e11d48' },
+                { code: 'C2', label: 'C2 · Thành thạo', color: '#d97706' },
+              ].map((lvl) => (
+                <button
+                  key={lvl.code}
+                  type="button"
+                  onClick={() => {
+                    setSelectedLevel(lvl.code as any)
                     setActivePromptId(null)
                     setPromptIndex(0)
                     setEvaluation(null)
@@ -2206,19 +2177,22 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                     setSentenceSubmitError(null)
                     setSentenceRetryCount(0)
                   }}
+                  className={`level-pill-btn ${selectedLevel === lvl.code ? 'active' : ''}`}
+                  style={{
+                    borderColor: selectedLevel === lvl.code ? lvl.color : '#e2e8f0',
+                    color: selectedLevel === lvl.code ? lvl.color : '#64748b',
+                    backgroundColor: selectedLevel === lvl.code ? `${lvl.color}15` : '#ffffff',
+                    fontWeight: selectedLevel === lvl.code ? 700 : 500,
+                  }}
                 >
-                  {SENTENCE_PATTERNS.map((pat) => (
-                    <option key={pat.code} value={pat.code}>
-                      {pat.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  {lvl.label}
+                </button>
+              ))}
             </div>
 
-            {/* Pattern Quick Pills Bar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-              <span className="level-filter-label" style={{ fontSize: '11px', opacity: 0.8 }}>Dạng cấu trúc:</span>
+            {/* Pattern Pills Bar */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', width: '100%' }}>
+              <span className="level-filter-label">Dạng cấu trúc:</span>
               {SENTENCE_PATTERNS.map((pat) => (
                 <button
                   key={pat.code}
@@ -2234,8 +2208,6 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                   }}
                   className={`level-pill-btn ${selectedPattern === pat.code ? 'active' : ''}`}
                   style={{
-                    fontSize: '11px',
-                    padding: '3px 9px',
                     borderColor: selectedPattern === pat.code ? pat.color : '#e2e8f0',
                     color: selectedPattern === pat.code ? pat.color : '#64748b',
                     backgroundColor: selectedPattern === pat.code ? `${pat.color}15` : '#ffffff',
