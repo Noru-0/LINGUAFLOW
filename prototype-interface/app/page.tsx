@@ -4551,9 +4551,9 @@ function Analytics() {
       </div>
 
       {/* 3. Main Aggregations Section (Placed below vocabulary memory section) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px', marginBottom: '14px', alignItems: 'stretch' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '16px', alignItems: 'stretch' }}>
         {/* Aggregation by Mode & CEFR Level */}
-        <section className="panel" style={{ padding: '18px 20px', borderRadius: '14px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+        <section className="panel" style={{ padding: '18px 20px', borderRadius: '14px', minHeight: '260px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
           <div className="panel-header" style={{ marginBottom: '14px' }}>
             <div>
               <p className="eyebrow">TỔNG HỢP THEO TRÌNH ĐỘ</p>
@@ -4597,7 +4597,7 @@ function Analytics() {
         </section>
 
         {/* Aggregation by Sentence Pattern */}
-        <section className="panel" style={{ padding: '18px 20px', borderRadius: '14px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+        <section className="panel" style={{ padding: '18px 20px', borderRadius: '14px', minHeight: '260px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
           <div className="panel-header" style={{ marginBottom: '14px' }}>
             <div>
               <p className="eyebrow">TỔNG HỢP CÂU ĐƠN</p>
@@ -4633,14 +4633,16 @@ function Analytics() {
               ))}
             </div>
           ) : (
-            <div style={{ padding: '16px', textAlign: 'center', opacity: 0.7, fontSize: '13px' }}>
-              Chưa có dữ liệu bài làm câu đơn theo dạng.
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '24px 16px', textAlign: 'center', color: '#64748b' }}>
+              <Zap size={28} style={{ opacity: 0.4, marginBottom: '8px' }} />
+              <p style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>Chưa có dữ liệu bài làm câu đơn</p>
+              <span style={{ fontSize: '11.5px', opacity: 0.75, marginTop: '4px' }}>Hãy thực hành Dịch câu đơn để xem thống kê theo dạng</span>
             </div>
           )}
         </section>
 
         {/* Aggregation by IELTS Paragraph Topics */}
-        <section className="panel" style={{ padding: '18px 20px', borderRadius: '14px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+        <section className="panel" style={{ padding: '18px 20px', borderRadius: '14px', minHeight: '260px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
           <div className="panel-header" style={{ marginBottom: '14px' }}>
             <div>
               <p className="eyebrow">TỔNG HỢP ĐOẠN VĂN</p>
@@ -4673,8 +4675,10 @@ function Analytics() {
               ))}
             </div>
           ) : (
-            <div style={{ padding: '16px', textAlign: 'center', opacity: 0.7, fontSize: '13px' }}>
-              Chưa có dữ liệu bài làm đoạn văn theo chủ đề.
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '24px 16px', textAlign: 'center', color: '#64748b' }}>
+              <BookOpen size={28} style={{ opacity: 0.4, marginBottom: '8px' }} />
+              <p style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>Chưa có dữ liệu bài làm đoạn văn</p>
+              <span style={{ fontSize: '11.5px', opacity: 0.75, marginTop: '4px' }}>Hãy thực hành Dịch đoạn văn IELTS để xem thống kê theo chủ đề</span>
             </div>
           )}
         </section>
@@ -5208,6 +5212,8 @@ export default function Page() {
       setUser(null)
       setUserNameInput('')
       setShowProfileModal(false)
+      cachedDashboardMetrics = null
+      cachedAnalyticsData = null
       window.location.href = '/login'
     } catch (e) {}
   }
