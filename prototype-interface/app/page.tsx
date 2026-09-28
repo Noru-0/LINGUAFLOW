@@ -46,6 +46,8 @@ import {
   Mic,
   Layers,
   Shield,
+  Lock,
+  CheckCircle2,
 } from 'lucide-react'
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -299,16 +301,6 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
                 <p className="eyebrow">CONSISTENCY</p>
                 <h3>Learning activity</h3>
               </div>
-              <select
-                className="select-field"
-                style={{ width: 'auto', padding: '4px 10px', fontSize: '11.5px', height: '30px' }}
-                value={activityPeriod}
-                onChange={(e) => setActivityPeriod(e.target.value)}
-              >
-                <option value="12m">12 tháng gần nhất</option>
-                <option value="6m">6 tháng gần nhất</option>
-                <option value="3m">3 tháng gần nhất</option>
-              </select>
             </div>
             <div className="heatmap-wrap">
               <div className="heatmap-scroll">
@@ -1732,6 +1724,7 @@ function Translate({ setView }: { setView: (view: View) => void }) {
   const [submittingSentence, setSubmittingSentence] = useState(false)
   const [sentenceSubmitError, setSentenceSubmitError] = useState<string | null>(null)
   const [sentenceRetryCount, setSentenceRetryCount] = useState<number>(0)
+  const [sentenceRewriteInput, setSentenceRewriteInput] = useState<string>('')
 
   // Paragraph Mode State
   const [paragraphPrompts, setParagraphPrompts] = useState<any[]>([])
@@ -1745,6 +1738,7 @@ function Translate({ setView }: { setView: (view: View) => void }) {
   const [submittingParagraph, setSubmittingParagraph] = useState(false)
   const [paragraphSubmitError, setParagraphSubmitError] = useState<string | null>(null)
   const [paragraphRetryCount, setParagraphRetryCount] = useState<number>(0)
+  const [paragraphRewriteInput, setParagraphRewriteInput] = useState<string>('')
   const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false)
   const [isGeneratingWeeklySentence, setIsGeneratingWeeklySentence] = useState(false)
   const [weeklyIngestMsg, setWeeklyIngestMsg] = useState<string | null>(null)
@@ -1887,6 +1881,7 @@ function Translate({ setView }: { setView: (view: View) => void }) {
     setUserSubmission('')
     setSentenceSubmitError(null)
     setSentenceRetryCount(0)
+    setSentenceRewriteInput('')
     const uncompletedList = filteredPrompts.filter((p) => !completedPromptIds.has(p.id))
     if (uncompletedList.length > 0) {
       const currIdx = uncompletedList.findIndex((p) => p.id === activePromptId)
@@ -1949,6 +1944,7 @@ function Translate({ setView }: { setView: (view: View) => void }) {
     setUserParagraphSubmission('')
     setParagraphSubmitError(null)
     setParagraphRetryCount(0)
+    setParagraphRewriteInput('')
     const uncompletedList = filteredParagraphs.filter((p) => !completedParagraphIds.has(p.id))
     if (uncompletedList.length > 0) {
       const currIdx = uncompletedList.findIndex((p) => p.id === activeParagraphId)
@@ -2369,10 +2365,7 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                     </span>
                   </div>
                 )}
-                <div className="answer-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '12px', opacity: 0.8 }}>
-                    <Sparkles size={14} style={{ display: 'inline', marginRight: '4px' }} /> Phân tích bằng DeepSeek v4 Flash
-                  </span>
+                <div className="answer-footer" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                   <button
                     className="hero-action"
                     disabled={
@@ -2418,6 +2411,59 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                     )}
                   </button>
                 </div>
+
+                {/* Frame nhập lại đoạn văn đúng sau khi submit */}
+                {paragraphEvaluation !== null && (
+                  <div
+                    className="paragraph-rewrite-practice"
+                    style={{
+                      marginTop: '20px',
+                      paddingTop: '16px',
+                      borderTop: '1px dashed #cbd5e1',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <label style={{ fontWeight: 700, fontSize: '13px', color: '#059669', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <CheckCircle2 size={16} /> Nhập lại đoạn văn chuẩn
+                      </label>
+                    </div>
+
+                    <textarea
+                      rows={4}
+                      placeholder="Gõ lại đoạn văn tiếng Anh chuẩn để luyện tập..."
+                      value={paragraphRewriteInput}
+                      onChange={(e) => setParagraphRewriteInput(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        fontSize: '13px',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        outline: 'none',
+                        resize: 'vertical',
+                      }}
+                    />
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '4px' }}>
+                      <button
+                        className="hero-action"
+                        onClick={handleNextParagraph}
+                        style={{
+                          padding: '8px 18px',
+                          fontSize: '13px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        Sang bài tiếp theo <ArrowRight size={15} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           ) : (
@@ -2548,10 +2594,6 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                     )}
                   </div>
                 )}
-
-                <button className="next-button" onClick={handleNextParagraph} style={{ marginTop: '16px', width: '100%' }}>
-                  Chuyển sang đoạn văn tiếp theo <ArrowRight size={16} />
-                </button>
               </div>
             ) : (
               <div className="paragraph-feedback-placeholder">
@@ -2560,7 +2602,7 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                 </div>
                 <h3>Khung Kết Quả Chấm AI</h3>
                 <p>
-                  Nhập bản dịch tiếng Anh của bạn ở khung bài tập bên trái và bấm <strong>"Nộp bài & Chấm điểm"</strong> để DeepSeek v4 Flash AI đánh giá band điểm, phát hiện lỗi sai và nhận bài mẫu Band 8.0+.
+                  Nhập bản dịch tiếng Anh của bạn ở khung bài tập bên trái và bấm <strong>"Nộp bài & Chấm điểm"</strong> để AI đánh giá band điểm, phát hiện lỗi sai và nhận bài mẫu Band 8.0+.
                 </p>
                 <div className="placeholder-features">
                   <div className="placeholder-chip">✨ Đánh giá Band CEFR (A2–C2)</div>
@@ -2598,27 +2640,6 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                     Câu {promptIndex + 1} / {filteredPrompts.length}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleNextSentence}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '5px 12px',
-                    fontSize: '12.5px',
-                    fontWeight: 650,
-                    borderRadius: '8px',
-                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
-                    color: '#4f46e5',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  title="Chuyển sang câu khác"
-                >
-                  <RefreshCw size={13} /> Đổi câu
-                </button>
               </div>
               <p className="eyebrow">TRANSLATE THIS SENTENCE TO ENGLISH</p>
               <h2>{currentPrompt?.vietnameseText || 'Loading prompt...'}</h2>
@@ -2715,6 +2736,65 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                     )}
                   </button>
                 </div>
+
+                {/* Frame nhập lại câu đúng sau khi submit */}
+                {evaluation !== null && (
+                  <div
+                    className="sentence-rewrite-practice"
+                    style={{
+                      marginTop: '20px',
+                      paddingTop: '16px',
+                      borderTop: '1px dashed #cbd5e1',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <label style={{ fontWeight: 700, fontSize: '13px', color: '#059669', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <CheckCircle2 size={16} /> Nhập lại câu chuẩn
+                      </label>
+                    </div>
+
+                    <textarea
+                      rows={2}
+                      placeholder="Gõ lại câu tiếng Anh chuẩn để luyện tập..."
+                      value={sentenceRewriteInput}
+                      onChange={(e) => setSentenceRewriteInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          handleNextSentence()
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        fontSize: '13px',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        outline: 'none',
+                        resize: 'vertical',
+                      }}
+                    />
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '4px' }}>
+                      <button
+                        className="hero-action"
+                        onClick={handleNextSentence}
+                        style={{
+                          padding: '8px 18px',
+                          fontSize: '13px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        Sang câu khác <ArrowRight size={15} />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           ) : (
@@ -2778,23 +2858,6 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                   )}
                 </div>
 
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    margin: '10px 0 14px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    color: '#6366f1',
-                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                  }}
-                >
-                  <Sparkles size={14} /> Phân tích chuyên sâu bằng AI (DeepSeek v4 Flash)
-                </div>
-
                 {/* Overall Analysis */}
                 {evaluation.overallAnalysis && (
                   <div className="sentence-feedback-box">
@@ -2851,16 +2914,12 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                   <b>📚 Trọng tâm ngữ pháp bài học</b>
                   <p>{evaluation.grammarNotes}</p>
                 </div>
-
-                <button className="next-button" onClick={handleNextSentence} style={{ marginTop: '16px' }}>
-                  Next sentence <ArrowRight size={16} />
-                </button>
               </>
             ) : (
               <div className="empty-feedback">
                 <Sparkles size={25} />
                 <h3>Your feedback will appear here</h3>
-                <p>Submit your translation to see automated DeepSeek AI analysis, score breakdown, and vocabulary suggestions.</p>
+                <p>Submit your translation to see automated AI analysis, score breakdown, and vocabulary suggestions.</p>
               </div>
             )}
           </aside>
@@ -4996,6 +5055,77 @@ function Resources() {
 }
 
 // ----------------------------------------------------
+// Feature Lock Screen for Unfinished Features
+// ----------------------------------------------------
+function FeatureLockScreen({ featureName, setView }: { featureName: string; setView: (v: View) => void }) {
+  return (
+    <div style={{ padding: '70px 20px', maxWidth: '640px', margin: '0 auto', textAlign: 'center' }}>
+      <div
+        style={{
+          width: '76px',
+          height: '76px',
+          borderRadius: '24px',
+          backgroundColor: 'rgba(245, 158, 11, 0.12)',
+          color: '#f59e0b',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 20px',
+          boxShadow: '0 8px 20px rgba(245, 158, 11, 0.15)',
+        }}
+      >
+        <Lock size={38} />
+      </div>
+
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '4px 14px',
+          borderRadius: '20px',
+          fontSize: '12px',
+          fontWeight: 700,
+          backgroundColor: 'rgba(245, 158, 11, 0.15)',
+          color: '#d97706',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          marginBottom: '16px',
+        }}
+      >
+        <Sparkles size={14} /> TÍNH NĂNG ĐANG THỬ NGHIỆM NỘI BỘ
+      </span>
+
+      <h2 style={{ fontSize: '26px', fontWeight: 800, marginBottom: '12px' }}>
+        Chức năng {featureName} đang được hoàn thiện
+      </h2>
+
+      <p style={{ color: '#64748b', fontSize: '14px', lineHeight: '1.6', marginBottom: '32px' }}>
+        Chức năng <strong>{featureName}</strong> hiện đang trong giai đoạn nâng cấp dữ liệu AI và thử nghiệm nội bộ. 
+        Màn hình này hiện chỉ khả dụng với tài khoản <strong>Admin</strong>. Vui lòng quay lại sau hoặc trải nghiệm chức năng Dịch AI & Flashcards!
+      </p>
+
+      <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <button
+          className="secondary-button"
+          onClick={() => setView('Dashboard')}
+          style={{ padding: '10px 22px', fontSize: '14px' }}
+        >
+          Quay lại Dashboard
+        </button>
+        <button
+          className="hero-action"
+          onClick={() => setView('Translate')}
+          style={{ padding: '10px 22px', fontSize: '14px' }}
+        >
+          Luyện Dịch AI ngay <ArrowRight size={16} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ----------------------------------------------------
 // Main App Component
 // ----------------------------------------------------
 export default function Page() {
@@ -5136,19 +5266,25 @@ export default function Page() {
         </div>
 
         <nav>
-          {navItems.map(({ label, icon: Icon }) => (
-            <button
-              key={label}
-              className={view === label ? 'nav-item active' : 'nav-item'}
-              onClick={() => {
-                setView(label)
-                setMobileNavOpen(false)
-              }}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </button>
-          ))}
+          {navItems.map(({ label, icon: Icon }) => {
+            const isLocked = user?.role !== 'admin' && (label === 'Collocations' || label === 'Speaking')
+            return (
+              <button
+                key={label}
+                className={view === label ? 'nav-item active' : 'nav-item'}
+                onClick={() => {
+                  setView(label)
+                  setMobileNavOpen(false)
+                }}
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+                {isLocked && (
+                  <Lock size={12} style={{ marginLeft: 'auto', color: '#f59e0b', opacity: 0.8 }} title="Tính năng đang thử nghiệm nội bộ" />
+                )}
+              </button>
+            )
+          })}
         </nav>
 
         <div className="sidebar-bottom" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -5263,8 +5399,12 @@ export default function Page() {
         <div style={{ display: view === 'Translate' ? 'block' : 'none' }}>
           <Translate setView={setView} />
         </div>
-        {view === 'Collocations' && <CollocationMatcher />}
-        {view === 'Speaking' && <SpeakingPractice />}
+        {view === 'Collocations' && (
+          user?.role === 'admin' ? <CollocationMatcher /> : <FeatureLockScreen featureName="Collocations (Cụm từ)" setView={setView} />
+        )}
+        {view === 'Speaking' && (
+          user?.role === 'admin' ? <SpeakingPractice /> : <FeatureLockScreen featureName="Speaking AI (Luyện nói)" setView={setView} />
+        )}
         {view === 'Decks' && <Decks />}
         {view === 'Analytics' && <Analytics />}
         {view === 'Resources' && <Resources />}
