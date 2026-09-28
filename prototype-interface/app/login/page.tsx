@@ -102,35 +102,7 @@ export default function LoginPage() {
     }
   }
 
-  const handleDemoLogin = async () => {
-    setError(null)
-    setSuccessMsg(null)
-    setLoading(true)
-    setLoginEmail('alex@linguaflow.internal')
-    setLoginPassword('password123')
 
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'alex@linguaflow.internal', password: 'password123' }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || 'Đăng nhập demo thất bại')
-      }
-
-      setSuccessMsg('Đã đăng nhập thành công với tài khoản Alex Lee!')
-      setTimeout(() => {
-        router.push('/')
-      }, 500)
-    } catch (err: any) {
-      setError(err.message || 'Không thể đăng nhập tài khoản demo')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -321,20 +293,6 @@ export default function LoginPage() {
 
                 <button type="submit" className="auth-primary-btn" disabled={loading}>
                   {loading ? <Loader2 size={18} className="animate-spin" /> : 'Đăng nhập ngay'}
-                </button>
-
-                <div className="auth-divider">
-                  <span>hoặc trải nghiệm nhanh</span>
-                </div>
-
-                <button
-                  type="button"
-                  className="auth-demo-btn"
-                  onClick={handleDemoLogin}
-                  disabled={loading}
-                >
-                  <Sparkles size={16} className="text-amber-500" />
-                  <span>Dùng Tài Khoản Demo (Alex Lee)</span>
                 </button>
               </form>
             )}

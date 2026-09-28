@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { users, userStreaks } from '@/lib/db/schema'
 import { hashPassword } from '@/lib/auth/password'
 import { createSession } from '@/lib/auth/session'
+import { seedStarterDecksForUser } from '@/lib/db/seed'
 import { eq } from 'drizzle-orm'
 
 export async function POST(request: Request) {
@@ -34,6 +35,8 @@ export async function POST(request: Request) {
       currentStreak: 0,
       longestStreak: 0,
     })
+
+    await seedStarterDecksForUser(userId)
 
     await createSession({
       userId,

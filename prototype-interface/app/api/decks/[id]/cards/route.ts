@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { cards, decks, cardSrsStates } from '@/lib/db/schema'
+import { cards, decks, cardSrsStates, users } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
 import { eq, inArray } from 'drizzle-orm'
@@ -8,6 +8,22 @@ import { safeJsonParse } from '@/lib/utils'
 import { enrichVocabulary } from '@/services/vocabulary-pipeline'
 
 export const dynamic = 'force-dynamic'
+
+async function ensureUserExists(userId: string, email?: string, name?: string) {
+  try {
+    const existing = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1)
+    if (existing.length === 0) {
+      await db.insert(users).values({
+        id: userId,
+        email: email || `${userId}@user.local`,
+        passwordHash: 'auth_user_session',
+        name: name || 'Learner',
+        role: 'user',
+        createdAt: new Date().toISOString(),
+      }).catch(() => {})
+    }
+  } catch {}
+}
 
 export async function GET(
   request: Request,
@@ -76,6 +92,7 @@ export async function POST(
   try {
     const session = await getSession()
     const userId = session?.userId || 'user_demo_alex_lee'
+    await ensureUserExists(userId, session?.email, session?.name)
     const { id: deckId } = await params
 
     const body = await request.json()

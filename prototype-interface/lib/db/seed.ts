@@ -1,5 +1,6 @@
 import { db, fallbackToSqlite } from './index'
 import { users, decks, cards, cardSrsStates, translationPrompts, translationParagraphs, userStreaks, collocations, speakingPrompts } from './schema'
+import { eq } from 'drizzle-orm'
 import { hashPassword } from '../auth/password'
 import { initial100Paragraphs } from './initial_100_paragraphs'
 import { initial500Sentences } from './initial_500_sentences'
@@ -199,3 +200,158 @@ export async function seedDatabase() {
 
   return { status: 'seeded', userCount: 1 }
 }
+
+export async function seedStarterDecksForUser(userId: string) {
+  if (!userId) return
+  let activeDb = db
+
+  try {
+    // Ensure user row exists to prevent FK violation
+    const userExist = await activeDb.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1)
+    if (userExist.length === 0) {
+      await activeDb.insert(users).values({
+        id: userId,
+        email: `${userId}@user.local`,
+        passwordHash: 'seeded_user_account',
+        name: 'Learner',
+        role: 'user',
+        createdAt: new Date().toISOString(),
+      }).catch(() => {})
+    }
+
+    const userDecks = await activeDb.select({ id: decks.id }).from(decks).where(eq(decks.userId, userId)).limit(1)
+    if (userDecks.length > 0) return
+  } catch {
+    activeDb = fallbackToSqlite()
+    try {
+      const userExist = await activeDb.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1)
+      if (userExist.length === 0) {
+        await activeDb.insert(users).values({
+          id: userId,
+          email: `${userId}@user.local`,
+          passwordHash: 'seeded_user_account',
+          name: 'Learner',
+          role: 'user',
+          createdAt: new Date().toISOString(),
+        }).catch(() => {})
+      }
+
+      const userDecks = await activeDb.select({ id: decks.id }).from(decks).where(eq(decks.userId, userId)).limit(1)
+      if (userDecks.length > 0) return
+    } catch {
+      return
+    }
+  }
+
+  const suffix = `${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
+  const deck1Id = `deck_biz_${suffix}`
+  const deck2Id = `deck_awl_${suffix}`
+  const deck3Id = `deck_everyday_${suffix}`
+
+  try {
+    await activeDb.insert(decks).values([
+      {
+        id: deck1Id,
+        userId,
+        title: 'Business English · Intermediate',
+        description: 'Essential collocations, formal terms, and workplace vocabulary.',
+        isPublic: true,
+      },
+      {
+        id: deck2Id,
+        userId,
+        title: 'Academic Word List (AWL)',
+        description: 'High-yield words for academic writing, IELTS, and TOEFL.',
+        isPublic: true,
+      },
+      {
+        id: deck3Id,
+        userId,
+        title: 'Everyday Conversations',
+        description: 'Idiomatic expressions and common phrases.',
+        isPublic: true,
+      },
+    ])
+
+    const sampleCards = [
+      {
+        id: `card_acc_${suffix}`,
+        deckId: deck1Id,
+        term: 'accomplish',
+        vietnameseDefinition: 'Đạt được, hoàn thành một mục tiêu khó khăn',
+        phonetic: '/əˈkʌm.plɪʃ/',
+        partOfSpeech: 'verb',
+        exampleSentence: 'She accomplished her research goal within 6 months.',
+        collocationsJson: JSON.stringify(['accomplish a task', 'accomplish a mission', 'accomplish goals']),
+      },
+      {
+        id: `card_rel_${suffix}`,
+        deckId: deck1Id,
+        term: 'reliable',
+        vietnameseDefinition: 'Đáng tin cậy, có thể dựa vào',
+        phonetic: '/rɪˈlaɪ.ə.bəl/',
+        partOfSpeech: 'adjective',
+        exampleSentence: 'We need a reliable partner for this project.',
+        collocationsJson: JSON.stringify(['highly reliable', 'reliable source', 'reliable service']),
+      },
+      {
+        id: `card_neg_${suffix}`,
+        deckId: deck1Id,
+        term: 'negotiate',
+        vietnameseDefinition: 'Đàm phán, thương lượng hợp đồng hoặc điều khoản',
+        phonetic: '/nəˈɡəʊ.ʃi.eɪt/',
+        partOfSpeech: 'verb',
+        exampleSentence: 'The diplomats managed to negotiate a peace agreement.',
+        collocationsJson: JSON.stringify(['negotiate a contract', 'negotiate terms', 'negotiate peace']),
+      },
+      {
+        id: `card_emp_${suffix}`,
+        deckId: deck2Id,
+        term: 'empirical',
+        vietnameseDefinition: 'Dựa trên thực nghiệm, quan sát thực tế',
+        phonetic: '/ɪmˈpɪr.ɪ.kəl/',
+        partOfSpeech: 'adjective',
+        exampleSentence: 'They gathered empirical evidence to support their research hypothesis.',
+        collocationsJson: JSON.stringify(['empirical evidence', 'empirical study', 'empirical data']),
+      },
+      {
+        id: `card_coh_${suffix}`,
+        deckId: deck2Id,
+        term: 'coherent',
+        vietnameseDefinition: 'Chặt chẽ, mạch lạc, có tính logic',
+        phonetic: '/kəʊˈhɪə.rənt/',
+        partOfSpeech: 'adjective',
+        exampleSentence: 'The essay presented a coherent argument from start to finish.',
+        collocationsJson: JSON.stringify(['coherent argument', 'coherent strategy', 'coherent system']),
+      },
+      {
+        id: `card_ovc_${suffix}`,
+        deckId: deck3Id,
+        term: 'overcome',
+        vietnameseDefinition: 'Vượt qua khó khăn, trở ngại',
+        phonetic: '/ˌəʊ.vəˈkʌm/',
+        partOfSpeech: 'verb',
+        exampleSentence: 'She overcame many obstacles to achieve her dream.',
+        collocationsJson: JSON.stringify(['overcome obstacles', 'overcome challenges', 'overcome fear']),
+      },
+    ]
+
+    await activeDb.insert(cards).values(sampleCards)
+
+    const todayIso = new Date().toISOString().split('T')[0]
+    for (const card of sampleCards) {
+      await activeDb.insert(cardSrsStates).values({
+        id: `srs_${card.id}`,
+        userId,
+        cardId: card.id,
+        repetition: 0,
+        interval: 0,
+        easeFactor: 2.5,
+        dueDate: todayIso,
+      })
+    }
+  } catch (err) {
+    console.warn('[Database Seed Warning] Error seeding starter decks for user:', err)
+  }
+}
+

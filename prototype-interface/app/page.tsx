@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import {
   AlertTriangle,
@@ -69,6 +70,15 @@ const navItems: { label: View; icon: typeof LayoutDashboard }[] = [
   { label: 'Analytics', icon: BarChart3 },
   { label: 'Resources', icon: Globe },
 ]
+
+function ClientPortal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  if (!mounted || typeof document === 'undefined') return null
+  return createPortal(children, document.body)
+}
 
 function isDarkModeActive(): boolean {
   if (typeof document === 'undefined') return false
@@ -3133,11 +3143,18 @@ function Decks() {
     fetch('/api/decks')
       .then((res) => res.json())
       .then((data) => {
-        setDecksList(data.decks || [])
-        if (!selectedDeckId && data.decks?.[0]?.id) {
-          setSelectedDeckId(data.decks[0].id)
+        const list = data.decks || []
+        setDecksList(list)
+        if (list.length > 0) {
+          if (!selectedDeckId || !list.some((d: any) => d.id === selectedDeckId)) {
+            setSelectedDeckId(list[0].id)
+          }
+        } else {
+          setSelectedDeckId(null)
+          setLoading(false)
         }
       })
+      .catch(() => setLoading(false))
   }
 
   useEffect(() => {
@@ -3145,7 +3162,10 @@ function Decks() {
   }, [])
 
   const fetchCards = () => {
-    if (!selectedDeckId) return
+    if (!selectedDeckId) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     fetch(`/api/decks/${selectedDeckId}/cards`)
       .then((res) => res.json())
@@ -3167,9 +3187,9 @@ function Decks() {
 
   // Excel Batch Grid State
   const [excelRows, setExcelRows] = useState<any[]>([
-    { id: '1', term: 'accomplish', partOfSpeech: 'verb', ...autoGenerateWordDetails('accomplish', 'verb') },
-    { id: '2', term: 'resilience', partOfSpeech: 'noun', ...autoGenerateWordDetails('resilience', 'noun') },
-    { id: '3', term: 'innovative', partOfSpeech: 'adjective', ...autoGenerateWordDetails('innovative', 'adjective') },
+    { id: '1', term: '', partOfSpeech: '', level: '', phonetic: '', vietnameseDefinition: '', englishDefinition: '', exampleSentence: '' },
+    { id: '2', term: '', partOfSpeech: '', level: '', phonetic: '', vietnameseDefinition: '', englishDefinition: '', exampleSentence: '' },
+    { id: '3', term: '', partOfSpeech: '', level: '', phonetic: '', vietnameseDefinition: '', englishDefinition: '', exampleSentence: '' },
     { id: '4', term: '', partOfSpeech: '', level: '', phonetic: '', vietnameseDefinition: '', englishDefinition: '', exampleSentence: '' },
     { id: '5', term: '', partOfSpeech: '', level: '', phonetic: '', vietnameseDefinition: '', englishDefinition: '', exampleSentence: '' },
   ])
@@ -3318,10 +3338,31 @@ function Decks() {
 
   const handleSaveExcelBatch = async (e?: React.FormEvent, forceSave = false) => {
     if (e) e.preventDefault()
-    if (!selectedDeckId || isSubmitting) return
+    if (isSubmitting) return
 
     const rowsWithWord = excelRows.filter((r) => r.term && r.term.trim().length > 0)
     if (rowsWithWord.length === 0) return
+
+    let targetDeckId = selectedDeckId
+    if (!targetDeckId) {
+      try {
+        const res = await fetch('/api/decks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: 'Bộ từ của tôi', description: 'Tự động tạo khi thêm từ vựng' }),
+        })
+        const data = await res.json()
+        if (data.deck?.id) {
+          targetDeckId = data.deck.id
+          setSelectedDeckId(targetDeckId)
+          await fetchDecks()
+        } else {
+          return
+        }
+      } catch {
+        return
+      }
+    }
 
     const validRows = rowsWithWord.filter((r) => r.partOfSpeech && r.partOfSpeech.trim().length > 0)
     const incompleteRows = rowsWithWord.filter((r) => !r.partOfSpeech || !r.partOfSpeech.trim())
@@ -3385,7 +3426,7 @@ function Decks() {
         })
       )
 
-      await fetch(`/api/decks/${selectedDeckId}/cards`, {
+      await fetch(`/api/decks/${targetDeckId}/cards`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(cardsToInsert),
@@ -3765,612 +3806,624 @@ function Decks() {
 
       {/* CARD ACTION DETAILS & DELETE MODAL */}
       {selectedCardAction && (
-        <div className="modal-overlay" onClick={() => setSelectedCardAction(null)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h3 className="word-detail-title" style={{ margin: 0 }}>{selectedCardAction.term}</h3>
-                <span className="type-chip" style={getTypeStyle(selectedCardAction.partOfSpeech || 'noun')}>
-                  {selectedCardAction.partOfSpeech || 'noun'}
-                </span>
+        <ClientPortal>
+          <div className="modal-overlay" onClick={() => setSelectedCardAction(null)}>
+            <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 className="word-detail-title" style={{ margin: 0 }}>{selectedCardAction.term}</h3>
+                  <span className="type-chip" style={getTypeStyle(selectedCardAction.partOfSpeech || 'noun')}>
+                    {selectedCardAction.partOfSpeech || 'noun'}
+                  </span>
+                </div>
+                <button className="modal-close" onClick={() => setSelectedCardAction(null)}>
+                  <X size={18} />
+                </button>
               </div>
-              <button className="modal-close" onClick={() => setSelectedCardAction(null)}>
-                <X size={18} />
-              </button>
-            </div>
 
-            <div className="word-detail-content">
-              <div>
-                <span className="word-detail-label">PHÁT ÂM</span>
-                <span className="word-detail-phonetic">{selectedCardAction.phonetic || '—'}</span>
+              <div className="word-detail-content">
+                <div>
+                  <span className="word-detail-label">PHÁT ÂM</span>
+                  <span className="word-detail-phonetic">{selectedCardAction.phonetic || '—'}</span>
+                </div>
+                <div>
+                  <span className="word-detail-label">NGHĨA TIẾNG VIỆT</span>
+                  <strong className="word-detail-vietnamese">{selectedCardAction.vietnameseDefinition}</strong>
+                </div>
+                <div>
+                  <span className="word-detail-label">ĐỊNH NGHĨA TIẾNG ANH</span>
+                  <p className="word-detail-english">
+                    {typeof selectedCardAction.collocations === 'object' && selectedCardAction.collocations?.englishDefinition
+                      ? selectedCardAction.collocations.englishDefinition
+                      : 'A key vocabulary term recorded in your database deck.'}
+                  </p>
+                </div>
+                <div>
+                  <span className="word-detail-label">CÂU VÍ DỤ</span>
+                  <p className="word-detail-example">
+                    {selectedCardAction.exampleSentence || '—'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <span className="word-detail-label">NGHĨA TIẾNG VIỆT</span>
-                <strong className="word-detail-vietnamese">{selectedCardAction.vietnameseDefinition}</strong>
-              </div>
-              <div>
-                <span className="word-detail-label">ĐỊNH NGHĨA TIẾNG ANH</span>
-                <p className="word-detail-english">
-                  {typeof selectedCardAction.collocations === 'object' && selectedCardAction.collocations?.englishDefinition
-                    ? selectedCardAction.collocations.englishDefinition
-                    : 'A key vocabulary term recorded in your database deck.'}
-                </p>
-              </div>
-              <div>
-                <span className="word-detail-label">CÂU VÍ DỤ</span>
-                <p className="word-detail-example">
-                  {selectedCardAction.exampleSentence || '—'}
-                </p>
-              </div>
-            </div>
 
-            <div className="modal-actions" style={{ justifyContent: 'space-between' }}>
-              <button
-                type="button"
-                className="secondary-button"
-                style={{ color: '#ef4444', borderColor: '#fca5a5', background: '#fff5f5' }}
-                onClick={() => handleDeleteCard(selectedCardAction.id)}
-              >
-                Xóa từ này
-              </button>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div className="modal-actions" style={{ justifyContent: 'space-between' }}>
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${selectedCardAction.term}: ${selectedCardAction.vietnameseDefinition}`)
-                    setCopiedId(selectedCardAction.id)
-                    setTimeout(() => setCopiedId(null), 2000)
-                  }}
+                  style={{ color: '#ef4444', borderColor: '#fca5a5', background: '#fff5f5' }}
+                  onClick={() => handleDeleteCard(selectedCardAction.id)}
                 >
-                  {copiedId === selectedCardAction.id ? 'Đã chép ✓' : 'Sao chép'}
+                  Xóa từ này
                 </button>
-                <button type="button" className="hero-action" onClick={() => setSelectedCardAction(null)}>
-                  Đóng
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${selectedCardAction.term}: ${selectedCardAction.vietnameseDefinition}`)
+                      setCopiedId(selectedCardAction.id)
+                      setTimeout(() => setCopiedId(null), 2000)
+                    }}
+                  >
+                    {copiedId === selectedCardAction.id ? 'Đã chép ✓' : 'Sao chép'}
+                  </button>
+                  <button type="button" className="hero-action" onClick={() => setSelectedCardAction(null)}>
+                    Đóng
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </ClientPortal>
       )}
 
       {/* NEW DECK MODAL */}
       {showNewDeckModal && (
-        <div className="modal-overlay">
-          <div className="modal-card">
-            <div className="modal-header">
-              <h3>Create New Deck</h3>
-              <button className="modal-close" onClick={() => setShowNewDeckModal(false)}>
-                <X size={18} />
-              </button>
+        <ClientPortal>
+          <div className="modal-overlay">
+            <div className="modal-card">
+              <div className="modal-header">
+                <h3>Create New Deck</h3>
+                <button className="modal-close" onClick={() => setShowNewDeckModal(false)}>
+                  <X size={18} />
+                </button>
+              </div>
+              <form onSubmit={handleCreateDeck}>
+                <div className="form-group">
+                  <label>Deck Title *</label>
+                  <input
+                    className="input-field"
+                    placeholder="e.g. Advanced Academic Vocabulary"
+                    value={newDeckTitle}
+                    onChange={(e) => setNewDeckTitle(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Description</label>
+                  <input
+                    className="input-field"
+                    placeholder="e.g. High-yield IELTS & TOEFL terms"
+                    value={newDeckDesc}
+                    onChange={(e) => setNewDeckDesc(e.target.value)}
+                  />
+                </div>
+                <div className="modal-actions">
+                  <button type="button" className="secondary-button" onClick={() => setShowNewDeckModal(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="hero-action" disabled={isSubmitting}>
+                    {isSubmitting ? 'Creating...' : 'Create Deck'}
+                  </button>
+                </div>
+              </form>
             </div>
-            <form onSubmit={handleCreateDeck}>
-              <div className="form-group">
-                <label>Deck Title *</label>
-                <input
-                  className="input-field"
-                  placeholder="e.g. Advanced Academic Vocabulary"
-                  value={newDeckTitle}
-                  onChange={(e) => setNewDeckTitle(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Description</label>
-                <input
-                  className="input-field"
-                  placeholder="e.g. High-yield IELTS & TOEFL terms"
-                  value={newDeckDesc}
-                  onChange={(e) => setNewDeckDesc(e.target.value)}
-                />
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="secondary-button" onClick={() => setShowNewDeckModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="hero-action" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating...' : 'Create Deck'}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
+        </ClientPortal>
       )}
 
       {/* SMART VOCABULARY BATCH LIST MODAL */}
       {showNewCardModal && (
-        <div className="modal-overlay">
-          <div className="modal-card excel-modal">
-            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-              <div>
-                <h3 style={{ margin: 0 }}>Thêm list từ vựng</h3>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <label style={{ fontSize: '11.5px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>Target Deck:</label>
-                {isCreatingCustomDeck ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <input
-                      type="text"
-                      className="input-field"
-                      style={{
-                        padding: '0 8px',
-                        fontSize: '11.5px',
-                        height: '30px',
-                        width: '160px',
-                        margin: 0,
-                        boxSizing: 'border-box',
-                        borderRadius: '6px'
-                      }}
-                      placeholder="Nhập tên Deck..."
-                      value={inlineDeckTitle}
-                      onChange={(e) => setInlineDeckTitle(e.target.value)}
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handleSaveInlineDeck()
-                        } else if (e.key === 'Escape') {
-                          setIsCreatingCustomDeck(false)
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      style={{
-                        height: '30px',
-                        padding: '0 12px',
-                        fontSize: '11.5px',
-                        fontWeight: 600,
-                        borderRadius: '6px',
-                        background: '#4f46e5',
-                        color: '#ffffff',
-                        border: 'none',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        margin: 0,
-                        boxSizing: 'border-box'
-                      }}
-                      onClick={handleSaveInlineDeck}
-                    >
-                      Lưu
-                    </button>
-                    <button
-                      type="button"
-                      style={{
-                        height: '30px',
-                        padding: '0 12px',
-                        fontSize: '11.5px',
-                        fontWeight: 600,
-                        borderRadius: '6px',
-                        background: '#ffffff',
-                        color: '#475569',
-                        border: '1px solid #cbd5e1',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        margin: 0,
-                        boxSizing: 'border-box'
-                      }}
-                      onClick={() => setIsCreatingCustomDeck(false)}
-                    >
-                      Hủy
-                    </button>
-                  </div>
-                ) : (
-                  <select
-                    className="select-field"
-                    style={{ padding: '4px 8px', fontSize: '11.5px', width: 'auto', minWidth: '180px' }}
-                    value={selectedDeckId || ''}
-                    onChange={(e) => handleDeckSelectChange(e.target.value)}
-                  >
-                    <optgroup label="Danh sách Deck hiện có">
-                      {decksList.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.title} ({d.cardCount || 0} từ)
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="＋ Tạo Deck mới">
-                      <option value="CREATE_CUSTOM">＋ Tạo Deck mới (Tự đặt tên...)</option>
-                      <option value="CREATE_AUTO">
-                        ＋ Tạo Deck tự động (Deck {new Date().toLocaleDateString('vi-VN')})
-                      </option>
-                    </optgroup>
-                  </select>
-                )}
-
-                <button
-                  type="button"
-                  className="secondary-button"
-                  style={{ padding: '4px 8px', fontSize: '11px', height: '30px', gap: '4px' }}
-                  onClick={() => setShowResetConfirmModal(true)}
-                  title="Xóa tất cả từ hiện tại và trả về danh sách trống mới"
-                >
-                  <RefreshCw size={13} /> Làm mới
-                </button>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  style={{ padding: '4px 8px', fontSize: '11px', height: '30px', gap: '4px' }}
-                  onClick={() => addExcelRow(5)}
-                >
-                  <Plus size={13} /> Thêm 5 hàng
-                </button>
-
-                <button className="modal-close" onClick={() => setShowNewCardModal(false)}>
-                  <X size={18} />
-                </button>
-              </div>
-            </div>
-
-            <form onSubmit={handleSaveExcelBatch}>
-              {/* INSTRUCTION BANNER */}
-              <div
-                style={{
-                  background: '#f0f9ff',
-                  border: '1px solid #bae6fd',
-                  borderRadius: '8px',
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  color: '#0369a1',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '8px'
-                }}
-              >
-                <span style={{ fontSize: '14px' }}>💡</span>
-                <span>
-                  <strong>Hướng dẫn:</strong> Bạn cần nhập đủ 2 thông tin là <strong>WORD *</strong> và <strong>TYPE *</strong>. Hệ thống sẽ tự động tra cứu và điền đầy đủ các cột còn lại (biểu tượng <strong>⚡</strong>)!
-                </span>
-              </div>
-
-              {/* EXCEL SPREADSHEET TABLE GRID */}
-              <div className="excel-grid-table">
-                <div className="excel-head">
-                  <span>#</span>
-                  <span>WORD *</span>
-                  <span>TYPE *</span>
-                  <span>LEVEL ⚡</span>
-                  <span>PRONUNCIATION ⚡</span>
-                  <span>VIETNAMESE ⚡</span>
-                  <span>DEFINITION ⚡</span>
-                  <span>EXAMPLE ⚡</span>
-                  <span />
+        <ClientPortal>
+          <div className="modal-overlay">
+            <div className="modal-card excel-modal">
+              <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div>
+                  <h3 style={{ margin: 0 }}>Thêm list từ vựng</h3>
                 </div>
 
-                <div className="excel-body">
-                  {excelRows.map((row, idx) => (
-                    <div className="excel-row" key={row.id}>
-                      <span className="row-num">{idx + 1}</span>
-
-                      {/* WORD */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>Target Deck:</label>
+                  {isCreatingCustomDeck ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <input
-                        className="excel-input word-cell"
-                        placeholder="Nhập từ (e.g. raid)"
-                        value={row.term}
-                        onChange={(e) => handleExcelCellChange(idx, 'term', e.target.value)}
-                      />
-
-                      {/* TYPE */}
-                      <select
-                        className="excel-select type-cell"
+                        type="text"
+                        className="input-field"
                         style={{
-                          ...getTypeStyle(row.partOfSpeech),
-                          ...(row.term && row.term.trim() && !row.partOfSpeech
-                            ? { border: '1.5px solid #f97316', background: '#fff7ed', color: '#c2410c', fontWeight: 700 }
-                            : {}),
+                          padding: '0 8px',
+                          fontSize: '11.5px',
+                          height: '30px',
+                          width: '160px',
+                          margin: 0,
+                          boxSizing: 'border-box',
+                          borderRadius: '6px'
                         }}
-                        value={row.partOfSpeech}
-                        onChange={(e) => handleExcelCellChange(idx, 'partOfSpeech', e.target.value)}
+                        placeholder="Nhập tên Deck..."
+                        value={inlineDeckTitle}
+                        onChange={(e) => setInlineDeckTitle(e.target.value)}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleSaveInlineDeck()
+                          } else if (e.key === 'Escape') {
+                            setIsCreatingCustomDeck(false)
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        style={{
+                          height: '30px',
+                          padding: '0 12px',
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          borderRadius: '6px',
+                          background: '#4f46e5',
+                          color: '#ffffff',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          margin: 0,
+                          boxSizing: 'border-box'
+                        }}
+                        onClick={handleSaveInlineDeck}
                       >
-                        <option value="">-- Chọn Type * --</option>
-                        <option value="noun">noun</option>
-                        <option value="verb">verb</option>
-                        <option value="adjective">adjective</option>
-                        <option value="adverb">adverb</option>
-                        <option value="idiom">idiom</option>
-                        <option value="phrasal verb">phrasal verb</option>
-                      </select>
-
-                      {/* LEVEL (READ-ONLY WITH RED INTENSITY ACCORDING TO DIFFICULTY) */}
-                      <div className="excel-level-cell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            padding: '4px 10px',
-                            borderRadius: '6px',
-                            fontSize: '11.5px',
-                            letterSpacing: '0.5px',
-                            textAlign: 'center',
-                            width: '100%',
-                            boxSizing: 'border-box',
-                            cursor: 'not-allowed',
-                            userSelect: 'none',
-                            ...getLevelRedStyle(row.level || '')
-                          }}
-                          title="Cấp độ CEFR tự động"
-                        >
-                          {row.level || '—'}
-                        </span>
-                      </div>
-
-                      {/* PRONUNCIATION */}
-                      <input
-                        className="excel-input auto-cell"
-                        placeholder="/Phát âm/"
-                        value={row.phonetic}
-                        onChange={(e) => handleExcelCellChange(idx, 'phonetic', e.target.value)}
-                      />
-
-                      {/* VIETNAMESE */}
-                      <textarea
-                        className="excel-textarea auto-cell"
-                        rows={2}
-                        placeholder="Nghĩa tiếng Việt"
-                        value={row.vietnameseDefinition}
-                        onChange={(e) => handleExcelCellChange(idx, 'vietnameseDefinition', e.target.value)}
-                      />
-
-                      {/* DEFINITION */}
-                      <textarea
-                        className="excel-textarea auto-cell"
-                        rows={2}
-                        placeholder="English definition"
-                        value={row.englishDefinition}
-                        onChange={(e) => handleExcelCellChange(idx, 'englishDefinition', e.target.value)}
-                      />
-
-                      {/* EXAMPLE */}
-                      <textarea
-                        className="excel-textarea auto-cell"
-                        rows={2}
-                        placeholder="Example sentence"
-                        value={row.exampleSentence}
-                        onChange={(e) => handleExcelCellChange(idx, 'exampleSentence', e.target.value)}
-                      />
-
-                      {/* DELETE ROW */}
-                      <button type="button" className="delete-row-btn" title="Xóa hàng này" onClick={() => removeExcelRow(idx)}>
-                        <X size={14} />
+                        Lưu
+                      </button>
+                      <button
+                        type="button"
+                        style={{
+                          height: '30px',
+                          padding: '0 12px',
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          borderRadius: '6px',
+                          background: '#ffffff',
+                          color: '#475569',
+                          border: '1px solid #cbd5e1',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          margin: 0,
+                          boxSizing: 'border-box'
+                        }}
+                        onClick={() => setIsCreatingCustomDeck(false)}
+                      >
+                        Hủy
                       </button>
                     </div>
-                  ))}
+                  ) : (
+                    <select
+                      className="select-field"
+                      style={{ padding: '4px 8px', fontSize: '11.5px', width: 'auto', minWidth: '180px' }}
+                      value={selectedDeckId || ''}
+                      onChange={(e) => handleDeckSelectChange(e.target.value)}
+                    >
+                      <optgroup label="Danh sách Deck hiện có">
+                        {decksList.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.title} ({d.cardCount || 0} từ)
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="＋ Tạo Deck mới">
+                        <option value="CREATE_CUSTOM">＋ Tạo Deck mới (Tự đặt tên...)</option>
+                        <option value="CREATE_AUTO">
+                          ＋ Tạo Deck tự động (Deck {new Date().toLocaleDateString('vi-VN')})
+                        </option>
+                      </optgroup>
+                    </select>
+                  )}
+
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    style={{ padding: '4px 8px', fontSize: '11px', height: '30px', gap: '4px' }}
+                    onClick={() => setShowResetConfirmModal(true)}
+                    title="Xóa tất cả từ hiện tại và trả về danh sách trống mới"
+                  >
+                    <RefreshCw size={13} /> Làm mới
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    style={{ padding: '4px 8px', fontSize: '11px', height: '30px', gap: '4px' }}
+                    onClick={() => addExcelRow(5)}
+                  >
+                    <Plus size={13} /> Thêm 5 hàng
+                  </button>
+
+                  <button className="modal-close" onClick={() => setShowNewCardModal(false)}>
+                    <X size={18} />
+                  </button>
                 </div>
               </div>
 
-              <div className="modal-actions" style={{ marginTop: '14px' }}>
-                <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600 }}>
-                  Đã sẵn sàng {excelRows.filter((r) => r.term && r.term.trim().length > 0).length} từ để thêm vào Deck
-                </span>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button type="button" className="secondary-button" onClick={() => setShowNewCardModal(false)}>
-                    Hủy
-                  </button>
-                  <button
-                    type="submit"
-                    className="hero-action"
-                    disabled={isSubmitting || excelRows.filter((r) => r.term && r.term.trim().length > 0).length === 0}
-                  >
-                    <Sparkles size={16} />
-                    {isSubmitting
-                      ? 'Đang lưu...'
-                      : `Lưu tất cả (${excelRows.filter((r) => r.term && r.term.trim().length > 0).length}) từ vựng vào Deck`}
-                  </button>
+              <form onSubmit={handleSaveExcelBatch}>
+                {/* INSTRUCTION BANNER */}
+                <div
+                  style={{
+                    background: '#f0f9ff',
+                    border: '1px solid #bae6fd',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '12px',
+                    color: '#0369a1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginBottom: '8px'
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>💡</span>
+                  <span>
+                    <strong>Hướng dẫn:</strong> Bạn cần nhập đủ 2 thông tin là <strong>WORD *</strong> và <strong>TYPE *</strong>. Hệ thống sẽ tự động tra cứu và điền đầy đủ các cột còn lại (biểu tượng <strong>⚡</strong>)!
+                  </span>
                 </div>
-              </div>
-            </form>
+
+                {/* EXCEL SPREADSHEET TABLE GRID */}
+                <div className="excel-grid-table">
+                  <div className="excel-head">
+                    <span>#</span>
+                    <span>WORD *</span>
+                    <span>TYPE *</span>
+                    <span>LEVEL ⚡</span>
+                    <span>PRONUNCIATION ⚡</span>
+                    <span>VIETNAMESE ⚡</span>
+                    <span>DEFINITION ⚡</span>
+                    <span>EXAMPLE ⚡</span>
+                    <span />
+                  </div>
+
+                  <div className="excel-body">
+                    {excelRows.map((row, idx) => (
+                      <div className="excel-row" key={row.id}>
+                        <span className="row-num">{idx + 1}</span>
+
+                        {/* WORD */}
+                        <input
+                          className="excel-input word-cell"
+                          placeholder="Nhập từ (e.g. raid)"
+                          value={row.term}
+                          onChange={(e) => handleExcelCellChange(idx, 'term', e.target.value)}
+                        />
+
+                        {/* TYPE */}
+                        <select
+                          className="excel-select type-cell"
+                          style={{
+                            ...getTypeStyle(row.partOfSpeech),
+                            ...(row.term && row.term.trim() && !row.partOfSpeech
+                              ? { border: '1.5px solid #f97316', background: '#fff7ed', color: '#c2410c', fontWeight: 700 }
+                              : {}),
+                          }}
+                          value={row.partOfSpeech}
+                          onChange={(e) => handleExcelCellChange(idx, 'partOfSpeech', e.target.value)}
+                        >
+                          <option value="">-- Chọn Type * --</option>
+                          <option value="noun">noun</option>
+                          <option value="verb">verb</option>
+                          <option value="adjective">adjective</option>
+                          <option value="adverb">adverb</option>
+                          <option value="idiom">idiom</option>
+                          <option value="phrasal verb">phrasal verb</option>
+                        </select>
+
+                        {/* LEVEL (READ-ONLY WITH RED INTENSITY ACCORDING TO DIFFICULTY) */}
+                        <div className="excel-level-cell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span
+                            style={{
+                              display: 'inline-block',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              fontSize: '11.5px',
+                              letterSpacing: '0.5px',
+                              textAlign: 'center',
+                              width: '100%',
+                              boxSizing: 'border-box',
+                              cursor: 'not-allowed',
+                              userSelect: 'none',
+                              ...getLevelRedStyle(row.level || '')
+                            }}
+                            title="Cấp độ CEFR tự động"
+                          >
+                            {row.level || '—'}
+                          </span>
+                        </div>
+
+                        {/* PRONUNCIATION */}
+                        <input
+                          className="excel-input auto-cell"
+                          placeholder="/Phát âm/"
+                          value={row.phonetic}
+                          onChange={(e) => handleExcelCellChange(idx, 'phonetic', e.target.value)}
+                        />
+
+                        {/* VIETNAMESE */}
+                        <textarea
+                          className="excel-textarea auto-cell"
+                          rows={2}
+                          placeholder="Nghĩa tiếng Việt"
+                          value={row.vietnameseDefinition}
+                          onChange={(e) => handleExcelCellChange(idx, 'vietnameseDefinition', e.target.value)}
+                        />
+
+                        {/* DEFINITION */}
+                        <textarea
+                          className="excel-textarea auto-cell"
+                          rows={2}
+                          placeholder="English definition"
+                          value={row.englishDefinition}
+                          onChange={(e) => handleExcelCellChange(idx, 'englishDefinition', e.target.value)}
+                        />
+
+                        {/* EXAMPLE */}
+                        <textarea
+                          className="excel-textarea auto-cell"
+                          rows={2}
+                          placeholder="Example sentence"
+                          value={row.exampleSentence}
+                          onChange={(e) => handleExcelCellChange(idx, 'exampleSentence', e.target.value)}
+                        />
+
+                        {/* DELETE ROW */}
+                        <button type="button" className="delete-row-btn" title="Xóa hàng này" onClick={() => removeExcelRow(idx)}>
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="modal-actions" style={{ marginTop: '14px' }}>
+                  <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 600 }}>
+                    Đã sẵn sàng {excelRows.filter((r) => r.term && r.term.trim().length > 0).length} từ để thêm vào Deck
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button type="button" className="secondary-button" onClick={() => setShowNewCardModal(false)}>
+                      Hủy
+                    </button>
+                    <button
+                      type="submit"
+                      className="hero-action"
+                      disabled={isSubmitting || excelRows.filter((r) => r.term && r.term.trim().length > 0).length === 0}
+                    >
+                      <Sparkles size={16} />
+                      {isSubmitting
+                        ? 'Đang lưu...'
+                        : `Lưu tất cả (${excelRows.filter((r) => r.term && r.term.trim().length > 0).length}) từ vựng vào Deck`}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </ClientPortal>
       )}
 
       {/* CUSTOM CONFIRMATION MODAL FOR RESET GRID */}
       {showResetConfirmModal && (
-        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setShowResetConfirmModal(false)}>
-          <div
-            className="modal-card"
-            style={{ maxWidth: '420px', padding: '24px', textAlign: 'center' }}
-            onClick={(e) => e.stopPropagation()}
-          >
+        <ClientPortal>
+          <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setShowResetConfirmModal(false)}>
             <div
-              style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '50%',
-                background: '#fff7ed',
-                border: '1px solid #ffedd5',
-                color: '#f97316',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px',
-              }}
+              className="modal-card"
+              style={{ maxWidth: '420px', padding: '24px', textAlign: 'center' }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <AlertTriangle size={24} />
-            </div>
-
-            <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>
-              Xác nhận làm mới danh sách?
-            </h3>
-
-            <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.5', marginBottom: '20px' }}>
-              Tất cả dữ liệu từ vựng đang nhập dở trong bảng sẽ bị xóa và quay về danh sách trống mới. Thao tác này không thể hoàn tác.
-            </p>
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '8px' }}>
-              <button
-                type="button"
-                className="secondary-button"
+              <div
                 style={{
-                  flex: 1,
-                  height: '38px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  borderRadius: '8px',
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: '#fff7ed',
+                  border: '1px solid #ffedd5',
+                  color: '#f97316',
+                  display: 'flex',
+                  alignItems: 'center',
                   justifyContent: 'center',
-                }}
-                onClick={() => setShowResetConfirmModal(false)}
-              >
-                Hủy bỏ
-              </button>
-              <button
-                type="button"
-                className="primary-button"
-                style={{
-                  flex: 1,
-                  height: '38px',
-                  fontSize: '13px',
-                  fontWeight: '600',
-                  borderRadius: '8px',
-                  background: '#ef4444',
-                  borderColor: '#dc2626',
-                  boxShadow: '0 2px 6px rgba(239, 68, 68, 0.25)',
-                  justifyContent: 'center',
-                  gap: '6px',
-                }}
-                onClick={() => {
-                  resetExcelGrid()
-                  setShowResetConfirmModal(false)
+                  margin: '0 auto 16px',
                 }}
               >
-                Xác nhận làm mới
-              </button>
+                <AlertTriangle size={24} />
+              </div>
+
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>
+                Xác nhận làm mới danh sách?
+              </h3>
+
+              <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.5', marginBottom: '20px' }}>
+                Tất cả dữ liệu từ vựng đang nhập dở trong bảng sẽ bị xóa và quay về danh sách trống mới. Thao tác này không thể hoàn tác.
+              </p>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{
+                    flex: 1,
+                    height: '38px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    borderRadius: '8px',
+                    justifyContent: 'center',
+                  }}
+                  onClick={() => setShowResetConfirmModal(false)}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="button"
+                  className="primary-button"
+                  style={{
+                    flex: 1,
+                    height: '38px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    borderRadius: '8px',
+                    background: '#ef4444',
+                    borderColor: '#dc2626',
+                    boxShadow: '0 2px 6px rgba(239, 68, 68, 0.25)',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
+                  onClick={() => {
+                    resetExcelGrid()
+                    setShowResetConfirmModal(false)
+                  }}
+                >
+                  Xác nhận làm mới
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ClientPortal>
       )}
 
       {/* INCOMPLETE ROWS WARNING MODAL */}
       {showIncompleteWarningModal && (
-        <div className="modal-overlay" style={{ zIndex: 1150 }} onClick={() => setShowIncompleteWarningModal(false)}>
-          <div
-            className="modal-card"
-            style={{ maxWidth: '440px', padding: '24px', textAlign: 'center' }}
-            onClick={(e) => e.stopPropagation()}
-          >
+        <ClientPortal>
+          <div className="modal-overlay" style={{ zIndex: 1150 }} onClick={() => setShowIncompleteWarningModal(false)}>
             <div
-              style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '50%',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#dc2626',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px',
-              }}
+              className="modal-card"
+              style={{ maxWidth: '440px', padding: '24px', textAlign: 'center' }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <AlertTriangle size={24} />
-            </div>
-
-            <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>
-              Phát hiện từ chưa chọn Type (Loại từ)!
-            </h3>
-
-            <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.5', marginBottom: '20px' }}>
-              Có <strong style={{ color: '#dc2626' }}>{skippedIncompleteCount} hàng</strong> đã nhập Word nhưng chưa chọn Type.
-              Các hàng này sẽ <strong style={{ color: '#dc2626' }}>BỊ BỎ QUA</strong> khi lưu.
-              {validRowsToSave.length > 0 ? (
-                <span> Bạn có muốn tiếp tục lưu <strong>{validRowsToSave.length} từ</strong> đã chọn Type hợp lệ không?</span>
-              ) : (
-                <span> Vui lòng chọn Type cho ít nhất 1 từ trước khi lưu.</span>
-              )}
-            </p>
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '8px' }}>
-              <button
-                type="button"
+              <div
                 style={{
-                  flex: 1,
-                  height: '42px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  borderRadius: '10px',
-                  border: '1px solid #cbd5e1',
-                  background: '#f8fafc',
-                  color: '#475569',
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#dc2626',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  transition: 'all 0.15s ease',
+                  margin: '0 auto 16px',
                 }}
-                onClick={() => setShowIncompleteWarningModal(false)}
               >
-                Quay lại chọn Type
-              </button>
-              {validRowsToSave.length > 0 && (
+                <AlertTriangle size={24} />
+              </div>
+
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>
+                Phát hiện từ chưa chọn Type (Loại từ)!
+              </h3>
+
+              <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.5', marginBottom: '20px' }}>
+                Có <strong style={{ color: '#dc2626' }}>{skippedIncompleteCount} hàng</strong> đã nhập Word nhưng chưa chọn Type.
+                Các hàng này sẽ <strong style={{ color: '#dc2626' }}>BỊ BỎ QUA</strong> khi lưu.
+                {validRowsToSave.length > 0 ? (
+                  <span> Bạn có muốn tiếp tục lưu <strong>{validRowsToSave.length} từ</strong> đã chọn Type hợp lệ không?</span>
+                ) : (
+                  <span> Vui lòng chọn Type cho ít nhất 1 từ trước khi lưu.</span>
+                )}
+              </p>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '8px' }}>
                 <button
                   type="button"
                   style={{
                     flex: 1,
                     height: '42px',
                     fontSize: '13px',
-                    fontWeight: 700,
+                    fontWeight: 600,
                     borderRadius: '10px',
-                    border: 'none',
-                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                    color: '#ffffff',
-                    boxShadow: '0 4px 12px rgba(220, 38, 38, 0.35)',
+                    border: '1px solid #cbd5e1',
+                    background: '#f8fafc',
+                    color: '#475569',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '6px',
                     cursor: 'pointer',
                     fontFamily: 'inherit',
                     transition: 'all 0.15s ease',
                   }}
-                  onClick={() => handleSaveExcelBatch(undefined, true)}
+                  onClick={() => setShowIncompleteWarningModal(false)}
                 >
-                  <Sparkles size={15} />
-                  <span>Bỏ qua & Lưu {validRowsToSave.length} từ</span>
+                  Quay lại chọn Type
                 </button>
-              )}
+                {validRowsToSave.length > 0 && (
+                  <button
+                    type="button"
+                    style={{
+                      flex: 1,
+                      height: '42px',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                      color: '#ffffff',
+                      boxShadow: '0 4px 12px rgba(220, 38, 38, 0.35)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onClick={() => handleSaveExcelBatch(undefined, true)}
+                  >
+                    <Sparkles size={15} />
+                    <span>Bỏ qua & Lưu {validRowsToSave.length} từ</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </ClientPortal>
       )}
 
       {/* BULK IMPORT MODAL */}
       {showBulkModal && (
-        <div className="modal-overlay">
-          <div className="modal-card">
-            <div className="modal-header">
-              <h3>Bulk Import Vocabulary Cards</h3>
-              <button className="modal-close" onClick={() => setShowBulkModal(false)}>
-                <X size={18} />
-              </button>
+        <ClientPortal>
+          <div className="modal-overlay">
+            <div className="modal-card">
+              <div className="modal-header">
+                <h3>Bulk Import Vocabulary Cards</h3>
+                <button className="modal-close" onClick={() => setShowBulkModal(false)}>
+                  <X size={18} />
+                </button>
+              </div>
+              <form onSubmit={handleBulkImport}>
+                <div className="form-group">
+                  <label>Paste Data (Format: English Term | Vietnamese Definition | Example Sentence)</label>
+                  <textarea
+                    className="textarea-field"
+                    style={{ minHeight: '160px', fontFamily: 'monospace', fontSize: '12px' }}
+                    placeholder={`meticulous | Tỉ mỉ, cẩn thận từng chi tiết | He is a meticulous worker.\nresilient | Kiên cường, có khả năng phục hồi nhanh | The city is resilient against storms.`}
+                    value={bulkInput}
+                    onChange={(e) => setBulkInput(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="modal-actions">
+                  <button type="button" className="secondary-button" onClick={() => setShowBulkModal(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="hero-action" disabled={isSubmitting}>
+                    {isSubmitting ? 'Importing...' : 'Import Cards'}
+                  </button>
+                </div>
+              </form>
             </div>
-            <form onSubmit={handleBulkImport}>
-              <div className="form-group">
-                <label>Paste Data (Format: English Term | Vietnamese Definition | Example Sentence)</label>
-                <textarea
-                  className="textarea-field"
-                  style={{ minHeight: '160px', fontFamily: 'monospace', fontSize: '12px' }}
-                  placeholder={`meticulous | Tỉ mỉ, cẩn thận từng chi tiết | He is a meticulous worker.\nresilient | Kiên cường, có khả năng phục hồi nhanh | The city is resilient against storms.`}
-                  value={bulkInput}
-                  onChange={(e) => setBulkInput(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="secondary-button" onClick={() => setShowBulkModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className="hero-action" disabled={isSubmitting}>
-                  {isSubmitting ? 'Importing...' : 'Import Cards'}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
+        </ClientPortal>
       )}
     </div>
   )
@@ -5305,7 +5358,9 @@ export default function Page() {
                 <Icon size={18} />
                 <span>{label}</span>
                 {isLocked && (
-                  <Lock size={12} style={{ marginLeft: 'auto', color: '#f59e0b', opacity: 0.8 }} title="Tính năng đang thử nghiệm nội bộ" />
+                  <span title="Tính năng đang thử nghiệm nội bộ" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center' }}>
+                    <Lock size={12} style={{ color: '#f59e0b', opacity: 0.8 }} />
+                  </span>
                 )}
               </button>
             )
@@ -5450,286 +5505,294 @@ export default function Page() {
 
       {/* HELP CENTER MODAL */}
       {showHelpModal && (
-        <div className="modal-overlay" onClick={() => setShowHelpModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '560px' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CircleHelp size={20} style={{ color: '#4f46e5' }} />
-                <h3 style={{ margin: 0 }}>Trung tâm trợ giúp (Help Center)</h3>
-              </div>
-              <button className="modal-close" onClick={() => setShowHelpModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px', color: '#334155' }}>
-              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                <b style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>⚡ 1. Thêm danh sách từ vựng tự động</b>
-                <p style={{ margin: 0, color: '#475569', fontSize: '12px' }}>
-                  Vào mục <strong>Decks</strong> → nhấn <strong>Thêm list từ vựng</strong>. Bạn chỉ cần nhập từ tiếng Anh và chọn loại từ (Noun/Verb/Adj), hệ thống sẽ tự động gợi ý phát âm, nghĩa Việt và câu ví dụ!
-                </p>
+        <ClientPortal>
+          <div className="modal-overlay" onClick={() => setShowHelpModal(false)}>
+            <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '560px' }}>
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CircleHelp size={20} style={{ color: '#4f46e5' }} />
+                  <h3 style={{ margin: 0 }}>Trung tâm trợ giúp (Help Center)</h3>
+                </div>
+                <button className="modal-close" onClick={() => setShowHelpModal(false)}>
+                  <X size={18} />
+                </button>
               </div>
 
-              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                <b style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>🧠 2. Thuật toán lặp lại ngắt quãng SuperMemo SM-2</b>
-                <p style={{ margin: 0, color: '#475569', fontSize: '12px' }}>
-                  Hệ thống phân tích mức độ nhớ của bạn (Again, Hard, Good, Easy) để lên lịch ôn tập chính xác vào thời điểm bạn sắp quên, chuyển từ vựng vào trí nhớ dài hạn.
-                </p>
-              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px', color: '#334155' }}>
+                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <b style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>⚡ 1. Thêm danh sách từ vựng tự động</b>
+                  <p style={{ margin: 0, color: '#475569', fontSize: '12px' }}>
+                    Vào mục <strong>Decks</strong> → nhấn <strong>Thêm list từ vựng</strong>. Bạn chỉ cần nhập từ tiếng Anh và chọn loại từ (Noun/Verb/Adj), hệ thống sẽ tự động gợi ý phát âm, nghĩa Việt và câu ví dụ!
+                  </p>
+                </div>
 
-              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-                <b style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>⌨️ 3. Phím tắt thao tác nhanh</b>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px', marginTop: '6px' }}>
-                  <div><kbd style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>Space</kbd> : Lật thẻ bài tập</div>
-                  <div><kbd style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>1 / 2 / 3 / 4</kbd> : Đánh giá mức độ</div>
-                  <div><kbd style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>Enter</kbd> : Gửi đáp án dịch</div>
-                  <div><kbd style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>Esc</kbd> : Hủy / Đóng cửa sổ</div>
+                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <b style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>🧠 2. Thuật toán lặp lại ngắt quãng SuperMemo SM-2</b>
+                  <p style={{ margin: 0, color: '#475569', fontSize: '12px' }}>
+                    Hệ thống phân tích mức độ nhớ của bạn (Again, Hard, Good, Easy) để lên lịch ôn tập chính xác vào thời điểm bạn sắp quên, chuyển từ vựng vào trí nhớ dài hạn.
+                  </p>
+                </div>
+
+                <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <b style={{ color: '#0f172a', display: 'block', marginBottom: '4px' }}>⌨️ 3. Phím tắt thao tác nhanh</b>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px', marginTop: '6px' }}>
+                    <div><kbd style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>Space</kbd> : Lật thẻ bài tập</div>
+                    <div><kbd style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>1 / 2 / 3 / 4</kbd> : Đánh giá mức độ</div>
+                    <div><kbd style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>Enter</kbd> : Gửi đáp án dịch</div>
+                    <div><kbd style={{ background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>Esc</kbd> : Hủy / Đóng cửa sổ</div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="modal-actions" style={{ marginTop: '16px' }}>
-              <button type="button" className="hero-action" onClick={() => setShowHelpModal(false)}>
-                Đã hiểu
-              </button>
+              <div className="modal-actions" style={{ marginTop: '16px' }}>
+                <button type="button" className="hero-action" onClick={() => setShowHelpModal(false)}>
+                  Đã hiểu
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ClientPortal>
       )}
 
       {/* SETTINGS MODAL */}
       {showSettingsModal && (
-        <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Settings size={20} style={{ color: '#4f46e5' }} />
-                <h3 style={{ margin: 0 }}>Cài đặt hệ thống (Settings)</h3>
+        <ClientPortal>
+          <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
+            <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Settings size={20} style={{ color: '#4f46e5' }} />
+                  <h3 style={{ margin: 0 }}>Cài đặt hệ thống (Settings)</h3>
+                </div>
+                <button className="modal-close" onClick={() => setShowSettingsModal(false)}>
+                  <X size={18} />
+                </button>
               </div>
-              <button className="modal-close" onClick={() => setShowSettingsModal(false)}>
-                <X size={18} />
-              </button>
+
+              <form onSubmit={handleSaveSettings}>
+                {saveMessage && (
+                  <div style={{ padding: '8px 12px', background: '#dcfce7', color: '#166534', borderRadius: '8px', fontSize: '12px', marginBottom: '12px' }}>
+                    {saveMessage}
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label>Tên hiển thị người dùng</label>
+                  <input
+                    className="input-field"
+                    value={userNameInput}
+                    onChange={(e) => setUserNameInput(e.target.value)}
+                    placeholder="Nhập tên của bạn"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Mục tiêu thẻ từ ôn tập mỗi ngày (Cards/day)</label>
+                  <select
+                    className="select-field"
+                    value={dailyGoalTarget}
+                    onChange={(e) => setDailyGoalTarget(Number(e.target.value))}
+                  >
+                    <option value={10}>10 từ / ngày (Nhẹ nhàng)</option>
+                    <option value={20}>20 từ / ngày (Tiêu chuẩn - Khuyên dùng)</option>
+                    <option value={30}>30 từ / ngày (Chuyên sâu)</option>
+                    <option value={50}>50 từ / ngày (Cấp tốc)</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Giao diện ứng dụng (Theme)</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      className={`theme-select-option ${theme === 'light' ? 'active' : ''}`}
+                      onClick={() => {
+                        setTheme('light')
+                        localStorage.setItem('theme', 'light')
+                        document.documentElement.classList.remove('dark', 'pink')
+                      }}
+                    >
+                      <Sun size={15} className="text-amber-500" />
+                      <span>Sáng</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`theme-select-option ${theme === 'dark' ? 'active' : ''}`}
+                      onClick={() => {
+                        setTheme('dark')
+                        localStorage.setItem('theme', 'dark')
+                        document.documentElement.classList.remove('pink')
+                        document.documentElement.classList.add('dark')
+                      }}
+                    >
+                      <Moon size={15} className="text-indigo-400" />
+                      <span>Tối</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`theme-select-option ${theme === 'pink' ? 'active' : ''}`}
+                      onClick={() => {
+                        setTheme('pink')
+                        localStorage.setItem('theme', 'pink')
+                        document.documentElement.classList.remove('dark')
+                        document.documentElement.classList.add('pink')
+                      }}
+                    >
+                      <Sparkles size={15} className="text-pink-400" />
+                      <span>Hồng</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Phát âm tự động khi lật thẻ</label>
+                  <select
+                    className="select-field"
+                    value={autoPlayAudio ? 'on' : 'off'}
+                    onChange={(e) => setAutoPlayAudio(e.target.value === 'on')}
+                  >
+                    <option value="on">Bật phát âm tự động</option>
+                    <option value="off">Tắt phát âm tự động</option>
+                  </select>
+                </div>
+
+                <div className="modal-actions">
+                  <button type="button" className="secondary-button" onClick={() => setShowSettingsModal(false)}>
+                    Hủy
+                  </button>
+                  <button type="submit" className="hero-action">
+                    Lưu cài đặt
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <form onSubmit={handleSaveSettings}>
-              {saveMessage && (
-                <div style={{ padding: '8px 12px', background: '#dcfce7', color: '#166534', borderRadius: '8px', fontSize: '12px', marginBottom: '12px' }}>
-                  {saveMessage}
-                </div>
-              )}
-
-              <div className="form-group">
-                <label>Tên hiển thị người dùng</label>
-                <input
-                  className="input-field"
-                  value={userNameInput}
-                  onChange={(e) => setUserNameInput(e.target.value)}
-                  placeholder="Nhập tên của bạn"
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Mục tiêu thẻ từ ôn tập mỗi ngày (Cards/day)</label>
-                <select
-                  className="select-field"
-                  value={dailyGoalTarget}
-                  onChange={(e) => setDailyGoalTarget(Number(e.target.value))}
-                >
-                  <option value={10}>10 từ / ngày (Nhẹ nhàng)</option>
-                  <option value={20}>20 từ / ngày (Tiêu chuẩn - Khuyên dùng)</option>
-                  <option value={30}>30 từ / ngày (Chuyên sâu)</option>
-                  <option value={50}>50 từ / ngày (Cấp tốc)</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>Giao diện ứng dụng (Theme)</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginTop: '6px' }}>
-                  <button
-                    type="button"
-                    className={`theme-select-option ${theme === 'light' ? 'active' : ''}`}
-                    onClick={() => {
-                      setTheme('light')
-                      localStorage.setItem('theme', 'light')
-                      document.documentElement.classList.remove('dark', 'pink')
-                    }}
-                  >
-                    <Sun size={15} className="text-amber-500" />
-                    <span>Sáng</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`theme-select-option ${theme === 'dark' ? 'active' : ''}`}
-                    onClick={() => {
-                      setTheme('dark')
-                      localStorage.setItem('theme', 'dark')
-                      document.documentElement.classList.remove('pink')
-                      document.documentElement.classList.add('dark')
-                    }}
-                  >
-                    <Moon size={15} className="text-indigo-400" />
-                    <span>Tối</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`theme-select-option ${theme === 'pink' ? 'active' : ''}`}
-                    onClick={() => {
-                      setTheme('pink')
-                      localStorage.setItem('theme', 'pink')
-                      document.documentElement.classList.remove('dark')
-                      document.documentElement.classList.add('pink')
-                    }}
-                  >
-                    <Sparkles size={15} className="text-pink-400" />
-                    <span>Hồng</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Phát âm tự động khi lật thẻ</label>
-                <select
-                  className="select-field"
-                  value={autoPlayAudio ? 'on' : 'off'}
-                  onChange={(e) => setAutoPlayAudio(e.target.value === 'on')}
-                >
-                  <option value="on">Bật phát âm tự động</option>
-                  <option value="off">Tắt phát âm tự động</option>
-                </select>
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="secondary-button" onClick={() => setShowSettingsModal(false)}>
-                  Hủy
-                </button>
-                <button type="submit" className="hero-action">
-                  Lưu cài đặt
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
+        </ClientPortal>
       )}
 
       {/* GLOBAL SEARCH MODAL */}
       {showSearchModal && (
-        <div className="modal-overlay" onClick={() => setShowSearchModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Search size={20} style={{ color: '#4f46e5' }} />
-                <h3 style={{ margin: 0 }}>Tìm kiếm từ vựng (Global Search)</h3>
+        <ClientPortal>
+          <div className="modal-overlay" onClick={() => setShowSearchModal(false)}>
+            <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Search size={20} style={{ color: '#4f46e5' }} />
+                  <h3 style={{ margin: 0 }}>Tìm kiếm từ vựng (Global Search)</h3>
+                </div>
+                <button className="modal-close" onClick={() => setShowSearchModal(false)}>
+                  <X size={18} />
+                </button>
               </div>
-              <button className="modal-close" onClick={() => setShowSearchModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
 
-            <div className="search-box" style={{ width: '100%', marginBottom: '14px', padding: '8px 12px' }}>
-              <Search size={16} />
-              <input
-                type="text"
-                placeholder="Nhập từ tiếng Anh hoặc nghĩa tiếng Việt..."
-                value={searchQuery}
-                onChange={(e) => handleGlobalSearch(e.target.value)}
-                autoFocus
-              />
-            </div>
+              <div className="search-box" style={{ width: '100%', marginBottom: '14px', padding: '8px 12px' }}>
+                <Search size={16} />
+                <input
+                  type="text"
+                  placeholder="Nhập từ tiếng Anh hoặc nghĩa tiếng Việt..."
+                  value={searchQuery}
+                  onChange={(e) => handleGlobalSearch(e.target.value)}
+                  autoFocus
+                />
+              </div>
 
-            <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {searching ? (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
-                  <Loader2 className="animate-spin" size={20} /> Đang tìm kiếm...
-                </div>
-              ) : searchResults.length > 0 ? (
-                searchResults.map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      padding: '10px 12px',
-                      background: '#f8fafc',
-                      borderRadius: '8px',
-                      border: '1px solid #e2e8f0',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => {
-                      setShowSearchModal(false)
-                      setView('Decks')
-                    }}
-                  >
-                    <div>
-                      <strong style={{ color: '#0f172a', fontSize: '13px' }}>{item.term}</strong>
-                      <span className="type-chip" style={{ marginLeft: '8px', ...getTypeStyle(item.partOfSpeech || 'noun') }}>{item.partOfSpeech || 'noun'}</span>
-                      <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#475569' }}>{item.vietnameseDefinition}</p>
-                    </div>
-                    <span style={{ fontSize: '11px', color: '#64748b', background: '#e2e8f0', padding: '2px 8px', borderRadius: '4px' }}>
-                      {item.deckTitle}
-                    </span>
+              <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {searching ? (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
+                    <Loader2 className="animate-spin" size={20} /> Đang tìm kiếm...
                   </div>
-                ))
-              ) : searchQuery.trim() ? (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                  Không tìm thấy từ vựng nào phù hợp với từ khóa &quot;{searchQuery}&quot;.
-                </div>
-              ) : (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
-                  Nhập từ khóa ở ô trên để tìm kiếm nhanh trong toàn bộ các bộ từ vựng của bạn.
-                </div>
-              )}
-            </div>
+                ) : searchResults.length > 0 ? (
+                  searchResults.map((item) => (
+                    <div
+                      key={item.id}
+                      style={{
+                        padding: '10px 12px',
+                        background: '#f8fafc',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        setShowSearchModal(false)
+                        setView('Decks')
+                      }}
+                    >
+                      <div>
+                        <strong style={{ color: '#0f172a', fontSize: '13px' }}>{item.term}</strong>
+                        <span className="type-chip" style={{ marginLeft: '8px', ...getTypeStyle(item.partOfSpeech || 'noun') }}>{item.partOfSpeech || 'noun'}</span>
+                        <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#475569' }}>{item.vietnameseDefinition}</p>
+                      </div>
+                      <span style={{ fontSize: '11px', color: '#64748b', background: '#e2e8f0', padding: '2px 8px', borderRadius: '4px' }}>
+                        {item.deckTitle}
+                      </span>
+                    </div>
+                  ))
+                ) : searchQuery.trim() ? (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                    Không tìm thấy từ vựng nào phù hợp với từ khóa &quot;{searchQuery}&quot;.
+                  </div>
+                ) : (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                    Nhập từ khóa ở ô trên để tìm kiếm nhanh trong toàn bộ các bộ từ vựng của bạn.
+                  </div>
+                )}
+              </div>
 
-            <div className="modal-actions" style={{ marginTop: '14px' }}>
-              <button type="button" className="secondary-button" onClick={() => setShowSearchModal(false)}>
-                Đóng
-              </button>
+              <div className="modal-actions" style={{ marginTop: '14px' }}>
+                <button type="button" className="secondary-button" onClick={() => setShowSearchModal(false)}>
+                  Đóng
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ClientPortal>
       )}
 
       {/* USER PROFILE MODAL */}
       {showProfileModal && (
-        <div className="modal-overlay" onClick={() => setShowProfileModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', textAlign: 'center' }}>
-            <div className="modal-header">
-              <h3 style={{ margin: 0 }}>Hồ sơ người dùng</h3>
-              <button className="modal-close" onClick={() => setShowProfileModal(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '16px 0' }}>
-              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#4f46e5', color: '#fff', display: 'grid', placeItems: 'center', fontSize: '24px', fontWeight: 700 }}>
-                {userInitials}
+        <ClientPortal>
+          <div className="modal-overlay" onClick={() => setShowProfileModal(false)}>
+            <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', textAlign: 'center' }}>
+              <div className="modal-header">
+                <h3 style={{ margin: 0 }}>Hồ sơ người dùng</h3>
+                <button className="modal-close" onClick={() => setShowProfileModal(false)}>
+                  <X size={18} />
+                </button>
               </div>
-              <h3 style={{ margin: 0 }}>{user?.name || 'Alex Lee'}</h3>
-              <span style={{ fontSize: '12px', color: '#64748b', background: '#f1f5f9', padding: '3px 10px', borderRadius: '12px' }}>
-                Học viên chính thức • LinguaFlow Member
-              </span>
-              <p style={{ fontSize: '12px', color: '#475569', margin: '4px 0 0' }}>
-                Email: {user?.email || 'alex.lee@linguaflow.app'}
-              </p>
-            </div>
 
-            <div className="modal-actions" style={{ justifyContent: 'center', gap: '10px' }}>
-              <button
-                type="button"
-                className="secondary-button"
-                style={{ color: '#ef4444', borderColor: '#fca5a5' }}
-                onClick={handleLogout}
-              >
-                <LogOut size={15} /> Đăng xuất
-              </button>
-              <button type="button" className="hero-action" onClick={() => { setShowProfileModal(false); setShowSettingsModal(true); }}>
-                Cài đặt
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '16px 0' }}>
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#4f46e5', color: '#fff', display: 'grid', placeItems: 'center', fontSize: '24px', fontWeight: 700 }}>
+                  {userInitials}
+                </div>
+                <h3 style={{ margin: 0 }}>{user?.name || 'Alex Lee'}</h3>
+                <span style={{ fontSize: '12px', color: '#64748b', background: '#f1f5f9', padding: '3px 10px', borderRadius: '12px' }}>
+                  Học viên chính thức • LinguaFlow Member
+                </span>
+                <p style={{ fontSize: '12px', color: '#475569', margin: '4px 0 0' }}>
+                  Email: {user?.email || 'alex.lee@linguaflow.app'}
+                </p>
+              </div>
+
+              <div className="modal-actions" style={{ justifyContent: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  style={{ color: '#ef4444', borderColor: '#fca5a5' }}
+                  onClick={handleLogout}
+                >
+                  <LogOut size={15} /> Đăng xuất
+                </button>
+                <button type="button" className="hero-action" onClick={() => { setShowProfileModal(false); setShowSettingsModal(true); }}>
+                  Cài đặt
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ClientPortal>
       )}
 
       {/* AUTHENTICATION MODAL */}
