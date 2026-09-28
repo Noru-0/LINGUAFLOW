@@ -4463,7 +4463,7 @@ function Analytics() {
       </div>
 
       {/* 2. Memory Breakdown & Trend Line Section (First section after metric cards) */}
-      <div className="analytics-grid" style={{ marginTop: '0', marginBottom: '16px', alignItems: 'stretch' }}>
+      <div className="analytics-grid" style={{ marginTop: '0', marginBottom: '28px', flex: '0 0 auto', alignItems: 'stretch' }}>
         <section className="panel chart-panel" style={{ height: 'auto', justifyContent: 'flex-start' }}>
           <div className="panel-header">
             <div>
@@ -4551,7 +4551,12 @@ function Analytics() {
       </div>
 
       {/* 3. Main Aggregations Section (Placed below vocabulary memory section) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '16px', alignItems: 'stretch' }}>
+      <div className="section-title-block" style={{ marginTop: '8px', marginBottom: '12px' }}>
+        <p className="eyebrow" style={{ margin: '0 0 2px 0' }}>TỔNG HỢP KẾT QUẢ THỰC HÀNH</p>
+        <h2 style={{ fontSize: '18px', fontWeight: 750, margin: 0, color: 'var(--text-primary)' }}>Phân tích bài làm theo trình độ & chủ đề</h2>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '24px', alignItems: 'stretch' }}>
         {/* Aggregation by Mode & CEFR Level */}
         <section className="panel" style={{ padding: '18px 20px', borderRadius: '14px', minHeight: '260px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
           <div className="panel-header" style={{ marginBottom: '14px' }}>
