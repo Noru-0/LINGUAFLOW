@@ -10,6 +10,9 @@ interface ChatMessage {
   options?: { label: string; action: string }[]
 }
 
+const MAX_DAILY_PROMPTS = 20
+const STORAGE_KEY = 'totoro_daily_usage_v1'
+
 const TOTORO_GREETINGS = [
   '🍃 Totoro chào bạn! Hôm nay bạn sẵn sàng học thêm từ mới chưa?',
   '⭐ Chào bạn! Cùng LinguaFlow tích lũy XP hôm nay nhé!',
@@ -19,42 +22,32 @@ const TOTORO_GREETINGS = [
   '⚡ Cố lên nhé! Totoro tin bạn làm được!',
 ]
 
-const STUDY_TIPS = [
-  '💡 **Phương pháp Spaced Repetition**: Hãy ôn lại từ mới sau 1 ngày, 3 ngày, 7 ngày và 30 ngày để ghi nhớ dài hạn!',
-  '🧠 **Học theo Collocation**: Đừng học từ đơn lẻ! Học cả cụm từ như "make a decision" hay "take responsibility" sẽ giúp bạn nói tự nhiên hơn.',
-  '🎧 **Phương pháp Shadowing**: Nghe và nói nhại lại ngay lập tức theo người bản xứ để luyện ngữ điệu và phát âm chuẩn.',
-  '📝 **Đặt câu cá nhân hóa**: Đặt câu chứa từ mới liên quan trực tiếp đến cuộc sống của bạn sẽ giúp bộ não ghi nhớ gấp 3 lần!',
-  '⏱️ **Kỹ thuật Pomodoro**: Học tập trung 25 phút, nghỉ 5 phút. Totoro sẽ nhắc bạn nghỉ ngơi đúng lúc!',
-]
+function getLocalUsage(): { date: string; count: number } {
+  if (typeof window === 'undefined') return { date: new Date().toISOString().slice(0, 10), count: 0 }
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed.date === today) {
+        return parsed
+      }
+    }
+    const fresh = { date: today, count: 0 }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(fresh))
+    return fresh
+  } catch {
+    return { date: new Date().toISOString().slice(0, 10), count: 0 }
+  }
+}
 
-const MOTIVATION_QUOTES = [
-  '🌟 "Hành trình ngàn dặm bắt đầu từ một bước chân." - Lão Tử',
-  '🚀 Bạn không cần phải giỏi mới bắt đầu, nhưng bạn phải bắt đầu để trở nên giỏi!',
-  '🎋 Sự kiên trì mỗi ngày 15 phút sẽ đánh bại 3 tiếng học nhồi nhét cuối tuần!',
-  '💖 Đừng so sánh bản thân với người khác. Hãy giỏi hơn chính mình của ngày hôm qua!',
-  '🏆 Mục tiêu IELTS/C1 không còn xa nếu bạn duy trì streak học mỗi ngày!',
-]
-
-const VOCAB_QUIZZES = [
-  {
-    question: 'Từ "Resilient" nghĩa là gì?',
-    options: ['A) Dễ vỡ', 'B) Kiên cường, phục hồi nhanh', 'C) Lười biếng', 'D) Cẩn thận'],
-    correctIndex: 1,
-    explanation: '✨ Chính xác! "Resilient" /rɪˈzɪl.jənt/ là tính từ chỉ khả năng phục hồi nhanh chóng sau khó khăn, kiên cường!',
-  },
-  {
-    question: 'Cụm từ "Out of the blue" có nghĩa là gì?',
-    options: ['A) Màu xanh biển', 'B) Bất ngờ, không báo trước', 'C) Buồn rầu', 'D) Rất xa xôi'],
-    correctIndex: 1,
-    explanation: '✨ Tuyệt vời! "Out of the blue" = completely unexpected (hoàn toàn bất ngờ, từ trên trời rơi xuống)!',
-  },
-  {
-    question: 'Từ nào đồng nghĩa với "Crucial"?',
-    options: ['A) Minor', 'B) Vital / Essential', 'C) Optional', 'D) Easy'],
-    correctIndex: 1,
-    explanation: '✨ Rất chuẩn! "Crucial" /ˈkruː.ʃəl/ nghĩa là cực kỳ quan trọng, thiết yếu (= Vital, Essential).',
-  },
-]
+function saveLocalUsage(count: number) {
+  if (typeof window === 'undefined') return
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: today, count }))
+  } catch {}
+}
 
 export function TotoroMascot() {
   const [isOpen, setIsOpen] = useState(false)
@@ -68,17 +61,25 @@ export function TotoroMascot() {
   const [breathPhase, setBreathPhase] = useState<'in' | 'hold' | 'out'>('in')
   const [breathTimer, setBreathTimer] = useState(4)
 
+  const [dailyUsage, setDailyUsage] = useState<number>(0)
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       sender: 'totoro',
-      text: '🍃 Chào bạn! Tôi là Totoro, bạn đồng hành học tập của bạn tại LinguaFlow! Bạn cần tôi giúp gì hôm nay?',
+      text: '🍃 Chào bạn! Tôi là Totoro AI (tích hợp DeepSeek AI). Hãy hỏi tôi bất cứ điều gì về từ vựng, ngữ pháp, mẹo học hoặc tâm sự nhé! (Giới hạn: 20 câu/ngày)',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ])
 
   const chatEndRef = useRef<HTMLDivElement>(null)
   const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Initialize usage counter from localStorage
+  useEffect(() => {
+    const usage = getLocalUsage()
+    setDailyUsage(usage.count)
+  }, [])
 
   // Web Audio Synth for cute popup sound
   const playCuteSound = (type: 'pop' | 'chime' | 'boing' = 'pop') => {
@@ -186,26 +187,44 @@ export function TotoroMascot() {
   }
 
   const addTotoroReply = (text: string, options?: { label: string; action: string }[]) => {
-    setIsTyping(true)
+    setIsTyping(false)
     playCuteSound('chime')
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        sender: 'totoro',
+        text,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        options,
+      },
+    ])
+  }
 
-    setTimeout(() => {
-      setIsTyping(false)
+  const handleUserSendMessage = async (userText: string) => {
+    if (!userText.trim() || isTyping) return
+
+    const currentLocal = getLocalUsage()
+    if (currentLocal.count >= MAX_DAILY_PROMPTS) {
+      playCuteSound('boing')
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
-          sender: 'totoro',
-          text,
+          sender: 'user',
+          text: userText,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          options,
+        },
+        {
+          id: (Date.now() + 1).toString(),
+          sender: 'totoro',
+          text: `🍃 Bạn đã dùng hết ${MAX_DAILY_PROMPTS}/${MAX_DAILY_PROMPTS} câu hỏi AI của ngày hôm nay rồi. Hãy tiếp tục ôn tập từ vựng trên LinguaFlow và quay lại trò chuyện với Totoro vào ngày mai nhé! 💖`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ])
-    }, 600)
-  }
-
-  const handleUserSendMessage = (userText: string) => {
-    if (!userText.trim()) return
+      setInputValue('')
+      return
+    }
 
     const formattedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     const userMsg: ChatMessage = {
@@ -215,90 +234,64 @@ export function TotoroMascot() {
       timestamp: formattedTime,
     }
 
-    setMessages((prev) => [...prev, userMsg])
+    const nextMessages = [...messages, userMsg]
+    setMessages(nextMessages)
     setInputValue('')
+    setIsTyping(true)
     playCuteSound('pop')
 
-    // Bot response logic
-    const lower = userText.toLowerCase()
+    try {
+      const res = await fetch('/api/totoro/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userText,
+          history: nextMessages.slice(-6).map((m) => ({ sender: m.sender, text: m.text })),
+        }),
+      })
 
-    if (lower.includes('mẹo') || lower.includes('học') || lower.includes('nhớ') || lower.includes('phương pháp')) {
-      const tip = STUDY_TIPS[Math.floor(Math.random() * STUDY_TIPS.length)]
-      addTotoroReply(`🍃 Totoro dành riêng cho bạn mẹo này:\n\n${tip}`)
-    } else if (lower.includes('động lực') || lower.includes('nản') || lower.includes('mệt') || lower.includes('cố lên')) {
-      const quote = MOTIVATION_QUOTES[Math.floor(Math.random() * MOTIVATION_QUOTES.length)]
-      addTotoroReply(`💖 Đừng nản lòng nhé! Totoro gửi bạn chút năng lượng tích cực:\n\n${quote}`)
-    } else if (lower.includes('quiz') || lower.includes('đố') || lower.includes('hỏi') || lower.includes('từ vựng')) {
-      const quiz = VOCAB_QUIZZES[Math.floor(Math.random() * VOCAB_QUIZZES.length)]
-      addTotoroReply(`🎲 **Thử thách từ vựng nhanh từ Totoro:**\n\n${quiz.question}\n\n${quiz.options.join('\n')}`, [
-        { label: quiz.options[0], action: `quiz_ans_0_${quiz.correctIndex}` },
-        { label: quiz.options[1], action: `quiz_ans_1_${quiz.correctIndex}` },
-        { label: quiz.options[2], action: `quiz_ans_2_${quiz.correctIndex}` },
-        { label: quiz.options[3], action: `quiz_ans_3_${quiz.correctIndex}` },
-      ])
-    } else if (lower.includes('chào') || lower.includes('hi') || lower.includes('hello') || lower.includes('totoro')) {
-      addTotoroReply('🍃 Vùuuu! Totoro chào bạn nha! Hôm nay việc học tập của bạn tiến triển thế nào rồi?')
-    } else if (lower.includes('ielts') || lower.includes('speaking') || lower.includes('writing') || lower.includes('reading')) {
-      addTotoroReply('📚 Để chinh phục IELTS:\n1. **Reading**: Luyện Skimming & Scanning.\n2. **Listening**: Tập chép chính tả (Dictation).\n3. **Speaking**: Nói tự tin, chú trọng độ lưu khoát.\n4. **Writing**: Dùng cấu trúc câu đa dạng & từ nối tự nhiên.\n\nTotoro luôn ở bên hỗ trợ bạn!')
-    } else if (lower.includes('thư giãn') || lower.includes('thở') || lower.includes('stress')) {
-      setBreathingMode(true)
-      addTotoroReply('🌿 Hãy cùng Totoro thả lỏng vai, nhắm mắt nhẹ và hít thở sâu theo nhịp đồng hồ phía trên nhé!')
-    } else {
-      addTotoroReply(`🐾 Totoro đã lắng nghe bạn! "${userText}"\n\nHãy giữ vững tinh thần học tập nhé! Bạn có muốn thử 1 câu đố từ vựng hoặc xin mẹo học tập không?`, [
-        { label: '💡 Cho tôi mẹo học', action: 'action_tip' },
-        { label: '🎲 Đố tôi 1 từ', action: 'action_quiz' },
-        { label: '⚡ Nạp động lực', action: 'action_quote' },
-      ])
+      const data = await res.json()
+
+      if (res.ok && data.reply) {
+        const newCount = data.usageCount ?? (currentLocal.count + 1)
+        setDailyUsage(newCount)
+        saveLocalUsage(newCount)
+        addTotoroReply(data.reply)
+      } else if (data.error === 'limit_exceeded') {
+        const newCount = MAX_DAILY_PROMPTS
+        setDailyUsage(newCount)
+        saveLocalUsage(newCount)
+        addTotoroReply(data.reply || `🍃 Bạn đã đạt giới hạn ${MAX_DAILY_PROMPTS} câu hỏi hôm nay. Hãy quay lại vào ngày mai nhé!`)
+      } else {
+        addTotoroReply(data.reply || '🍃 Totoro đang suy nghĩ thêm một chút, bạn thử gửi lại câu hỏi nhé! 🐾')
+      }
+    } catch {
+      setIsTyping(false)
+      addTotoroReply('🍃 Ôi, kết nối AI gặp chút gián đoạn. Bạn kiểm tra lại đường truyền và hỏi lại Totoro nhé! ⭐')
     }
   }
 
   const handleOptionClick = (action: string, label: string) => {
-    // Render user choice
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        sender: 'user',
-        text: label,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-    ])
-
-    if (action === 'action_tip') {
-      const tip = STUDY_TIPS[Math.floor(Math.random() * STUDY_TIPS.length)]
-      addTotoroReply(`💡 Mẹo học hay:\n\n${tip}`)
-    } else if (action === 'action_quote') {
-      const quote = MOTIVATION_QUOTES[Math.floor(Math.random() * MOTIVATION_QUOTES.length)]
-      addTotoroReply(`⚡ Động lực cho bạn:\n\n${quote}`)
-    } else if (action === 'action_quiz') {
-      const quiz = VOCAB_QUIZZES[Math.floor(Math.random() * VOCAB_QUIZZES.length)]
-      addTotoroReply(`🎲 **Thử thách từ vựng:**\n\n${quiz.question}`, [
-        { label: quiz.options[0], action: `quiz_ans_0_${quiz.correctIndex}` },
-        { label: quiz.options[1], action: `quiz_ans_1_${quiz.correctIndex}` },
-        { label: quiz.options[2], action: `quiz_ans_2_${quiz.correctIndex}` },
-        { label: quiz.options[3], action: `quiz_ans_3_${quiz.correctIndex}` },
-      ])
-    } else if (action.startsWith('quiz_ans_')) {
-      const parts = action.split('_')
-      const chosen = parseInt(parts[2], 10)
-      const correct = parseInt(parts[3], 10)
-
-      if (chosen === correct) {
-        playCuteSound('chime')
-        addTotoroReply('🎉 **CHÍNH XÁC 100%!** Bạn thật xuất sắc! +10 XP tinh thần từ Totoro! 🌟')
-      } else {
-        playCuteSound('boing')
-        addTotoroReply('😅 Chưa chính xác rồi! Nhưng không sao cả, thử lại ở câu sau nhé! Cố lên bạn ơi! 💪')
-      }
+    if (action === 'action_breathing') {
+      setBreathingMode(true)
+      addTotoroReply('🌿 Hãy cùng Totoro thả lỏng vai, nhắm mắt nhẹ và hít thở sâu theo nhịp đồng hồ phía trên nhé!')
+      return
     }
+
+    handleUserSendMessage(label)
   }
+
+  const remainingPrompts = Math.max(0, MAX_DAILY_PROMPTS - dailyUsage)
+  const isLimitReached = dailyUsage >= MAX_DAILY_PROMPTS
 
   return (
     <div className="fixed bottom-6 right-6 z-[99990] flex flex-col items-end font-sans select-none">
       {/* Speech Bubble when chat is closed */}
       {!isOpen && showSpeech && speechBubble && (
-        <div className="totoro-speech-bubble mb-3 max-w-[240px] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 p-3 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold leading-relaxed animate-bounce-short relative cursor-pointer"
-             onClick={handleToggleChat}>
+        <div
+          className="totoro-speech-bubble mb-3 max-w-[240px] bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 p-3 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold leading-relaxed animate-bounce-short relative cursor-pointer"
+          onClick={handleToggleChat}
+        >
           {speechBubble}
           <div className="absolute -bottom-2 right-6 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-white dark:border-t-slate-800" />
         </div>
@@ -309,7 +302,7 @@ export function TotoroMascot() {
         <button
           onClick={handleToggleChat}
           className="totoro-float-btn group relative flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 via-teal-600 to-slate-700 text-white shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 border-2 border-white/40 dark:border-slate-700/60"
-          title="Nói chuyện với Totoro 🍃"
+          title="Nói chuyện với Totoro AI 🍃"
         >
           {/* Ambient Glow */}
           <div className="absolute inset-0 rounded-full bg-emerald-400/30 blur-md group-hover:bg-emerald-400/50 transition-all" />
@@ -332,8 +325,13 @@ export function TotoroMascot() {
             <ellipse cx="50" cy="66" rx="24" ry="22" fill="#f8fafc" />
 
             {/* Belly Chevron Leaf Patterns ^ ^ ^ */}
-            <path d="M 42 54 L 45 51 L 48 54 M 52 54 L 55 51 L 58 54 M 47 61 L 50 58 L 53 61 M 38 63 L 41 60 L 44 63 M 56 63 L 59 60 L 62 63"
-                  stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M 42 54 L 45 51 L 48 54 M 52 54 L 55 51 L 58 54 M 47 61 L 50 58 L 53 61 M 38 63 L 41 60 L 44 63 M 56 63 L 59 60 L 62 63"
+              stroke="#475569"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
 
             {/* Eyes */}
             <circle cx="38" cy="42" r="5" fill="#ffffff" />
@@ -365,27 +363,27 @@ export function TotoroMascot() {
       {isOpen && (
         <div className="totoro-chat-modal w-[360px] sm:w-[390px] h-[520px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-3xl shadow-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col overflow-hidden animate-slide-up relative">
           {/* Header */}
-          <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-slate-700 text-white p-4 flex items-center justify-between shadow-md">
-            <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 rounded-full bg-white/20 p-1 flex items-center justify-center backdrop-blur-sm border border-white/30">
-                <span className="text-xl">🍃</span>
+          <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-slate-700 text-white p-3.5 flex items-center justify-between shadow-md">
+            <div className="flex items-center gap-2.5">
+              <div className="relative w-9 h-9 rounded-full bg-white/20 p-1 flex items-center justify-center backdrop-blur-sm border border-white/30">
+                <span className="text-lg">🍃</span>
               </div>
               <div>
                 <h3 className="font-bold text-sm leading-tight flex items-center gap-1.5">
-                  Totoro 🐾
-                  <span className="text-[10px] bg-emerald-400/30 text-emerald-100 px-1.5 py-0.5 rounded-full border border-emerald-300/30">
-                    LinguaCompanion
+                  Totoro AI 🐾
+                  <span className="text-[10px] bg-emerald-400/30 text-emerald-100 px-1.5 py-0.5 rounded-full border border-emerald-300/30 font-semibold">
+                    DeepSeek AI
                   </span>
                 </h3>
-                <p className="text-[11px] text-emerald-100/90 flex items-center gap-1">
+                <p className="text-[10.5px] text-emerald-100/90 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-ping" />
-                  Sẵn sàng đồng hành cùng bạn
+                  Hôm nay: <strong className="text-white">{dailyUsage}/{MAX_DAILY_PROMPTS}</strong> câu (còn {remainingPrompts})
                 </p>
               </div>
             </div>
 
             {/* Header Controls */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => setSoundEnabled(!soundEnabled)}
                 className="p-1.5 rounded-lg hover:bg-white/20 text-white/90 transition-colors text-xs"
@@ -405,7 +403,7 @@ export function TotoroMascot() {
 
           {/* Breathing Mode Banner if active */}
           {breathingMode && (
-            <div className="bg-emerald-50 dark:bg-emerald-950/60 p-3 border-b border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-xs">
+            <div className="bg-emerald-50 dark:bg-emerald-950/60 p-2.5 border-b border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <span className="animate-spin text-base">🌿</span>
                 <div>
@@ -427,14 +425,11 @@ export function TotoroMascot() {
           )}
 
           {/* Messages Stream */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-3.5 custom-scrollbar text-xs">
+          <div className="flex-1 p-3.5 overflow-y-auto space-y-3 custom-scrollbar text-xs">
             {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
-              >
+              <div key={msg.id} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
                 <div
-                  className={`max-w-[85%] p-3 rounded-2xl leading-relaxed whitespace-pre-wrap ${
+                  className={`max-w-[88%] p-3 rounded-2xl leading-relaxed whitespace-pre-wrap ${
                     msg.sender === 'user'
                       ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-br-none shadow-md'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200/60 dark:border-slate-700/60 rounded-bl-none shadow-sm'
@@ -468,37 +463,34 @@ export function TotoroMascot() {
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" />
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.2s]" />
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:0.4s]" />
-                <span className="text-[10px] ml-1 text-slate-400">Totoro đang nghĩ...</span>
+                <span className="text-[11px] ml-1 text-emerald-600 dark:text-emerald-400 font-medium">Totoro DeepSeek AI đang trả lời...</span>
               </div>
             )}
             <div ref={chatEndRef} />
           </div>
 
           {/* Quick Action Chips */}
-          <div className="px-3 py-2 bg-slate-50 dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 flex gap-1.5 overflow-x-auto no-scrollbar">
+          <div className="px-3 py-1.5 bg-slate-50 dark:bg-slate-900/80 border-t border-slate-100 dark:border-slate-800 flex gap-1.5 overflow-x-auto no-scrollbar">
             <button
-              onClick={() => handleOptionClick('action_tip', '💡 Mẹo học hay')}
+              onClick={() => handleOptionClick('action_tip', 'Cho tôi 1 mẹo ghi nhớ từ vựng tiếng Anh hay và thực tế')}
               className="whitespace-nowrap text-[11px] bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-full transition-all"
             >
               💡 Mẹo học từ
             </button>
             <button
-              onClick={() => handleOptionClick('action_quiz', '🎲 Thử thách từ vựng')}
+              onClick={() => handleOptionClick('action_quiz', 'Đố tôi 1 câu hỏi từ vựng tiếng Anh thú vị')}
               className="whitespace-nowrap text-[11px] bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-full transition-all"
             >
-              🎲 Quiz 10s
+              🎲 Đố từ vựng
             </button>
             <button
-              onClick={() => handleOptionClick('action_quote', '⚡ Tiếp động lực')}
+              onClick={() => handleOptionClick('action_quote', 'Gửi tôi một câu danh ngôn truyền động lực học tập')}
               className="whitespace-nowrap text-[11px] bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-full transition-all"
             >
               ⚡ Động lực
             </button>
             <button
-              onClick={() => {
-                setBreathingMode(true)
-                addTotoroReply('🌿 Thở sâu 1 phút cùng Totoro giúp giảm căng thẳng và tăng 30% khả năng tập trung!')
-              }}
+              onClick={() => handleOptionClick('action_breathing', 'Thư giãn')}
               className="whitespace-nowrap text-[11px] bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-full transition-all"
             >
               🌿 Thư giãn
@@ -516,13 +508,18 @@ export function TotoroMascot() {
             <input
               type="text"
               value={inputValue}
+              disabled={isLimitReached}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Hỏi Totoro bất cứ điều gì (mẹo học, từ vựng, tâm sự)..."
-              className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs px-3.5 py-2.5 rounded-xl border border-transparent focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900 outline-none transition-all placeholder:text-slate-400"
+              placeholder={
+                isLimitReached
+                  ? 'Đã hết 20 câu hỏi hôm nay. Hẹn gặp lại ngày mai!'
+                  : 'Hỏi Totoro AI (từ vựng, ngữ pháp, mẹo học, IELTS)...'
+              }
+              className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs px-3.5 py-2.5 rounded-xl border border-transparent focus:border-emerald-500 focus:bg-white dark:focus:bg-slate-900 outline-none transition-all placeholder:text-slate-400 disabled:opacity-60 disabled:cursor-not-allowed"
             />
             <button
               type="submit"
-              disabled={!inputValue.trim()}
+              disabled={!inputValue.trim() || isTyping || isLimitReached}
               className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold text-xs disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 active:scale-95 transition-all shadow-md"
             >
               ➔

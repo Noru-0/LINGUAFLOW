@@ -173,7 +173,12 @@ export function evaluateFillInBlank(input: FillBlankEvaluationInput): FillBlankE
   const normalizedUser = input.userInput.trim().toLowerCase()
   const normalizedTarget = input.targetWord.trim().toLowerCase()
 
-  if (!normalizedUser || normalizedUser !== normalizedTarget) {
+  const isMatch =
+    normalizedUser === normalizedTarget ||
+    (normalizedUser.length > 0 &&
+      normalizedUser.replace(/[^a-z0-9]/gi, '') === normalizedTarget.replace(/[^a-z0-9]/gi, ''))
+
+  if (!normalizedUser || !isMatch) {
     return { isCorrect: false, rating: 1 }
   }
 

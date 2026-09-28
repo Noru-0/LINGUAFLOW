@@ -3,6 +3,10 @@ import { enrichVocabulary } from '@/services/vocabulary-pipeline';
 
 export const dynamic = 'force-dynamic';
 
+// Fast in-memory cache for word enrichment (TTL: 1 hour, max 500 words)
+const enrichCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL_MS = 60 * 60 * 1000;
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -13,8 +17,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Missing word parameter' }, { status: 400 });
     }
 
-    const cleanWord = word.trim();
-    const cleanType = type.trim();
+    const cleanWord = word.trim().toLowerCase();
+    const cleanType = type.trim().toLowerCase();
+    const cacheKey = `${cleanWord}_${cleanType}`;
+
+    // Return from cache if fresh
+    const cached = enrichCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return NextResponse.json(cached.data);
+    }
 
     // Pass word and requested partOfSpeech to vocabulary pipeline
     const enriched = await enrichVocabulary(cleanWord, cleanType);
@@ -56,7 +67,7 @@ export async function GET(req: Request) {
 
     const effectivePos = cleanType || enriched.partOfSpeech || 'noun';
 
-    return NextResponse.json({
+    const result = {
       term: enriched.term,
       partOfSpeech: effectivePos,
       phonetic: enriched.ipaUk || enriched.ipaUs || '',
@@ -68,7 +79,16 @@ export async function GET(req: Request) {
       audioUrl: enriched.audioUkUrl || enriched.audioUsUrl,
       imageUrl: enriched.imageUrl,
       definitions: defs,
-    });
+    };
+
+    // Store in cache
+    if (enrichCache.size > 500) {
+      const firstKey = enrichCache.keys().next().value;
+      if (firstKey) enrichCache.delete(firstKey);
+    }
+    enrichCache.set(cacheKey, { data: result, timestamp: Date.now() });
+
+    return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -5,24 +5,40 @@ import { fetchGeminiEnrichment } from './gemini-service';
 import { fetchFullDictionaryData } from './dictionary-api-service';
 import { VocabularyMetadata } from '../types/vocabulary';
 
+// In-memory cache for fast lookup (TTL: 2 hours, max 1000 items)
+const pipelineCache = new Map<string, { data: VocabularyMetadata; timestamp: number }>();
+const CACHE_TTL_MS = 2 * 60 * 60 * 1000;
+
 export async function enrichVocabulary(word: string, targetPos?: string): Promise<VocabularyMetadata> {
   const cleanInputWord = word.trim();
+  const cacheKey = `${cleanInputWord.toLowerCase()}_${(targetPos || '').toLowerCase()}`;
 
-  // Step 1: Try Gemini enrichment first to check for typos (e.g. "relentness" -> "relentless")
-  let geminiData = await fetchGeminiEnrichment(cleanInputWord, targetPos);
-  const effectiveWord = geminiData?.correctedWord || cleanInputWord;
-
-  // Step 2: Fetch comprehensive multi-source dictionary data (FreeDict + Google Oxford + Datamuse + Google Bilingual)
-  const fullDict = await fetchFullDictionaryData(effectiveWord, targetPos);
-
-  // Step 3: Scrape Cambridge Dictionary for effective word
-  let cambridgeData: Partial<VocabularyMetadata> | null = null;
-  try {
-    cambridgeData = await scrapeCambridge(effectiveWord);
-  } catch (err) {
-    console.warn(`Cambridge scraper failed for "${effectiveWord}":`, err);
+  const cached = pipelineCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
   }
 
+  // Run Gemini, Full Dictionary API (FreeDict + Google Oxford + Datamuse + Google Bilingual), Cambridge scraper, and Unsplash in parallel!
+  const [geminiResult, fullDictResult, cambridgeResult] = await Promise.allSettled([
+    fetchGeminiEnrichment(cleanInputWord, targetPos),
+    fetchFullDictionaryData(cleanInputWord, targetPos),
+    scrapeCambridge(cleanInputWord).catch(() => null),
+  ]);
+
+  let geminiData = geminiResult.status === 'fulfilled' ? geminiResult.value : null;
+  const fullDict = fullDictResult.status === 'fulfilled' && fullDictResult.value ? fullDictResult.value : {
+    phonetic: '',
+    partOfSpeech: '',
+    englishDefinition: '',
+    allEnglishDefinitions: [],
+    example: '',
+    allExamples: [],
+    vietnameseMeaning: '',
+    audioUrl: null,
+  };
+  const cambridgeData = cambridgeResult.status === 'fulfilled' ? cambridgeResult.value : null;
+
+  const effectiveWord = geminiData?.correctedWord || cleanInputWord;
   const definitions = cambridgeData?.definitions || [];
   const primaryDef = definitions[0];
 
@@ -40,12 +56,14 @@ export async function enrichVocabulary(word: string, targetPos?: string): Promis
   const missingPhonetic = !cambridgeData?.ipaUk && !cambridgeData?.ipaUs;
   const missingCefr = !cambridgeData?.cefrLevel && !primaryDef?.cefrLevel;
 
-  // If Gemini wasn't run earlier or needs re-running for effective word:
+  // If Gemini wasn't available or needs another call
   if (!geminiData && (!cambridgeData || missingVietnamese || missingExample || missingEnglish || missingPhonetic || missingCefr)) {
-    geminiData = await fetchGeminiEnrichment(effectiveWord, targetPos || cambridgeData?.partOfSpeech);
+    try {
+      geminiData = await fetchGeminiEnrichment(effectiveWord, targetPos || cambridgeData?.partOfSpeech);
+    } catch {}
   }
 
-  // Step 4: Determine best Part of Speech
+  // Determine best Part of Speech
   const partOfSpeech = targetPos || (cambridgeData?.partOfSpeech && cambridgeData.partOfSpeech !== 'noun'
     ? cambridgeData.partOfSpeech
     : (geminiData?.partOfSpeech || fullDict.partOfSpeech || cambridgeData?.partOfSpeech || 'noun'));
@@ -124,21 +142,24 @@ export async function enrichVocabulary(word: string, targetPos?: string): Promis
     });
   }
 
-  // Step 5: Audio fallback
+  // Audio fallback
   let audioUk = cambridgeData?.audioUkUrl || fullDict.audioUrl || null;
   let audioUs = cambridgeData?.audioUsUrl || fullDict.audioUrl || null;
 
-  if (!audioUk && !audioUs) {
-    const fallback = await getFallbackAudio(effectiveWord);
-    audioUk = fallback;
-    audioUs = fallback;
+  // Run image and fallback audio concurrently in the background if needed
+  const [audioFallbackResult, imageResult] = await Promise.allSettled([
+    (!audioUk && !audioUs) ? getFallbackAudio(effectiveWord) : Promise.resolve(null),
+    fetchContextualImage(effectiveWord, bestEnglish || effectiveWord),
+  ]);
+
+  if (!audioUk && !audioUs && audioFallbackResult.status === 'fulfilled' && audioFallbackResult.value) {
+    audioUk = audioFallbackResult.value;
+    audioUs = audioFallbackResult.value;
   }
 
-  // Step 6: Image fallback from Unsplash
-  const primaryMeaning = bestEnglish || effectiveWord;
-  const imageData = await fetchContextualImage(effectiveWord, primaryMeaning);
+  const imageData = imageResult.status === 'fulfilled' ? imageResult.value : null;
 
-  return {
+  const resultData: VocabularyMetadata = {
     term: cambridgeData?.term || effectiveWord,
     partOfSpeech,
     ipaUk,
@@ -150,4 +171,12 @@ export async function enrichVocabulary(word: string, targetPos?: string): Promis
     imageUrl: imageData?.imageUrl || null,
     imagePhotographer: imageData?.photographer || null,
   };
+
+  if (pipelineCache.size >= 1000) {
+    const oldestKey = pipelineCache.keys().next().value;
+    if (oldestKey) pipelineCache.delete(oldestKey);
+  }
+  pipelineCache.set(cacheKey, { data: resultData, timestamp: Date.now() });
+
+  return resultData;
 }

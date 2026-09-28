@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import {
@@ -55,6 +55,7 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { AuthModal } from '@/components/auth/AuthModal'
 import { TotoroMascot } from '@/components/ui/TotoroMascot'
 import { evaluateFillInBlank, buildHintPattern, firstLetterOf } from '@/lib/srs/dsr'
+import { playSuccessChime, playErrorChime, triggerConfetti, triggerBatchCompleteCelebration } from '@/lib/effects/celebration'
 import { CollocationMatcher } from '@/components/collocation/CollocationMatcher'
 import { SpeakingPractice } from '@/components/speaking/SpeakingPractice'
 
@@ -338,17 +339,26 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
                         className={`level-${v === 0 ? 0 : Math.min(4, v)}${i === activityData.length - 1 ? ' is-today' : ''}`}
                         onMouseEnter={(e) => {
                           const r = e.currentTarget.getBoundingClientRect()
-                          setHeatTooltip({
-                            x: r.left + r.width / 2,
-                            y: r.top,
-                            text: `${v} từ vựng đã học ngày ${heatmapDateLabel(i)}`,
-                          })
+                          const parent = e.currentTarget.closest('.heatmap-scroll')?.getBoundingClientRect()
+                          if (parent) {
+                            setHeatTooltip({
+                              x: r.left - parent.left + r.width / 2,
+                              y: r.top - parent.top,
+                              text: `${v} từ vựng đã học ngày ${heatmapDateLabel(i)}`,
+                            })
+                          }
                         }}
                         onMouseLeave={() => setHeatTooltip(null)}
                       />
                     ))}
                   </div>
                 </div>
+
+                {heatTooltip && (
+                  <div className="heatmap-tooltip" style={{ left: heatTooltip.x, top: heatTooltip.y }}>
+                    {heatTooltip.text}
+                  </div>
+                )}
               </div>
             </div>
             <div className="heatmap-legend">
@@ -418,12 +428,6 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
           </div>
         </section>
       </div>
-
-      {heatTooltip && (
-        <div className="heatmap-tooltip" style={{ left: heatTooltip.x, top: heatTooltip.y }}>
-          {heatTooltip.text}
-        </div>
-      )}
     </div>
   )
 }
@@ -452,12 +456,11 @@ function Review({ setView }: { setView: (view: View) => void }) {
 
   // State for Fill-in-the-Blank exercise
   const [fillInput, setFillInput] = useState('')
-  const [hintsUsedCount, setHintsUsedCount] = useState(0)
-  const [showPattern, setShowPattern] = useState(false)
-  const [showPhonetic, setShowPhonetic] = useState(false)
   const [fillResult, setFillResult] = useState<{ isCorrect: boolean; rating: number; dsr?: any } | null>(null)
   const [cardStartTime, setCardStartTime] = useState<number>(Date.now())
   const fillInputRef = useRef<HTMLInputElement | null>(null)
+  const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSubmitTimeRef = useRef<number>(0)
 
   const fetchQueue = (all = false, resetSavedSession = false) => {
     setLoading(true)
@@ -557,14 +560,20 @@ function Review({ setView }: { setView: (view: View) => void }) {
   }, [currentIndex, activeBatchQueue])
 
   const resetCardState = () => {
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current)
+      autoAdvanceTimerRef.current = null
+    }
     setRevealed(false)
     setImageError(false)
     setFillInput('')
-    setHintsUsedCount(0)
-    setShowPattern(false)
-    setShowPhonetic(false)
     setFillResult(null)
     setCardStartTime(Date.now())
+  }
+
+  const handleAdvanceFromFill = () => {
+    if (Date.now() - lastSubmitTimeRef.current < 250) return
+    advanceToNextCard()
   }
 
   useEffect(() => {
@@ -579,6 +588,43 @@ function Review({ setView }: { setView: (view: View) => void }) {
   const totalBatchUniqueCount = currentBatchInitial.length
   const currentCard = activeBatchQueue[currentIndex]
   const isBatchCompleted = totalBatchUniqueCount > 0 && batchCompletedCardIds.size >= totalBatchUniqueCount
+
+  useEffect(() => {
+    if (isBatchCompleted && fullQueue.length > 0) {
+      triggerBatchCompleteCelebration()
+      playSuccessChime()
+    }
+  }, [isBatchCompleted, fullQueue.length])
+
+  // Generate faint random letters for ghost hint inside blank (Top level hook call)
+  const dimmedWordChars = useMemo(() => {
+    const term = (currentCard?.term || '').trim()
+    if (!term) return []
+    const chars = term.split('')
+    const len = chars.length
+    const countToReveal = len <= 3 ? 1 : len <= 6 ? 2 : Math.min(4, Math.floor(len * 0.35))
+
+    let seed = 0
+    for (let i = 0; i < len; i++) seed = (seed * 31 + term.charCodeAt(i)) % 1000003
+
+    const revealed = new Set<number>()
+    revealed.add(0)
+
+    let attempts = 0
+    while (revealed.size < countToReveal && attempts < 30) {
+      seed = (seed * 9301 + 49297) % 233280
+      const idx = seed % len
+      if (chars[idx] !== ' ' && chars[idx] !== '-') {
+        revealed.add(idx)
+      }
+      attempts++
+    }
+
+    return chars.map((char: string, i: number) => ({
+      char,
+      isRevealed: char === ' ' || char === '-' || revealed.has(i),
+    }))
+  }, [currentCard?.term])
 
   // Calculate effective mode for current card
   const activeMode: 'flashcard' | 'fill_in_blank' =
@@ -760,6 +806,12 @@ function Review({ setView }: { setView: (view: View) => void }) {
   const handleGrade = (rating: number) => {
     if (!currentCard) return
 
+    if (rating >= 3) {
+      playSuccessChime()
+    } else {
+      playErrorChime()
+    }
+
     const cardId = currentCard.cardId
     const isFirstRatingInSession = !gradedCardIds.has(cardId)
 
@@ -788,14 +840,16 @@ function Review({ setView }: { setView: (view: View) => void }) {
     }
   }
 
-  const handleFillSubmit = (gaveUp = false) => {
+  const handleFillSubmit = (gaveUp = false, overrideInput?: string) => {
     if (!currentCard || fillResult) return
 
+    lastSubmitTimeRef.current = Date.now()
+    const actualInput = overrideInput !== undefined ? overrideInput : fillInput
     const elapsedSeconds = Math.max(1, Math.round((Date.now() - cardStartTime) / 1000))
     const evalRes = evaluateFillInBlank({
-      userInput: fillInput,
+      userInput: actualInput,
       targetWord: currentCard.term,
-      hintsUsedCount: gaveUp ? 3 : hintsUsedCount,
+      hintsUsedCount: gaveUp ? 3 : 0,
       elapsedSeconds,
       gaveUp,
     })
@@ -813,7 +867,10 @@ function Review({ setView }: { setView: (view: View) => void }) {
     })
 
     if (evalRes.isCorrect) {
+      playSuccessChime()
       playCardAudio()
+    } else {
+      playErrorChime()
     }
 
     if (isFirstRatingInSession) {
@@ -841,20 +898,6 @@ function Review({ setView }: { setView: (view: View) => void }) {
         .catch((err) => {
           console.error('Fill in blank submission background error:', err)
         })
-    }
-  }
-
-  const handleUseHintPattern = () => {
-    if (!showPattern) {
-      setShowPattern(true)
-      setHintsUsedCount((prev) => Math.max(prev, 1))
-    }
-  }
-
-  const handleUseHintPhonetic = () => {
-    if (!showPhonetic) {
-      setShowPhonetic(true)
-      setHintsUsedCount((prev) => Math.max(prev, 2))
     }
   }
 
@@ -891,33 +934,13 @@ function Review({ setView }: { setView: (view: View) => void }) {
         if (e.key === '4') handleGrade(4)
       }
     } else if (activeMode === 'fill_in_blank') {
-      // Tab key shortcut: focus input box so user can start typing
-      if (e.key === 'Tab') {
-        e.preventDefault()
-        fillInputRef.current?.focus()
-        return
-      }
-
-      // Hint shortcut: Press 'H' / 'h' 1st time for Hint 1 (Letter pattern), 2nd time for Hint 2 (IPA)
-      if ((e.key === 'h' || e.key === 'H') && (!isInput || e.altKey)) {
-        e.preventDefault()
-        if (!showPattern) {
-          handleUseHintPattern()
-        } else if (!showPhonetic) {
-          handleUseHintPhonetic()
-        }
-      } else if (e.altKey && e.key === '1') {
-        e.preventDefault()
-        handleUseHintPattern()
-      } else if (e.altKey && e.key === '2') {
-        e.preventDefault()
-        handleUseHintPhonetic()
-      } else if ((e.key === 'f' || e.key === 'F' || (e.altKey && (e.key === '3' || e.key === 'f' || e.key === 'F'))) && (!isInput || e.altKey)) {
+      if ((e.key === 'f' || e.key === 'F') && !isInput) {
         e.preventDefault()
         handleFillSubmit(true)
       } else if (e.key === 'Enter') {
         if (fillResult) {
-          advanceToNextCard()
+          e.preventDefault()
+          handleAdvanceFromFill()
         }
       }
     }
@@ -1057,21 +1080,169 @@ function Review({ setView }: { setView: (view: View) => void }) {
     )
   }
 
-  // Format masked sentence for Fill-in-the-Blank
+  const renderInlineBlankInput = () => {
+    const term = (currentCard?.term || '').trim()
+    const targetLen = term.length || 1
+
+    const handleSlotInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      let val = e.target.value
+      // If term contains no digits, filter out any browser autofilled numbers
+      if (!/[0-9]/.test(term)) {
+        val = val.replace(/[0-9]/g, '')
+      }
+      setFillInput(val)
+    }
+
+    return (
+      <span
+        className="inline-letter-blank-container"
+        onClick={() => fillInputRef.current?.focus()}
+        style={{
+          position: 'relative',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          verticalAlign: 'baseline',
+          margin: '0 6px',
+          cursor: 'text',
+          background: 'transparent',
+        }}
+      >
+        {/* Transparent input capturing typing and keyboard events */}
+        <input
+          ref={fillInputRef}
+          type="text"
+          name="vocab_blank_entry_input"
+          id="vocab_blank_entry_input"
+          autoFocus
+          maxLength={targetLen}
+          autoComplete="new-password"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck="false"
+          data-lpignore="true"
+          data-1p-ignore="true"
+          data-form-type="other"
+          disabled={submitting || fillResult !== null}
+          value={fillInput}
+          onChange={handleSlotInputChange}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              e.stopPropagation()
+              if (fillResult) {
+                handleAdvanceFromFill()
+              } else if (fillInput.trim()) {
+                handleFillSubmit(false)
+              }
+            }
+          }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            opacity: 0,
+            cursor: 'text',
+            zIndex: 10,
+          }}
+        />
+
+        {/* Letter by letter slots */}
+        {dimmedWordChars.map((slot: { char: string; isRevealed: boolean }, idx: number) => {
+          const isSpace = slot.char === ' '
+          const isHyphen = slot.char === '-'
+          if (isSpace) {
+            return (
+              <span key={idx} style={{ display: 'inline-block', width: '8px' }} />
+            )
+          }
+          if (isHyphen) {
+            return (
+              <span key={idx} style={{ display: 'inline-block', width: '12px', textAlign: 'center', fontWeight: 700 }}>
+                -
+              </span>
+            )
+          }
+
+          const hasTypedChar = idx < fillInput.length
+          const typedChar = hasTypedChar ? fillInput[idx] : ''
+          const isCurrentCursor = idx === fillInput.length && !fillResult
+          const isSuccess = fillResult?.isCorrect === true
+
+          // Display typed letter if entered; otherwise faint hint character if revealed
+          const displayChar = hasTypedChar ? typedChar : (slot.isRevealed ? slot.char : '')
+
+          let textColor = isDarkModeActive() ? '#a5b4fc' : '#4f46e5'
+          let bottomBorderColor = isDarkModeActive() ? 'rgba(99, 102, 241, 0.5)' : '#4f46e5'
+
+          if (fillResult) {
+            if (fillResult.isCorrect) {
+              textColor = '#10b981'
+              bottomBorderColor = '#10b981'
+            } else {
+              textColor = '#ef4444'
+              bottomBorderColor = '#ef4444'
+            }
+          } else if (!hasTypedChar) {
+            textColor = slot.isRevealed
+              ? (isDarkModeActive() ? 'rgba(165, 180, 252, 0.4)' : 'rgba(99, 102, 241, 0.38)')
+              : 'transparent'
+            bottomBorderColor = isCurrentCursor
+              ? (isDarkModeActive() ? '#818cf8' : '#4f46e5')
+              : (isDarkModeActive() ? 'rgba(148, 163, 184, 0.3)' : 'rgba(148, 163, 184, 0.4)')
+          }
+
+          return (
+            <span
+              key={idx}
+              className={`letter-slot ${hasTypedChar ? 'typed' : 'empty'} ${isCurrentCursor ? 'active-cursor' : ''} ${isSuccess ? 'success-pop' : ''}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '18px',
+                height: '30px',
+                borderBottom: isCurrentCursor
+                  ? `2.5px solid ${bottomBorderColor}`
+                  : hasTypedChar
+                  ? `2px solid ${bottomBorderColor}`
+                  : `1.5px solid ${bottomBorderColor}`,
+                color: textColor,
+                fontSize: '20px',
+                fontWeight: 750,
+                fontFamily: 'monospace',
+                background: 'transparent',
+                lineHeight: 1,
+                userSelect: 'none',
+                transition: 'all 0.15s ease',
+                animationDelay: isSuccess ? `${idx * 0.05}s` : undefined,
+              }}
+            >
+              {displayChar || <span style={{ opacity: 0 }}>_</span>}
+            </span>
+          )
+        })}
+      </span>
+    )
+  }
+
+  // Format masked sentence for Fill-in-the-Blank with direct inline blank
   const getMaskedSentence = () => {
     const term = (currentCard.term || '').trim()
     const sentence = (currentCard.exampleSentence || '').trim()
 
     if (!sentence) {
       return (
-        <span>
-          Điền từ tiếng Anh có nghĩa: <strong style={{ color: '#4f46e5' }}>&quot;{currentCard.vietnameseDefinition}&quot;</strong>
+        <span style={{ fontSize: '19px', lineHeight: 2.2 }}>
+          Điền từ tiếng Anh: {renderInlineBlankInput()}
         </span>
       )
     }
 
     if (!term) {
-      return <span>{sentence}</span>
+      return <span style={{ fontSize: '19px', lineHeight: 2.2 }}>{sentence}</span>
     }
 
     const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -1088,27 +1259,24 @@ function Review({ setView }: { setView: (view: View) => void }) {
       pattern = escapedTerm
     }
 
-    const splitReg = new RegExp(pattern, 'gi')
-    if (new RegExp(pattern, 'i').test(sentence)) {
-      const parts = sentence.split(splitReg)
+    const match = sentence.match(new RegExp(pattern, 'i'))
+
+    if (match && match.index !== undefined) {
+      const before = sentence.slice(0, match.index)
+      const after = sentence.slice(match.index + match[0].length)
       return (
-        <span>
-          {parts[0]}
-          <span style={{ borderBottom: '2px solid #4f46e5', padding: '0 8px', color: '#4f46e5', fontWeight: 700 }}>
-            [ _____ ]
-          </span>
-          {parts.slice(1).join('[ _____ ]')}
+        <span style={{ fontSize: '19px', lineHeight: 2.2 }}>
+          {before}
+          {renderInlineBlankInput()}
+          {after}
         </span>
       )
     }
 
     // Fallback: sentence exists but term pattern wasn't found in it
     return (
-      <span>
-        {sentence}{' '}
-        <span style={{ borderBottom: '2px solid #4f46e5', padding: '0 8px', color: '#4f46e5', fontWeight: 700 }}>
-          [ _____ ]
-        </span>
+      <span style={{ fontSize: '19px', lineHeight: 2.2 }}>
+        {sentence} {renderInlineBlankInput()}
       </span>
     )
   }
@@ -1322,7 +1490,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
             {/* Header info */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1px', color: '#6366f1' }}>
-                LUYỆN ĐIỀN TỪ
+                LUYỆN ĐIỀN TỪ TRỰC TIẾP
               </div>
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                 <button
@@ -1376,120 +1544,38 @@ function Review({ setView }: { setView: (view: View) => void }) {
               </h2>
             </div>
 
-            {/* Sentence with Blank */}
-            <div className="sentence-blank-box">
+            {/* Sentence with Direct Inline Blank */}
+            <div
+              className={`sentence-blank-box ${fillResult ? (fillResult.isCorrect ? 'has-success' : 'has-error') : ''}`}
+              style={{
+                padding: '24px 20px',
+                margin: '16px 0',
+                borderRadius: '14px',
+                background: isDarkModeActive() ? 'rgba(30, 41, 59, 0.7)' : '#f8fafc',
+                border: '1px solid rgba(226, 232, 240, 0.8)',
+                textAlign: 'center',
+                position: 'relative',
+              }}
+            >
+              {fillResult?.isCorrect && (
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <div className="success-celebration-badge">
+                    <Sparkles size={16} /> Chính xác! Nhấn Enter để tiếp tục
+                  </div>
+                </div>
+              )}
               {getMaskedSentence()}
             </div>
 
-            {/* Progressive Hint Options */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                <button
-                  type="button"
-                  onClick={handleUseHintPattern}
-                  disabled={fillResult !== null || showPattern}
-                  title="Phím tắt: H (bấm 1 lần)"
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                    border: '1px solid #e2e8f0',
-                    background: showPattern ? '#eef2ff' : '#ffffff',
-                    color: showPattern ? '#4f46e5' : '#475569',
-                    cursor: showPattern || fillResult !== null ? 'default' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                  }}
-                >
-                  💡 Hint 1: Gợi ý chữ cái
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleUseHintPhonetic}
-                  disabled={fillResult !== null || showPhonetic}
-                  title="Phím tắt: H (bấm 2 lần)"
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                    border: '1px solid #e2e8f0',
-                    background: showPhonetic ? '#eef2ff' : '#ffffff',
-                    color: showPhonetic ? '#4f46e5' : '#475569',
-                    cursor: showPhonetic || fillResult !== null ? 'default' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                  }}
-                >
-                  🔊 Hint 2: Phiên âm IPA
-                </button>
-              </div>
-
-              {/* Display active hint banners if unlocked */}
-              {(showPattern || showPhonetic) && (
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '12px',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    background: '#eef2ff',
-                    border: '1px solid #c7d2fe',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    color: '#3730a3',
-                  }}
-                >
-                  {showPattern && (
-                    <span>
-                      Pattern: <strong style={{ fontFamily: 'monospace', fontSize: '13px' }}>{buildHintPattern(currentCard.term)}</strong>
-                    </span>
-                  )}
-                  {showPhonetic && (
-                    <span>
-                      IPA: <strong>{currentCard.phonetic || 'N/A'}</strong>
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Input Box & Submit Action */}
+            {/* Actions: Submit or Result */}
             {!fillResult ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  handleFillSubmit(false)
-                }}
-                style={{ display: 'flex', gap: '8px', marginTop: '8px' }}
-              >
-                <input
-                  ref={fillInputRef}
-                  type="text"
-                  value={fillInput}
-                  onChange={(e) => setFillInput(e.target.value)}
-                  placeholder="Gõ từ tiếng Anh (ấn Tab để trỏ vào đây)..."
-                  disabled={submitting}
-                  style={{
-                    flex: 1,
-                    padding: '12px 16px',
-                    fontSize: '15px',
-                    borderRadius: '10px',
-                    border: '1.5px solid #cbd5e1',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                  }}
-                />
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '10px' }}>
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => handleFillSubmit(false)}
                   disabled={!fillInput.trim() || submitting}
                   style={{
-                    padding: '0 20px',
+                    padding: '10px 24px',
                     background: '#4f46e5',
                     color: '#ffffff',
                     fontWeight: 700,
@@ -1498,19 +1584,23 @@ function Review({ setView }: { setView: (view: View) => void }) {
                     border: 'none',
                     cursor: fillInput.trim() && !submitting ? 'pointer' : 'not-allowed',
                     opacity: fillInput.trim() && !submitting ? 1 : 0.6,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 8px rgba(79, 70, 229, 0.25)',
                   }}
                 >
-                  Nộp bài
+                  Nộp bài (Enter)
                 </button>
                 <button
                   type="button"
                   onClick={() => handleFillSubmit(true)}
                   disabled={submitting}
                   style={{
-                    padding: '0 12px',
-                    background: '#f1f5f9',
+                    padding: '10px 16px',
+                    background: isDarkModeActive() ? 'rgba(51, 65, 85, 0.5)' : '#f1f5f9',
                     color: '#64748b',
-                    fontSize: '12px',
+                    fontSize: '13px',
                     fontWeight: 600,
                     borderRadius: '10px',
                     border: '1px solid #cbd5e1',
@@ -1521,9 +1611,9 @@ function Review({ setView }: { setView: (view: View) => void }) {
                   }}
                   title="Bỏ cuộc tính là 1: Again (Phím tắt: F)"
                 >
-                  <span>Bỏ cuộc</span>
+                  <span>Bỏ cuộc (F)</span>
                 </button>
-              </form>
+              </div>
             ) : (
               /* Evaluation Result Panel */
               <div
@@ -1567,7 +1657,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
                   <button
                     type="button"
                     onClick={() => playCardAudio()}
-                    title="Nghe phát âm (Phím tắt: R hoặc Alt + A)"
+                    title="Nghe phát âm (Phím tắt: R)"
                     style={{ marginLeft: '8px', background: 'none', border: 'none', cursor: 'pointer', color: '#4f46e5' }}
                   >
                     <Volume2 size={16} />
@@ -1576,7 +1666,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
 
                 <button
                   type="button"
-                  onClick={advanceToNextCard}
+                  onClick={handleAdvanceFromFill}
                   style={{
                     marginTop: '6px',
                     padding: '10px 16px',
@@ -1602,14 +1692,10 @@ function Review({ setView }: { setView: (view: View) => void }) {
           <div className="keyboard-tip" style={{ marginTop: '16px' }}>
             <Keyboard size={16} />
             <span>Phím tắt:</span>
-            <kbd>R</kbd>
-            <small>phát âm</small>
-            <kbd>H</kbd>
-            <small>gợi ý (1/2 lần)</small>
-            <kbd>Tab</kbd>
-            <small>vào ô nhập</small>
             <kbd>Enter</kbd>
             <small>nộp / từ tiếp</small>
+            <kbd>R</kbd>
+            <small>phát âm</small>
             <kbd>F</kbd>
             <small>bỏ cuộc</small>
           </div>
@@ -3290,7 +3376,7 @@ function Decks() {
         }
         enrichmentTimeouts.current[index] = setTimeout(() => {
           fetchLiveEnrichment(index, targetTerm, targetType)
-        }, 350)
+        }, 200)
       }
     }
   }
@@ -3425,46 +3511,30 @@ function Decks() {
     setShowIncompleteWarningModal(false)
 
     try {
-      // Check ALL words at once when clicking Save!
-      // If any word has missing columns (vietnamese, phonetic, example, etc.), enrich via Gemini 1.5 Flash
-      const cardsToInsert = await Promise.all(
-        rowsToProcess.map(async (r) => {
-          let vietDef = r.vietnameseDefinition
-          let phon = r.phonetic
-          let pos = r.partOfSpeech
-          let ex = r.exampleSentence
-          let engDef = r.englishDefinition
-          let lvl = r.level
+      const cardsToInsert = rowsToProcess.map((r) => {
+        const cleanTerm = r.term.trim()
+        const vietDef = r.vietnameseDefinition
+        const phon = r.phonetic
+        const pos = r.partOfSpeech
+        const ex = r.exampleSentence
+        const engDef = r.englishDefinition
+        const lvl = r.level
 
-          // Single batch check on Save: Enrich missing fields via Gemini 1.5 Flash + Dictionary pipeline
-          if (!vietDef || !phon || !ex || !engDef || !lvl) {
-            try {
-              const res = await fetch(`/api/enrich?word=${encodeURIComponent(r.term.trim())}&type=${encodeURIComponent((pos || '').trim())}`)
-              if (res.ok) {
-                const data = await res.json()
-                if (!vietDef && data.vietnameseMeaning) vietDef = data.vietnameseMeaning
-                if (!phon && data.phonetic) phon = data.phonetic
-                if (!ex && data.example) ex = data.example
-                if (!engDef && data.englishMeaning) engDef = data.englishMeaning
-                if (!lvl && data.cefrLevel) lvl = data.cefrLevel
-              }
-            } catch {}
-          }
-
-          return {
-            term: r.term.trim(),
-            vietnameseDefinition: vietDef || `Nghĩa của ${r.term.trim()}`,
-            phonetic: phon || `/${r.term.trim()}/`,
-            partOfSpeech: pos,
-            exampleSentence: ex || '',
-            collocations: {
-              level: lvl || 'B1',
-              englishDefinition: engDef || '',
-              grammarLabel: r.grammarLabel || '',
-            },
-          }
-        })
-      )
+        return {
+          term: cleanTerm,
+          vietnameseDefinition: vietDef || `Nghĩa của ${cleanTerm}`,
+          phonetic: phon || `/${cleanTerm}/`,
+          partOfSpeech: pos || 'noun',
+          exampleSentence: ex || '',
+          englishMeaning: engDef || '',
+          cefrLevel: lvl || 'B1',
+          collocations: {
+            level: lvl || 'B1',
+            englishDefinition: engDef || '',
+            grammarLabel: r.grammarLabel || '',
+          },
+        }
+      })
 
       await fetch(`/api/decks/${targetDeckId}/cards`, {
         method: 'POST',

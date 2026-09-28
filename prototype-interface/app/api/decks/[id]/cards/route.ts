@@ -126,13 +126,11 @@ export async function POST(
       } catch {}
     }
 
-    const insertedCards = []
-    const skippedCards = []
+    const validItemsToProcess: any[] = []
+    const skippedCards: any[] = []
 
     for (const item of cardItems) {
-      if (!item.term || !item.term.trim()) {
-        continue
-      }
+      if (!item.term || !item.term.trim()) continue
 
       const cleanTerm = item.term.trim().toLowerCase()
 
@@ -144,38 +142,109 @@ export async function POST(
 
       // Mark as existing in current batch to avoid internal duplicates
       existingTermsSet.add(cleanTerm)
+      validItemsToProcess.push(item)
+    }
 
-      const cardId = `card_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+    // Process valid cards in parallel
+    const insertedCards = await Promise.all(
+      validItemsToProcess.map(async (item) => {
+        const term = item.term.trim()
+        const cardId = `card_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
 
-      // Enrich metadata ONCE at card creation time
-      let enriched: any = null
-      try {
-        enriched = await enrichVocabulary(item.term)
-      } catch {
-        // Safe fallback if term is not found or offline
-      }
+        const isPlaceholderViet = !item.vietnameseDefinition || item.vietnameseDefinition.startsWith('Nghĩa')
+        const needsEnrichment = isPlaceholderViet && (!item.englishMeaning && !item.phonetic)
 
-      const primaryDef = enriched?.definitions?.[0]
-      const term = item.term.trim()
+        let enriched: any = null
+        if (needsEnrichment) {
+          try {
+            enriched = await enrichVocabulary(term, item.partOfSpeech)
+          } catch {
+            // Safe fallback
+          }
+        }
 
-      const isPlaceholderViet = !item.vietnameseDefinition || item.vietnameseDefinition.startsWith('Nghĩa')
-      const vietnameseDefinition = !isPlaceholderViet
-        ? item.vietnameseDefinition
-        : primaryDef?.vietnameseMeaning || primaryDef?.englishMeaning || `Nghĩa tiếng Việt của ${term}`
-      const englishMeaning = item.englishMeaning || item.collocations?.englishDefinition || primaryDef?.englishMeaning || enriched?.englishMeaning || ''
-      const phonetic = item.phonetic || enriched?.ipaUk || enriched?.ipaUs || ''
-      const partOfSpeech = (item.partOfSpeech && item.partOfSpeech !== 'noun') ? item.partOfSpeech : (enriched?.partOfSpeech || item.partOfSpeech || 'noun')
-      const exampleSentence = item.exampleSentence || primaryDef?.examples?.[0] || enriched?.examples?.[0] || ''
-      const cefrLevel = item.cefrLevel || item.collocations?.level || primaryDef?.cefrLevel || enriched?.cefrLevel || 'B1'
-      const audioUrl = item.audioUrl || enriched?.audioUkUrl || enriched?.audioUsUrl || null
-      const imageUrl = item.imageUrl || enriched?.imageUrl || null
-      const allDefinitionsJson = JSON.stringify(item.allDefinitions || enriched?.definitions || [])
-      const collocationsJson = JSON.stringify(item.collocations || item.collocationsJson || [])
+        const primaryDef = enriched?.definitions?.[0]
+        const vietnameseDefinition = !isPlaceholderViet
+          ? item.vietnameseDefinition
+          : primaryDef?.vietnameseMeaning || primaryDef?.englishMeaning || `Nghĩa tiếng Việt của ${term}`
+        const englishMeaning = item.englishMeaning || item.collocations?.englishDefinition || primaryDef?.englishMeaning || enriched?.englishMeaning || ''
+        const phonetic = item.phonetic || enriched?.ipaUk || enriched?.ipaUs || `/${term}/`
+        const partOfSpeech = (item.partOfSpeech && item.partOfSpeech !== 'noun') ? item.partOfSpeech : (enriched?.partOfSpeech || item.partOfSpeech || 'noun')
+        const exampleSentence = item.exampleSentence || primaryDef?.examples?.[0] || enriched?.examples?.[0] || ''
+        const cefrLevel = item.cefrLevel || item.collocations?.level || primaryDef?.cefrLevel || enriched?.cefrLevel || 'B1'
+        const audioUrl = item.audioUrl || enriched?.audioUkUrl || enriched?.audioUsUrl || null
+        const imageUrl = item.imageUrl || enriched?.imageUrl || null
+        const allDefinitionsJson = JSON.stringify(item.allDefinitions || enriched?.definitions || [])
+        const collocationsJson = JSON.stringify(item.collocations || item.collocationsJson || [])
 
-      try {
-        await db.insert(cards).values({
+        try {
+          await db.insert(cards).values({
+            id: cardId,
+            deckId,
+            term,
+            vietnameseDefinition,
+            englishMeaning,
+            phonetic,
+            partOfSpeech,
+            exampleSentence,
+            cefrLevel,
+            audioUrl,
+            imageUrl,
+            allDefinitionsJson,
+            collocationsJson,
+          })
+        } catch (insertError: any) {
+          console.warn('Extended insert failed, attempting table migration / raw insert fallback:', insertError?.message)
+          try {
+            if (typeof (db as any).execute === 'function') {
+              await (db as any).execute(
+                `ALTER TABLE cards ADD COLUMN IF NOT EXISTS english_meaning TEXT;
+                 ALTER TABLE cards ADD COLUMN IF NOT EXISTS cefr_level TEXT;
+                 ALTER TABLE cards ADD COLUMN IF NOT EXISTS audio_url TEXT;
+                 ALTER TABLE cards ADD COLUMN IF NOT EXISTS image_url TEXT;
+                 ALTER TABLE cards ADD COLUMN IF NOT EXISTS all_definitions_json TEXT;`
+              )
+              await db.insert(cards).values({
+                id: cardId,
+                deckId,
+                term,
+                vietnameseDefinition,
+                englishMeaning,
+                phonetic,
+                partOfSpeech,
+                exampleSentence,
+                cefrLevel,
+                audioUrl,
+                imageUrl,
+                allDefinitionsJson,
+                collocationsJson,
+              })
+            }
+          } catch {
+            if (typeof (db as any).execute === 'function') {
+              await (db as any).execute(
+                `INSERT INTO cards (id, deck_id, term, vietnamese_definition, phonetic, part_of_speech, example_sentence, collocations_json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                [cardId, deckId, term, vietnameseDefinition, phonetic, partOfSpeech, exampleSentence, collocationsJson]
+              )
+            }
+          }
+        }
+
+        // Initialize SRS state
+        try {
+          await db.insert(cardSrsStates).values({
+            id: `srs_${cardId}_${userId}`,
+            userId,
+            cardId,
+            repetition: 0,
+            interval: 0,
+            easeFactor: 2.5,
+            dueDate: nowIso,
+          })
+        } catch {}
+
+        return {
           id: cardId,
-          deckId,
           term,
           vietnameseDefinition,
           englishMeaning,
@@ -185,77 +254,9 @@ export async function POST(
           cefrLevel,
           audioUrl,
           imageUrl,
-          allDefinitionsJson,
-          collocationsJson,
-        })
-      } catch (insertError: any) {
-        console.warn('Extended insert failed, attempting table migration / raw insert fallback:', insertError?.message)
-        try {
-          // Attempt Postgres auto-migration to add missing extended columns
-          if (typeof (db as any).execute === 'function') {
-            await (db as any).execute(
-              `ALTER TABLE cards ADD COLUMN IF NOT EXISTS english_meaning TEXT;
-               ALTER TABLE cards ADD COLUMN IF NOT EXISTS cefr_level TEXT;
-               ALTER TABLE cards ADD COLUMN IF NOT EXISTS audio_url TEXT;
-               ALTER TABLE cards ADD COLUMN IF NOT EXISTS image_url TEXT;
-               ALTER TABLE cards ADD COLUMN IF NOT EXISTS all_definitions_json TEXT;`
-            )
-            // Retry Drizzle insert after adding columns
-            await db.insert(cards).values({
-              id: cardId,
-              deckId,
-              term,
-              vietnameseDefinition,
-              englishMeaning,
-              phonetic,
-              partOfSpeech,
-              exampleSentence,
-              cefrLevel,
-              audioUrl,
-              imageUrl,
-              allDefinitionsJson,
-              collocationsJson,
-            })
-          } else {
-            throw new Error('db.execute not available')
-          }
-        } catch {
-          // Direct raw SQL insert for base table schema bypassing Drizzle's strict schema compiler
-          if (typeof (db as any).execute === 'function') {
-            await (db as any).execute(
-              `INSERT INTO cards (id, deck_id, term, vietnamese_definition, phonetic, part_of_speech, example_sentence, collocations_json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-              [cardId, deckId, term, vietnameseDefinition, phonetic, partOfSpeech, exampleSentence, collocationsJson]
-            )
-          }
         }
-      }
-
-      // Initialize SRS state
-      try {
-        await db.insert(cardSrsStates).values({
-          id: `srs_${cardId}_${userId}`,
-          userId,
-          cardId,
-          repetition: 0,
-          interval: 0,
-          easeFactor: 2.5,
-          dueDate: nowIso,
-        })
-      } catch {}
-
-      insertedCards.push({
-        id: cardId,
-        term,
-        vietnameseDefinition,
-        englishMeaning,
-        phonetic,
-        partOfSpeech,
-        exampleSentence,
-        cefrLevel,
-        audioUrl,
-        imageUrl,
       })
-    }
+    )
 
     return NextResponse.json({
       success: true,
