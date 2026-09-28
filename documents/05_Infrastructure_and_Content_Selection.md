@@ -53,8 +53,13 @@ _Date: 09/09/2026 | Author: Technical Lead_[cite: 5]
 
 ### 3.3 Dictionary & Pronunciation Engine
 
-- **Free Dictionary API** (`api.dictionaryapi.dev`): Open REST API used at build/import time for IPA phonetics and English definitions[cite: 5].
-- **Web Speech Synthesis API**: Browser-native `window.speechSynthesis` provides audio pronunciation at zero latency and $0 cost[cite: 5].
+- **Free Dictionary API** (`api.dictionaryapi.dev`): Open REST API used at build/import time for IPA phonetics and English definitions.
+- **Web Speech Synthesis API**: Browser-native `window.speechSynthesis` provides audio pronunciation at zero latency and $0 cost.
+
+### 3.4 External Practice Resources (Tài liệu luyện tập bổ trợ)
+
+- **Luyện đề IELTS / Tiếng Anh**: [youpass.vn](https://youpass.vn/) | [ieltsmate.vn](https://www.ieltsmate.vn/)
+- **Luyện nghe chép chính tả**: [dailydictation.com](https://dailydictation.com/)
 
 ---
 

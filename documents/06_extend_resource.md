@@ -1,2 +1,0 @@
-- luyện đề: [youpass.com](https://youpass.vn/) | [ieltsmate.vn](https://www.ieltsmate.vn/)
-- luyện nghe chép chính tả: [dailydictation.com](https://dailydictation.com/)
