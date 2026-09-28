@@ -99,6 +99,41 @@ function getSqliteDb() {
 
       CREATE INDEX IF NOT EXISTS idx_dsr_due ON card_dsr_state(user_id, due_date ASC);
 
+      CREATE TABLE IF NOT EXISTS card_memory_state (
+        card_id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        memory_level INTEGER NOT NULL DEFAULT 1,
+        difficulty REAL NOT NULL DEFAULT 5.0,
+        stability REAL NOT NULL DEFAULT 0.5,
+        reps INTEGER NOT NULL DEFAULT 0,
+        lapses INTEGER NOT NULL DEFAULT 0,
+        last_reviewed TEXT,
+        golden_time TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_golden_time ON card_memory_state(user_id, golden_time ASC);
+
+      CREATE TABLE IF NOT EXISTS card_review_history (
+        id TEXT PRIMARY KEY,
+        card_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        rating INTEGER NOT NULL,
+        reviewed_at TEXT NOT NULL DEFAULT (datetime('now')),
+        elapsed_days REAL NOT NULL,
+        retrievability REAL NOT NULL,
+        old_difficulty REAL NOT NULL,
+        new_difficulty REAL NOT NULL,
+        old_stability REAL NOT NULL,
+        new_stability REAL NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_review_history_user ON card_review_history(user_id, card_id);
+
+
       CREATE TABLE IF NOT EXISTS review_logs (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,

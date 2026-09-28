@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { cardSrsStates, cardDsrStates, reviewLogs, userStreaks } from '@/lib/db/schema'
+import { cardSrsStates, cardDsrStates, cardMemoryState, cardReviewHistory, reviewLogs, userStreaks } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { calculateSm2 } from '@/lib/srs/sm2'
 import { DSREngine, DSRRating } from '@/lib/srs/dsr'
+import { GoldenTimeEngine } from '@/lib/golden-time-engine'
 import { eq, and } from 'drizzle-orm'
+
 
 export const dynamic = 'force-dynamic'
 
@@ -121,6 +123,82 @@ export async function POST(request: Request) {
         stability: nextDsr.stability,
         intervalDays: DSREngine.calculateInterval(nextDsr.stability),
         dueDate: nextDsr.dueDate.toISOString(),
+      }
+
+      // -----------------------------------------------------------------------
+      // Golden Time Engine (Memory Levels & Dual-Layer Architecture)
+      // -----------------------------------------------------------------------
+      try {
+        const existingMem = await db
+          .select()
+          .from(cardMemoryState)
+          .where(and(eq(cardMemoryState.userId, userId), eq(cardMemoryState.cardId, cardId)))
+          .limit(1)
+
+        const currentMem = existingMem[0]
+        const nowObj = new Date()
+
+        let nextMemState
+        let elapsedDays = 0
+        let currentR = 1.0
+
+        if (!currentMem || !currentMem.lastReviewed) {
+          nextMemState = GoldenTimeEngine.initNewWord(dsrRating, nowObj)
+        } else {
+          const oldLast = new Date(currentMem.lastReviewed)
+          elapsedDays = Math.max(0, (nowObj.getTime() - oldLast.getTime()) / (1000 * 60 * 60 * 24))
+          currentR = GoldenTimeEngine.calculateRetrievability(currentMem.stability, elapsedDays)
+          
+          nextMemState = GoldenTimeEngine.processReview(
+            {
+              memoryLevel: currentMem.memoryLevel,
+              difficulty: currentMem.difficulty,
+              stability: currentMem.stability,
+              reps: currentMem.reps,
+              lapses: currentMem.lapses,
+              lastReviewed: oldLast,
+              goldenTime: new Date(currentMem.goldenTime),
+            },
+            dsrRating,
+            nowObj
+          )
+        }
+
+        const memPayload = {
+          userId,
+          cardId,
+          memoryLevel: nextMemState.memoryLevel,
+          difficulty: nextMemState.difficulty,
+          stability: nextMemState.stability,
+          reps: nextMemState.reps,
+          lapses: nextMemState.lapses,
+          lastReviewed: nowIso,
+          goldenTime: nextMemState.goldenTime.toISOString(),
+        }
+
+        if (currentMem) {
+          await db.update(cardMemoryState).set(memPayload).where(eq(cardMemoryState.cardId, cardId))
+        } else {
+          await db.insert(cardMemoryState).values(memPayload)
+        }
+
+        // Save detailed review log into card_review_history for future calibration
+        await db.insert(cardReviewHistory).values({
+          id: `hist_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          cardId,
+          userId,
+          rating: dsrRating,
+          reviewedAt: nowIso,
+          elapsedDays: Number(elapsedDays.toFixed(2)),
+          retrievability: Number(currentR.toFixed(4)),
+          oldDifficulty: currentMem ? currentMem.difficulty : 5.0,
+          newDifficulty: nextMemState.difficulty,
+          oldStability: currentMem ? currentMem.stability : 0.5,
+          newStability: nextMemState.stability,
+          createdAt: nowIso,
+        })
+      } catch (memError) {
+        console.error('Golden Time Engine update error:', memError)
       }
 
       // Log the SM-2 vs DSR interval comparison for later analysis

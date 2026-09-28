@@ -168,3 +168,32 @@ export const speakingSubmissions = sqliteTable('speaking_submissions', {
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 })
 
+export const cardMemoryState = sqliteTable('card_memory_state', {
+  cardId: text('card_id').primaryKey().references(() => cards.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
+  memoryLevel: integer('memory_level').notNull().default(1),
+  difficulty: real('difficulty').notNull().default(5.0),
+  stability: real('stability').notNull().default(0.5),
+  reps: integer('reps').notNull().default(0),
+  lapses: integer('lapses').notNull().default(0),
+  lastReviewed: text('last_reviewed'),
+  goldenTime: text('golden_time').notNull(),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const cardReviewHistory = sqliteTable('card_review_history', {
+  id: text('id').primaryKey(),
+  cardId: text('card_id').notNull().references(() => cards.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
+  rating: integer('rating').notNull(),
+  reviewedAt: text('reviewed_at').notNull().$defaultFn(() => new Date().toISOString()),
+  elapsedDays: real('elapsed_days').notNull(),
+  retrievability: real('retrievability').notNull(),
+  oldDifficulty: real('old_difficulty').notNull(),
+  newDifficulty: real('new_difficulty').notNull(),
+  oldStability: real('old_stability').notNull(),
+  newStability: real('new_stability').notNull(),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+

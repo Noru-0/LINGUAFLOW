@@ -85,6 +85,53 @@ CREATE TABLE IF NOT EXISTS public.review_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- 4c. CARD MEMORY STATE TABLE (Golden Time Engine & Memory Levels)
+CREATE TABLE IF NOT EXISTS public.card_memory_state (
+  card_id UUID PRIMARY KEY REFERENCES public.cards(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
+
+  -- Presentation Layer
+  memory_level INT NOT NULL DEFAULT 1 CHECK (memory_level BETWEEN 1 AND 5),
+
+  -- Scheduling Engine (DSR)
+  difficulty FLOAT NOT NULL DEFAULT 5.0,
+  stability FLOAT NOT NULL DEFAULT 0.5,
+
+  -- Review history overview
+  reps INT NOT NULL DEFAULT 0,
+  lapses INT NOT NULL DEFAULT 0,
+  last_reviewed TIMESTAMPTZ,
+  golden_time TIMESTAMPTZ NOT NULL,
+
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_golden_time ON public.card_memory_state(user_id, golden_time ASC);
+
+-- 4d. CARD REVIEW HISTORY TABLE (Calibration & Analytics)
+CREATE TABLE IF NOT EXISTS public.card_review_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id UUID NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
+
+  rating INT NOT NULL CHECK (rating BETWEEN 1 AND 4),
+  reviewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  elapsed_days FLOAT NOT NULL,
+  retrievability FLOAT NOT NULL,
+
+  old_difficulty FLOAT NOT NULL,
+  new_difficulty FLOAT NOT NULL,
+
+  old_stability FLOAT NOT NULL,
+  new_stability FLOAT NOT NULL,
+
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_review_history_user ON public.card_review_history(user_id, card_id);
+
+
 -- 6. TRANSLATION PROMPTS TABLE
 CREATE TABLE IF NOT EXISTS public.translation_prompts (
   id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,

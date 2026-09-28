@@ -163,3 +163,32 @@ export const speakingSubmissions = pgTable('speaking_submissions', {
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 })
 
+export const cardMemoryState = pgTable('card_memory_state', {
+  cardId: text('card_id').primaryKey().references(() => cards.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
+  memoryLevel: integer('memory_level').notNull().default(1),
+  difficulty: doublePrecision('difficulty').notNull().default(5.0),
+  stability: doublePrecision('stability').notNull().default(0.5),
+  reps: integer('reps').notNull().default(0),
+  lapses: integer('lapses').notNull().default(0),
+  lastReviewed: text('last_reviewed'),
+  goldenTime: text('golden_time').notNull(),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const cardReviewHistory = pgTable('card_review_history', {
+  id: text('id').primaryKey(),
+  cardId: text('card_id').notNull().references(() => cards.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
+  rating: integer('rating').notNull(),
+  reviewedAt: text('reviewed_at').notNull().$defaultFn(() => new Date().toISOString()),
+  elapsedDays: doublePrecision('elapsed_days').notNull(),
+  retrievability: doublePrecision('retrievability').notNull(),
+  oldDifficulty: doublePrecision('old_difficulty').notNull(),
+  newDifficulty: doublePrecision('new_difficulty').notNull(),
+  oldStability: doublePrecision('old_stability').notNull(),
+  newStability: doublePrecision('new_stability').notNull(),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+
