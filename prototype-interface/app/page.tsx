@@ -5132,6 +5132,7 @@ export default function Page() {
   const router = useRouter()
   const [view, setView] = useState<View>('Dashboard')
   const [user, setUser] = useState<any>(null)
+  const [authChecking, setAuthChecking] = useState(true)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   // Theme & Auth Modals
@@ -5176,10 +5177,15 @@ export default function Page() {
         if (data?.user) {
           setUser(data.user)
           setUserNameInput(data.user.name || '')
+          setAuthChecking(false)
+        } else {
+          router.replace('/login')
         }
       })
-      .catch(() => {})
-  }, [])
+      .catch(() => {
+        router.replace('/login')
+      })
+  }, [router])
 
   const toggleTheme = () => {
     const themes: ('light' | 'dark' | 'pink')[] = ['light', 'dark', 'pink']
@@ -5248,6 +5254,14 @@ export default function Page() {
       setSaveMessage('')
       setShowSettingsModal(false)
     }, 1000)
+  }
+
+  if (authChecking) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-main, #f8fafc)' }}>
+        <Loader2 className="animate-spin" size={36} style={{ color: '#4f46e5' }} />
+      </div>
+    )
   }
 
   return (
