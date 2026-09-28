@@ -3198,10 +3198,33 @@ function Decks() {
   const [showIncompleteWarningModal, setShowIncompleteWarningModal] = useState(false)
   const [validRowsToSave, setValidRowsToSave] = useState<any[]>([])
   const [skippedIncompleteCount, setSkippedIncompleteCount] = useState(0)
+  const enrichmentTimeouts = useRef<Record<number, NodeJS.Timeout>>({})
 
   const fetchLiveEnrichment = async (index: number, term: string, type: string) => {
+    // Strictly require BOTH word and type before auto-filling columns
     if (!term || !term.trim() || !type || !type.trim()) return
+    const cleanTerm = term.trim()
+    const cleanLower = cleanTerm.toLowerCase()
+    const cleanType = type.trim().toLowerCase()
 
+    // 1. Instant local dictionaryDb lookup if available
+    if (dictionaryDb[cleanLower]) {
+      const match = dictionaryDb[cleanLower]
+      setExcelRows((prev) => {
+        const updated = [...prev]
+        if (!updated[index]) return prev
+        const current = { ...updated[index] }
+        if (!current.level) current.level = match.level
+        if (!current.phonetic) current.phonetic = match.phonetic
+        if (!current.vietnameseDefinition) current.vietnameseDefinition = match.vietnamese
+        if (!current.englishDefinition) current.englishDefinition = match.definition
+        if (!current.exampleSentence) current.exampleSentence = match.example
+        updated[index] = current
+        return updated
+      })
+    }
+
+    // 2. Mark row as loading live enrichment
     setExcelRows((prev) => {
       const updated = [...prev]
       if (updated[index]) {
@@ -3211,8 +3234,17 @@ function Decks() {
     })
 
     try {
-      const res = await fetch(`/api/enrich?word=${encodeURIComponent(term.trim())}&type=${encodeURIComponent(type.trim())}`)
-      if (!res.ok) return
+      const res = await fetch(`/api/enrich?word=${encodeURIComponent(cleanTerm)}&type=${encodeURIComponent(cleanType)}`)
+      if (!res.ok) {
+        setExcelRows((prev) => {
+          const updated = [...prev]
+          if (updated[index]) {
+            updated[index] = { ...updated[index], isLoadingEnrichment: false }
+          }
+          return updated
+        })
+        return
+      }
       const data = await res.json()
       setExcelRows((prev) => {
         const updated = [...prev]
@@ -3220,7 +3252,6 @@ function Decks() {
         const current = { ...updated[index], isLoadingEnrichment: false }
         if (data.cefrLevel) current.level = data.cefrLevel
         if (data.phonetic) current.phonetic = data.phonetic
-        if (data.partOfSpeech) current.partOfSpeech = data.partOfSpeech
         if (data.vietnameseMeaning) current.vietnameseDefinition = data.vietnameseMeaning
         if (data.englishMeaning) current.englishDefinition = data.englishMeaning
         if (data.example) current.exampleSentence = data.example
@@ -3249,9 +3280,18 @@ function Decks() {
     const targetTerm = field === 'term' ? value : (excelRows[index]?.term || '')
     const targetType = field === 'partOfSpeech' ? value : (excelRows[index]?.partOfSpeech || '')
 
-    // Live fetch enrichment when word AND type are provided by user so fields preview live on screen
-    if (targetTerm.trim().length >= 1 && targetType.trim().length >= 1) {
-      fetchLiveEnrichment(index, targetTerm, targetType)
+    // ONLY trigger auto-fill when BOTH term and type are selected / present
+    if (targetTerm && targetTerm.trim().length >= 1 && targetType && targetType.trim().length >= 1) {
+      if (field === 'partOfSpeech') {
+        fetchLiveEnrichment(index, targetTerm, value)
+      } else if (field === 'term') {
+        if (enrichmentTimeouts.current[index]) {
+          clearTimeout(enrichmentTimeouts.current[index])
+        }
+        enrichmentTimeouts.current[index] = setTimeout(() => {
+          fetchLiveEnrichment(index, targetTerm, targetType)
+        }, 350)
+      }
     }
   }
 
@@ -4100,6 +4140,11 @@ function Decks() {
                           placeholder="Nhập từ (e.g. raid)"
                           value={row.term}
                           onChange={(e) => handleExcelCellChange(idx, 'term', e.target.value)}
+                          onBlur={() => {
+                            if (row.term && row.term.trim().length >= 1 && (!row.vietnameseDefinition || !row.phonetic || !row.partOfSpeech)) {
+                              fetchLiveEnrichment(idx, row.term, row.partOfSpeech)
+                            }
+                          }}
                         />
 
                         {/* TYPE */}
@@ -4218,7 +4263,7 @@ function Decks() {
       {/* CUSTOM CONFIRMATION MODAL FOR RESET GRID */}
       {showResetConfirmModal && (
         <ClientPortal>
-          <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => setShowResetConfirmModal(false)}>
+          <div className="modal-overlay" style={{ zIndex: 100010 }} onClick={() => setShowResetConfirmModal(false)}>
             <div
               className="modal-card"
               style={{ maxWidth: '420px', padding: '24px', textAlign: 'center' }}
@@ -4296,7 +4341,7 @@ function Decks() {
       {/* INCOMPLETE ROWS WARNING MODAL */}
       {showIncompleteWarningModal && (
         <ClientPortal>
-          <div className="modal-overlay" style={{ zIndex: 1150 }} onClick={() => setShowIncompleteWarningModal(false)}>
+          <div className="modal-overlay" style={{ zIndex: 100020 }} onClick={() => setShowIncompleteWarningModal(false)}>
             <div
               className="modal-card"
               style={{ maxWidth: '440px', padding: '24px', textAlign: 'center' }}

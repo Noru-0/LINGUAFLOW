@@ -13,18 +13,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Missing word parameter' }, { status: 400 });
     }
 
-    const enriched = await enrichVocabulary(word.trim());
-    let defs = (enriched.definitions || []).slice(0, 3);
+    const cleanWord = word.trim();
+    const cleanType = type.trim();
 
-    // If type is specified, sort definitions matching partOfSpeech
-    if (type && type.trim() && defs.length > 0) {
-      const cleanType = type.trim().toLowerCase();
-      defs.sort((a, b) => {
-        const matchA = (enriched.partOfSpeech || '').toLowerCase().includes(cleanType) ? 1 : 0;
-        const matchB = (enriched.partOfSpeech || '').toLowerCase().includes(cleanType) ? 1 : 0;
-        return matchB - matchA;
-      });
-    }
+    // Pass word and requested partOfSpeech to vocabulary pipeline
+    const enriched = await enrichVocabulary(cleanWord, cleanType);
+    const defs = enriched.definitions || [];
 
     const primaryDef = defs[0] || {
       englishMeaning: '',
@@ -33,45 +27,43 @@ export async function GET(req: Request) {
       examples: [],
     };
 
-    // Combine top 3 distinct Vietnamese meanings
+    // Combine distinct Vietnamese meanings (up to 4)
     const cleanViList: string[] = [];
     for (const d of defs) {
       if (!d.vietnameseMeaning) continue;
       const raw = d.vietnameseMeaning.trim();
-      if (/[a-zA-Z]{6,}\s+[a-zA-Z]{4,}/.test(raw)) continue;
-
       const parts = raw.split(/[;,/]/).map((p) => p.trim());
       for (const p of parts) {
-        if (p && !cleanViList.includes(p)) {
+        if (p && !cleanViList.includes(p) && cleanViList.length < 4) {
           cleanViList.push(p);
         }
       }
     }
 
-    const combinedVietnamese = cleanViList.length > 0 ? cleanViList.slice(0, 3).join(', ') : primaryDef.vietnameseMeaning || '';
+    const combinedVietnamese = cleanViList.length > 0
+      ? cleanViList.join(', ')
+      : (primaryDef.vietnameseMeaning || '');
 
-    // Combine top 3 English meanings
+    // English Definition
     const englishMeanings = defs
       .map((d) => d.englishMeaning)
       .filter((e, i, self) => Boolean(e) && self.indexOf(e) === i);
+    const combinedEnglish = primaryDef.englishMeaning || englishMeanings[0] || '';
 
-    const combinedEnglish = englishMeanings.join(' | ');
+    // Collect all examples
+    const allExamples = defs.flatMap((d) => d.examples || []).filter((ex) => Boolean(ex) && ex.trim().length > 0);
+    const primaryExample = primaryDef.examples?.[0] || allExamples[0] || '';
 
-    // Collect all examples from top 3 meanings
-    const allExamples = defs.flatMap((d) => d.examples || []);
-
-    const effectivePos = (enriched.partOfSpeech && enriched.partOfSpeech !== 'noun')
-      ? enriched.partOfSpeech
-      : (type && type !== 'noun' ? type : (enriched.partOfSpeech || 'noun'));
+    const effectivePos = cleanType || enriched.partOfSpeech || 'noun';
 
     return NextResponse.json({
       term: enriched.term,
       partOfSpeech: effectivePos,
       phonetic: enriched.ipaUk || enriched.ipaUs || '',
       vietnameseMeaning: combinedVietnamese,
-      englishMeaning: combinedEnglish || primaryDef.englishMeaning,
-      cefrLevel: primaryDef.cefrLevel || (enriched as any).cefrLevel || 'B1',
-      example: allExamples[0] || primaryDef.examples[0] || '',
+      englishMeaning: combinedEnglish,
+      cefrLevel: enriched.cefrLevel || primaryDef.cefrLevel || 'B1',
+      example: primaryExample,
       examples: allExamples,
       audioUrl: enriched.audioUkUrl || enriched.audioUsUrl,
       imageUrl: enriched.imageUrl,

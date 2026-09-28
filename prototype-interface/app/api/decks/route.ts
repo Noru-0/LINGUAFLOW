@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { decks, cards, users } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
-import { seedDatabase, seedStarterDecksForUser } from '@/lib/db/seed'
+import { seedDatabase } from '@/lib/db/seed'
 import { eq, sql } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
@@ -30,7 +30,7 @@ export async function GET() {
     const userId = session?.userId || 'user_demo_alex_lee'
     await ensureUserExists(userId, session?.email, session?.name)
 
-    let userDecks = await db
+    const userDecks = await db
       .select({
         id: decks.id,
         title: decks.title,
@@ -43,23 +43,6 @@ export async function GET() {
       .leftJoin(cards, eq(decks.id, cards.deckId))
       .where(eq(decks.userId, userId))
       .groupBy(decks.id, decks.title, decks.description, decks.isPublic, decks.createdAt)
-
-    if (userDecks.length === 0) {
-      await seedStarterDecksForUser(userId)
-      userDecks = await db
-        .select({
-          id: decks.id,
-          title: decks.title,
-          description: decks.description,
-          isPublic: decks.isPublic,
-          createdAt: decks.createdAt,
-          cardCount: sql<number>`count(${cards.id})`,
-        })
-        .from(decks)
-        .leftJoin(cards, eq(decks.id, cards.deckId))
-        .where(eq(decks.userId, userId))
-        .groupBy(decks.id, decks.title, decks.description, decks.isPublic, decks.createdAt)
-    }
 
     return NextResponse.json({ decks: userDecks })
   } catch (error) {

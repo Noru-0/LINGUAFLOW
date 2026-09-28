@@ -2,17 +2,20 @@ import { scrapeCambridge } from './cambridge-scraper';
 import { fetchContextualImage } from './unsplash-service';
 import { getFallbackAudio } from './audio-fallback';
 import { fetchGeminiEnrichment } from './gemini-service';
+import { fetchFullDictionaryData } from './dictionary-api-service';
 import { VocabularyMetadata } from '../types/vocabulary';
 
-export async function enrichVocabulary(word: string): Promise<VocabularyMetadata> {
+export async function enrichVocabulary(word: string, targetPos?: string): Promise<VocabularyMetadata> {
   const cleanInputWord = word.trim();
 
   // Step 1: Try Gemini enrichment first to check for typos (e.g. "relentness" -> "relentless")
-  let geminiData = await fetchGeminiEnrichment(cleanInputWord);
-
+  let geminiData = await fetchGeminiEnrichment(cleanInputWord, targetPos);
   const effectiveWord = geminiData?.correctedWord || cleanInputWord;
 
-  // Step 2: Scrape Cambridge Dictionary for effective word
+  // Step 2: Fetch comprehensive multi-source dictionary data (FreeDict + Google Oxford + Datamuse + Google Bilingual)
+  const fullDict = await fetchFullDictionaryData(effectiveWord, targetPos);
+
+  // Step 3: Scrape Cambridge Dictionary for effective word
   let cambridgeData: Partial<VocabularyMetadata> | null = null;
   try {
     cambridgeData = await scrapeCambridge(effectiveWord);
@@ -39,33 +42,29 @@ export async function enrichVocabulary(word: string): Promise<VocabularyMetadata
 
   // If Gemini wasn't run earlier or needs re-running for effective word:
   if (!geminiData && (!cambridgeData || missingVietnamese || missingExample || missingEnglish || missingPhonetic || missingCefr)) {
-    geminiData = await fetchGeminiEnrichment(effectiveWord, cambridgeData?.partOfSpeech);
+    geminiData = await fetchGeminiEnrichment(effectiveWord, targetPos || cambridgeData?.partOfSpeech);
   }
 
-  // Step 3: Combine Cambridge + Gemini 1.5 Flash data
-  const partOfSpeech = (cambridgeData?.partOfSpeech && cambridgeData.partOfSpeech !== 'noun')
+  // Step 4: Determine best Part of Speech
+  const partOfSpeech = targetPos || (cambridgeData?.partOfSpeech && cambridgeData.partOfSpeech !== 'noun'
     ? cambridgeData.partOfSpeech
-    : (geminiData?.partOfSpeech || cambridgeData?.partOfSpeech || 'noun');
+    : (geminiData?.partOfSpeech || fullDict.partOfSpeech || cambridgeData?.partOfSpeech || 'noun'));
 
-  const ipaUk = cambridgeData?.ipaUk || geminiData?.phonetic || '';
-  const ipaUs = cambridgeData?.ipaUs || geminiData?.phonetic || '';
-  const cefrLevel = cambridgeData?.cefrLevel || geminiData?.cefrLevel || 'B1';
+  // Determine best Phonetics
+  let ipaUk = cambridgeData?.ipaUk || fullDict.phonetic || geminiData?.phonetic || `/${effectiveWord}/`;
+  if (ipaUk && !ipaUk.startsWith('/')) ipaUk = `/${ipaUk.replace(/^\/|\/$/g, '')}/`;
+  const ipaUs = cambridgeData?.ipaUs || ipaUk;
 
-  let finalDefinitions = [...definitions];
+  // Determine best CEFR Level
+  const cefrLevel = cambridgeData?.cefrLevel || geminiData?.cefrLevel || primaryDef?.cefrLevel || (
+    effectiveWord.length >= 10 ? 'C1' : effectiveWord.length >= 7 ? 'B2' : effectiveWord.length >= 5 ? 'B1' : 'A2'
+  );
 
-  if (finalDefinitions.length === 0 && geminiData) {
-    finalDefinitions = [
-      {
-        cefrLevel: geminiData.cefrLevel || 'B1',
-        englishMeaning: geminiData.englishMeaning || '',
-        vietnameseMeaning: geminiData.vietnameseMeaning || '',
-        examples: geminiData.exampleSentence ? [geminiData.exampleSentence] : [],
-      },
-    ];
-  } else if (finalDefinitions.length > 0) {
-    // Collect top 3 clean Vietnamese meanings across definitions if available
+  // Determine best Vietnamese Meaning (Multiple comma-separated meanings)
+  let bestVietnamese = fullDict.vietnameseMeaning || geminiData?.vietnameseMeaning || '';
+  if (!bestVietnamese && definitions.length > 0) {
     const cleanViMeanings: string[] = [];
-    for (const d of finalDefinitions) {
+    for (const d of definitions) {
       if (d.vietnameseMeaning && !/[a-zA-Z]{6,}\s+[a-zA-Z]{4,}/.test(d.vietnameseMeaning)) {
         const parts = d.vietnameseMeaning.split(/[;,/]/).map((p) => p.trim());
         for (const p of parts) {
@@ -75,40 +74,72 @@ export async function enrichVocabulary(word: string): Promise<VocabularyMetadata
         }
       }
     }
+    bestVietnamese = cleanViMeanings.slice(0, 4).join(', ');
+  }
+  if (!bestVietnamese && primaryDef?.vietnameseMeaning) {
+    bestVietnamese = primaryDef.vietnameseMeaning;
+  }
 
-    const combinedScrapedVi = cleanViMeanings.slice(0, 3).join(', ');
+  // Determine best English Definition
+  const bestEnglish = fullDict.englishDefinition || primaryDef?.englishMeaning || geminiData?.englishMeaning || '';
 
+  // Determine best Examples
+  const bestExamples: string[] = [];
+  if (fullDict.allExamples && fullDict.allExamples.length > 0) {
+    for (const ex of fullDict.allExamples) {
+      if (!bestExamples.includes(ex)) bestExamples.push(ex);
+    }
+  }
+  if (primaryDef?.examples && primaryDef.examples.length > 0) {
+    for (const ex of primaryDef.examples) {
+      if (!bestExamples.includes(ex)) bestExamples.push(ex);
+    }
+  }
+  if (geminiData?.exampleSentence && !bestExamples.includes(geminiData.exampleSentence)) {
+    bestExamples.push(geminiData.exampleSentence);
+  }
+
+  let finalDefinitions = [...definitions];
+
+  if (finalDefinitions.length === 0) {
+    finalDefinitions = [
+      {
+        cefrLevel,
+        englishMeaning: bestEnglish,
+        vietnameseMeaning: bestVietnamese,
+        examples: bestExamples.slice(0, 3),
+      },
+    ];
+  } else {
     finalDefinitions = finalDefinitions.map((def, idx) => {
       if (idx === 0) {
         return {
           ...def,
-          vietnameseMeaning: geminiData?.vietnameseMeaning || combinedScrapedVi || def.vietnameseMeaning,
-          englishMeaning: def.englishMeaning || geminiData?.englishMeaning || '',
-          examples: def.examples && def.examples.length > 0
-            ? def.examples
-            : (geminiData?.exampleSentence ? [geminiData.exampleSentence] : []),
+          vietnameseMeaning: bestVietnamese || def.vietnameseMeaning,
+          englishMeaning: def.englishMeaning || bestEnglish,
+          examples: def.examples && def.examples.length > 0 ? def.examples : bestExamples.slice(0, 3),
         };
       }
       return def;
     });
   }
 
-  // Step 4: Audio fallback
-  let audioUk = cambridgeData?.audioUkUrl || null;
-  let audioUs = cambridgeData?.audioUsUrl || null;
+  // Step 5: Audio fallback
+  let audioUk = cambridgeData?.audioUkUrl || fullDict.audioUrl || null;
+  let audioUs = cambridgeData?.audioUsUrl || fullDict.audioUrl || null;
 
   if (!audioUk && !audioUs) {
-    const fallback = await getFallbackAudio(word);
+    const fallback = await getFallbackAudio(effectiveWord);
     audioUk = fallback;
     audioUs = fallback;
   }
 
-  // Step 5: Image fallback from Unsplash
-  const primaryMeaning = finalDefinitions[0]?.englishMeaning || word;
-  const imageData = await fetchContextualImage(word, primaryMeaning);
+  // Step 6: Image fallback from Unsplash
+  const primaryMeaning = bestEnglish || effectiveWord;
+  const imageData = await fetchContextualImage(effectiveWord, primaryMeaning);
 
   return {
-    term: cambridgeData?.term || word,
+    term: cambridgeData?.term || effectiveWord,
     partOfSpeech,
     ipaUk,
     ipaUs,
@@ -120,4 +151,3 @@ export async function enrichVocabulary(word: string): Promise<VocabularyMetadata
     imagePhotographer: imageData?.photographer || null,
   };
 }
-
