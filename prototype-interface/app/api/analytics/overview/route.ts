@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { cards, cardSrsStates, reviewLogs, translationLogs, userStreaks, translationPrompts, decks, translationParagraphs, translationParagraphSubmissions } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
-import { eq, lte, count, and, desc } from 'drizzle-orm'
+import { eq, lte, count, and, desc, inArray } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,6 +28,10 @@ export async function GET() {
     const nowIso = new Date().toISOString()
     const todayStr = extractDateStr(nowIso)
 
+    // Fetch user deck IDs to filter card count per user
+    const userDecks = await db.select({ id: decks.id }).from(decks).where(eq(decks.userId, userId))
+    const userDeckIds = userDecks.map((d: any) => d.id)
+
     // Fetch all analytics datasets in parallel to eliminate waterfall latency
     const [
       streaks,
@@ -48,7 +52,9 @@ export async function GET() {
         .select({ val: count() })
         .from(decks)
         .where(eq(decks.userId, userId)),
-      db.select({ val: count() }).from(cards),
+      userDeckIds.length > 0
+        ? db.select({ val: count() }).from(cards).where(inArray(cards.deckId, userDeckIds))
+        : Promise.resolve([{ val: 0 }]),
       db.select().from(cardSrsStates).where(eq(cardSrsStates.userId, userId)),
       db
         .select({
@@ -268,20 +274,6 @@ export async function GET() {
     let activityMap = Object.keys(uniqueCardsByDate)
       .sort()
       .map((dateKey) => uniqueCardsByDate[dateKey].size)
-
-    const totalActivityCount = activityMap.reduce((acc, curr) => acc + curr, 0)
-
-    if (totalActivityCount === 0) {
-      const sortedKeys = Object.keys(uniqueCardsByDate).sort()
-      activityMap = sortedKeys.map((_, idx) => {
-        const seed = (idx * 37 + 13) % 100
-        if (seed < 40) return 0
-        if (seed < 70) return 1
-        if (seed < 88) return 2
-        if (seed < 96) return 3
-        return 4
-      })
-    }
 
     return NextResponse.json({
       streak: {

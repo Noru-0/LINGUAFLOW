@@ -25,7 +25,7 @@ export async function GET() {
       .from(decks)
       .leftJoin(cards, eq(decks.id, cards.deckId))
       .where(eq(decks.userId, userId))
-      .groupBy(decks.id)
+      .groupBy(decks.id, decks.title, decks.description, decks.isPublic, decks.createdAt)
 
     return NextResponse.json({ decks: userDecks })
   } catch (error) {

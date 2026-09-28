@@ -4421,8 +4421,8 @@ function Analytics() {
   const paragraphLogs: any[] = analytics.paragraphLogs || []
 
   return (
-    <div className="page-content">
-      <div className="welcome-row">
+    <div className="page-content" style={{ gap: '20px', paddingTop: '10px' }}>
+      <div className="welcome-row" style={{ marginBottom: '8px' }}>
         <div>
           <p className="eyebrow">THỐNG KÊ & PHÂN TÍCH TIẾN ĐỘ</p>
           <h1>Phân tích tiến độ học tập</h1>
@@ -4431,7 +4431,7 @@ function Analytics() {
       </div>
 
       {/* 1. Metric Cards Top Row */}
-      <div className="analytics-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '14px' }}>
+      <div className="analytics-metrics" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginTop: '0', marginBottom: '16px', flexShrink: 0 }}>
         <MetricCard
           icon={TrendingUp}
           label="Tỷ lệ ghi nhớ & Chính xác"
@@ -4463,7 +4463,7 @@ function Analytics() {
       </div>
 
       {/* 2. Memory Breakdown & Trend Line Section (First section after metric cards) */}
-      <div className="analytics-grid" style={{ marginBottom: '14px', alignItems: 'start' }}>
+      <div className="analytics-grid" style={{ marginTop: '0', marginBottom: '16px', alignItems: 'stretch' }}>
         <section className="panel chart-panel" style={{ height: 'auto', justifyContent: 'flex-start' }}>
           <div className="panel-header">
             <div>
