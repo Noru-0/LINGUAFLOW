@@ -9,6 +9,12 @@ import {
   BarChart3,
   BookOpen,
   Check,
+  CheckCheck,
+  CheckSquare,
+  Square,
+  Filter,
+  SlidersHorizontal,
+  FolderPlus,
   ChevronDown,
   ChevronUp,
   ChevronLeft,
@@ -23,6 +29,7 @@ import {
   Headphones,
   Image as ImageIcon,
   Keyboard,
+  Layers,
   LayoutDashboard,
   Library,
   Menu,
@@ -30,6 +37,7 @@ import {
   Plus,
   Search,
   Settings,
+  Shield,
   Sparkles,
   Sun,
   Moon,
@@ -45,10 +53,9 @@ import {
   LogOut,
   UserPlus,
   Mic,
-  Layers,
-  Shield,
   Lock,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react'
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -58,6 +65,7 @@ import { evaluateFillInBlank, buildHintPattern, firstLetterOf } from '@/lib/srs/
 import { playSuccessChime, playErrorChime, triggerConfetti, triggerBatchCompleteCelebration } from '@/lib/effects/celebration'
 import { CollocationMatcher } from '@/components/collocation/CollocationMatcher'
 import { SpeakingPractice } from '@/components/speaking/SpeakingPractice'
+import { INITIAL_COLLOCATIONS, InitialCollocation } from '@/lib/db/initial_collocations'
 
 type View = 'Dashboard' | 'Review' | 'Translate' | 'Decks' | 'Analytics' | 'Resources' | 'Collocations' | 'Speaking'
 
@@ -95,6 +103,9 @@ function getTypeStyle(type: string, isDark?: boolean) {
     if (t === 'verb') return { background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.4)', fontWeight: 600 }
     if (t === 'adjective') return { background: 'rgba(139, 92, 246, 0.2)', color: '#a78bfa', border: '1px solid rgba(167, 139, 250, 0.4)', fontWeight: 600 }
     if (t === 'adverb') return { background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.4)', fontWeight: 600 }
+    if (t === 'collocation' || t === 'phrase' || t === 'idiom' || t === 'phrasal verb') {
+      return { background: 'rgba(20, 184, 166, 0.2)', color: '#2dd4bf', border: '1px solid rgba(45, 212, 191, 0.4)', fontWeight: 650 }
+    }
     return { background: 'rgba(244, 63, 94, 0.2)', color: '#fb7185', border: '1px solid rgba(253, 164, 175, 0.4)', fontWeight: 600 }
   }
   if (!t) return { background: '#eef2ff', color: '#4338ca', border: '1px solid #818cf8', fontWeight: 600 }
@@ -102,6 +113,9 @@ function getTypeStyle(type: string, isDark?: boolean) {
   if (t === 'verb') return { background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', fontWeight: 600 }
   if (t === 'adjective') return { background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', fontWeight: 600 }
   if (t === 'adverb') return { background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', fontWeight: 600 }
+  if (t === 'collocation' || t === 'phrase' || t === 'idiom' || t === 'phrasal verb') {
+    return { background: '#ccfbf1', color: '#0f766e', border: '1px solid #99f6e4', fontWeight: 650 }
+  }
   return { background: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3', fontWeight: 600 }
 }
 
@@ -1918,6 +1932,9 @@ function Translate({ setView }: { setView: (view: View) => void }) {
     filteredParagraphs[0] ||
     null
 
+  const currentSentenceIndex = filteredPrompts.findIndex((p) => p.id === currentPrompt?.id)
+  const currentParagraphIndex = filteredParagraphs.findIndex((p) => p.id === currentParagraph?.id)
+
   // Sync active IDs on load or filter change
   useEffect(() => {
     if (!activePromptId && currentPrompt?.id) {
@@ -1978,17 +1995,11 @@ function Translate({ setView }: { setView: (view: View) => void }) {
     setSentenceSubmitError(null)
     setSentenceRetryCount(0)
     setSentenceRewriteInput('')
-    const uncompletedList = filteredPrompts.filter((p) => !completedPromptIds.has(p.id))
-    if (uncompletedList.length > 0) {
-      const currIdx = uncompletedList.findIndex((p) => p.id === activePromptId)
-      const nextIdx = currIdx >= 0 && currIdx + 1 < uncompletedList.length ? currIdx + 1 : 0
-      setActivePromptId(uncompletedList[nextIdx].id)
-    } else {
-      const currIdx = filteredPrompts.findIndex((p) => p.id === activePromptId)
-      const nextIdx = currIdx >= 0 && currIdx + 1 < filteredPrompts.length ? currIdx + 1 : 0
-      if (filteredPrompts[nextIdx]) {
-        setActivePromptId(filteredPrompts[nextIdx].id)
-      }
+    if (filteredPrompts.length <= 1) return
+    const currIdx = filteredPrompts.findIndex((p) => p.id === (currentPrompt?.id || activePromptId))
+    const nextIdx = currIdx >= 0 && currIdx + 1 < filteredPrompts.length ? currIdx + 1 : 0
+    if (filteredPrompts[nextIdx]) {
+      setActivePromptId(filteredPrompts[nextIdx].id)
     }
   }
 
@@ -2041,17 +2052,11 @@ function Translate({ setView }: { setView: (view: View) => void }) {
     setParagraphSubmitError(null)
     setParagraphRetryCount(0)
     setParagraphRewriteInput('')
-    const uncompletedList = filteredParagraphs.filter((p) => !completedParagraphIds.has(p.id))
-    if (uncompletedList.length > 0) {
-      const currIdx = uncompletedList.findIndex((p) => p.id === activeParagraphId)
-      const nextIdx = currIdx >= 0 && currIdx + 1 < uncompletedList.length ? currIdx + 1 : 0
-      setActiveParagraphId(uncompletedList[nextIdx].id)
-    } else {
-      const currIdx = filteredParagraphs.findIndex((p) => p.id === activeParagraphId)
-      const nextIdx = currIdx >= 0 && currIdx + 1 < filteredParagraphs.length ? currIdx + 1 : 0
-      if (filteredParagraphs[nextIdx]) {
-        setActiveParagraphId(filteredParagraphs[nextIdx].id)
-      }
+    if (filteredParagraphs.length <= 1) return
+    const currIdx = filteredParagraphs.findIndex((p) => p.id === (currentParagraph?.id || activeParagraphId))
+    const nextIdx = currIdx >= 0 && currIdx + 1 < filteredParagraphs.length ? currIdx + 1 : 0
+    if (filteredParagraphs[nextIdx]) {
+      setActiveParagraphId(filteredParagraphs[nextIdx].id)
     }
   }
 
@@ -2363,7 +2368,7 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                     {getLevelBadge(currentParagraph?.targetBand).label}
                   </span>
                   <span className="prompt-number">
-                    Đề {paragraphIndex + 1} / {filteredParagraphs.length}
+                    Đề {(currentParagraphIndex >= 0 ? currentParagraphIndex : 0) + 1} / {filteredParagraphs.length}
                   </span>
                 </div>
                 <button
@@ -2733,9 +2738,30 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                     {getLevelBadge(currentPrompt?.difficulty).label}
                   </span>
                   <span className="prompt-number">
-                    Câu {promptIndex + 1} / {filteredPrompts.length}
+                    Câu {(currentSentenceIndex >= 0 ? currentSentenceIndex : 0) + 1} / {filteredPrompts.length}
                   </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={handleNextSentence}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '5px 12px',
+                    fontSize: '12.5px',
+                    fontWeight: 650,
+                    borderRadius: '8px',
+                    border: '1px solid rgba(99, 102, 241, 0.3)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                    color: '#4f46e5',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Chuyển sang câu luyện tập khác"
+                >
+                  <RefreshCw size={13} /> Đổi câu
+                </button>
               </div>
               <p className="eyebrow">TRANSLATE THIS SENTENCE TO ENGLISH</p>
               <h2>{currentPrompt?.vietnameseText || 'Loading prompt...'}</h2>
@@ -3189,11 +3215,632 @@ function Decks() {
 
   // Modals state
   const [showNewDeckModal, setShowNewDeckModal] = useState(false)
+  const [showDeleteDeckConfirmModal, setShowDeleteDeckConfirmModal] = useState(false)
   const [showNewCardModal, setShowNewCardModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false)
   const [selectedCardAction, setSelectedCardAction] = useState<any>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  // Collocations Modal state
+  const [showCollocationModal, setShowCollocationModal] = useState(false)
+  const [collocTab, setCollocTab] = useState<'grid' | 'batch' | 'library'>('grid')
+  const [collocSearch, setCollocSearch] = useState('')
+  const [selectedCollocTopic, setSelectedCollocTopic] = useState<string>('ALL')
+  const [selectedCollocCefr, setSelectedCollocCefr] = useState<string>('ALL')
+  const [selectedCollocIds, setSelectedCollocIds] = useState<Set<string>>(new Set())
+  const [collocPage, setCollocPage] = useState(1)
+  const [collocPageSize, setCollocPageSize] = useState(15)
+
+  // Collocation Excel Spreadsheet Grid State (like Vocabulary Excel Grid)
+  const [collocExcelRows, setCollocExcelRows] = useState<any[]>([
+    { id: '1', phrase: '', headWord: '', tailChunk: '', level: '', topic: '', vietnamese: '', englishDef: '', exampleSentences: '', examples: [] },
+    { id: '2', phrase: '', headWord: '', tailChunk: '', level: '', topic: '', vietnamese: '', englishDef: '', exampleSentences: '', examples: [] },
+    { id: '3', phrase: '', headWord: '', tailChunk: '', level: '', topic: '', vietnamese: '', englishDef: '', exampleSentences: '', examples: [] },
+    { id: '4', phrase: '', headWord: '', tailChunk: '', level: '', topic: '', vietnamese: '', englishDef: '', exampleSentences: '', examples: [] },
+    { id: '5', phrase: '', headWord: '', tailChunk: '', level: '', topic: '', vietnamese: '', englishDef: '', exampleSentences: '', examples: [] },
+  ])
+  const collocEnrichmentTimeouts = useRef<Record<number, NodeJS.Timeout>>({})
+  const [isBatchEnriching, setIsBatchEnriching] = useState(false)
+
+  // Batch paste state
+  const [batchCollocText, setBatchCollocText] = useState('')
+  const [collocSuccessToast, setCollocSuccessToast] = useState<string | null>(null)
+
+  // Dynamic topic categories
+  const allCollocTopics = useMemo(() => {
+    const topics = new Set<string>()
+    INITIAL_COLLOCATIONS.forEach((c) => {
+      if (c.category) topics.add(c.category)
+      else if (c.ielts_topic) topics.add(c.ielts_topic)
+    })
+    return Array.from(topics)
+  }, [])
+
+  // Filtered collocations from library
+  const filteredCollocations = useMemo(() => {
+    const q = collocSearch.toLowerCase().trim()
+    return INITIAL_COLLOCATIONS.filter((item) => {
+      const matchesSearch =
+        !q ||
+        item.full_phrase.toLowerCase().includes(q) ||
+        item.head_word.toLowerCase().includes(q) ||
+        item.tail_chunk.toLowerCase().includes(q) ||
+        item.meaning_vi.toLowerCase().includes(q) ||
+        (item.ielts_topic && item.ielts_topic.toLowerCase().includes(q)) ||
+        (item.category && item.category.toLowerCase().includes(q))
+
+      const matchesTopic =
+        selectedCollocTopic === 'ALL' ||
+        item.category === selectedCollocTopic ||
+        item.ielts_topic === selectedCollocTopic
+
+      const matchesCefr = selectedCollocCefr === 'ALL' || item.cefr_level === selectedCollocCefr
+
+      return matchesSearch && matchesTopic && matchesCefr
+    })
+  }, [collocSearch, selectedCollocTopic, selectedCollocCefr])
+
+  const totalCollocPages = Math.max(1, Math.ceil(filteredCollocations.length / collocPageSize))
+  const safeCollocPage = Math.min(collocPage, totalCollocPages)
+  const paginatedCollocations = filteredCollocations.slice(
+    (safeCollocPage - 1) * collocPageSize,
+    safeCollocPage * collocPageSize
+  )
+
+  const toggleCollocSelect = (id: string) => {
+    setSelectedCollocIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAllPage = () => {
+    const allCurrentPageSelected =
+      paginatedCollocations.length > 0 &&
+      paginatedCollocations.every((c) => selectedCollocIds.has(c.id))
+    setSelectedCollocIds((prev) => {
+      const next = new Set(prev)
+      if (allCurrentPageSelected) {
+        paginatedCollocations.forEach((c) => next.delete(c.id))
+      } else {
+        paginatedCollocations.forEach((c) => next.add(c.id))
+      }
+      return next
+    })
+  }
+
+  const selectAllFiltered = () => {
+    setSelectedCollocIds(new Set(filteredCollocations.map((c) => c.id)))
+  }
+
+  const deselectAllCollocs = () => {
+    setSelectedCollocIds(new Set())
+  }
+
+  // Live Auto-Enrichment for Collocation (only phrase needed!)
+  const fetchLiveCollocEnrichment = async (index: number, phrase: string) => {
+    if (!phrase || !phrase.trim()) return
+    const cleanPhrase = phrase.trim()
+    const cleanLower = cleanPhrase.toLowerCase()
+
+    // 1. Instant local match from INITIAL_COLLOCATIONS
+    const localMatch = INITIAL_COLLOCATIONS.find(
+      (c) =>
+        c.full_phrase.toLowerCase() === cleanLower ||
+        `${c.head_word} ${c.tail_chunk}`.toLowerCase() === cleanLower
+    )
+    if (localMatch) {
+      setCollocExcelRows((prev) => {
+        const updated = [...prev]
+        if (!updated[index]) return prev
+        const current = { ...updated[index] }
+        if (!current.headWord) current.headWord = localMatch.head_word
+        if (!current.tailChunk) current.tailChunk = localMatch.tail_chunk
+        if (!current.level) current.level = localMatch.cefr_level || 'B2'
+        if (!current.topic) current.topic = localMatch.ielts_topic || localMatch.category || 'General'
+        if (!current.vietnamese) current.vietnamese = localMatch.meaning_vi
+        if (!current.exampleSentences) current.exampleSentences = `1. ${localMatch.example_sentence}`
+        if (!current.examples || current.examples.length === 0) current.examples = [localMatch.example_sentence]
+        updated[index] = current
+        return updated
+      })
+    }
+
+    // 2. Mark row as loading live enrichment
+    setCollocExcelRows((prev) => {
+      const updated = [...prev]
+      if (updated[index]) {
+        updated[index] = { ...updated[index], isLoadingEnrichment: true }
+      }
+      return updated
+    })
+
+    try {
+      const res = await fetch(`/api/collocations/enrich?phrase=${encodeURIComponent(cleanPhrase)}`)
+      if (!res.ok) {
+        setCollocExcelRows((prev) => {
+          const updated = [...prev]
+          if (updated[index]) {
+            updated[index] = { ...updated[index], isLoadingEnrichment: false }
+          }
+          return updated
+        })
+        return
+      }
+      const data = await res.json()
+      setCollocExcelRows((prev) => {
+        const updated = [...prev]
+        if (!updated[index]) return prev
+        const current = { ...updated[index], isLoadingEnrichment: false }
+        if (data.headWord) current.headWord = data.headWord
+        if (data.tailChunk) current.tailChunk = data.tailChunk
+        if (data.cefrLevel) current.level = data.cefrLevel
+        if (data.ieltsTopic || data.category) current.topic = data.ieltsTopic || data.category
+        if (data.vietnameseMeaning) current.vietnamese = data.vietnameseMeaning
+        if (data.englishMeaning) current.englishDef = data.englishMeaning
+        if (data.examples && Array.isArray(data.examples) && data.examples.length > 0) {
+          current.examples = data.examples
+          current.exampleSentences = data.examples.map((ex: string, i: number) => `${i + 1}. ${ex}`).join('\n')
+        } else if (data.exampleSentence) {
+          current.exampleSentences = data.exampleSentence
+        }
+        if (data.distractors) current.distractors = data.distractors
+        updated[index] = current
+        return updated
+      })
+    } catch {
+      setCollocExcelRows((prev) => {
+        const updated = [...prev]
+        if (updated[index]) {
+          updated[index] = { ...updated[index], isLoadingEnrichment: false }
+        }
+        return updated
+      })
+    }
+  }
+
+  const handleCollocExcelCellChange = (index: number, field: string, value: string) => {
+    setCollocExcelRows((prev) => {
+      const updated = [...prev]
+      if (!updated[index]) return prev
+      updated[index] = { ...updated[index], [field]: value }
+      return updated
+    })
+
+    if (field === 'phrase') {
+      if (collocEnrichmentTimeouts.current[index]) {
+        clearTimeout(collocEnrichmentTimeouts.current[index])
+      }
+      if (value && value.trim().length >= 3) {
+        collocEnrichmentTimeouts.current[index] = setTimeout(() => {
+          fetchLiveCollocEnrichment(index, value)
+        }, 500)
+      }
+    }
+  }
+
+  const addCollocExcelRow = (count = 5) => {
+    setCollocExcelRows((prev) => {
+      const newRows = []
+      for (let i = 0; i < count; i++) {
+        newRows.push({
+          id: String(Date.now() + i + Math.random()),
+          phrase: '',
+          headWord: '',
+          tailChunk: '',
+          level: '',
+          topic: '',
+          vietnamese: '',
+          englishDef: '',
+          exampleSentences: '',
+          examples: [],
+        })
+      }
+      return [...prev, ...newRows]
+    })
+  }
+
+  const resetCollocExcelGrid = () => {
+    const freshRows = []
+    for (let i = 0; i < 5; i++) {
+      freshRows.push({
+        id: String(Date.now() + i + Math.random()),
+        phrase: '',
+        headWord: '',
+        tailChunk: '',
+        level: '',
+        topic: '',
+        vietnamese: '',
+        englishDef: '',
+        exampleSentences: '',
+        examples: [],
+      })
+    }
+    setCollocExcelRows(freshRows)
+  }
+
+  const removeCollocExcelRow = (index: number) => {
+    setCollocExcelRows((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  // Save Collocation Excel Grid
+  const handleSaveCollocExcelBatch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (isSubmitting) return
+
+    const validRows = collocExcelRows.filter((r) => r.phrase && r.phrase.trim().length > 0)
+    if (validRows.length === 0) return
+
+    let targetDeckId = selectedDeckId
+    if (!targetDeckId) {
+      try {
+        const res = await fetch('/api/decks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: 'Collocations Deck', description: 'Cụm từ cố định trong tiếng Anh' }),
+        })
+        const data = await res.json()
+        if (data.deck?.id) {
+          targetDeckId = data.deck.id
+          setSelectedDeckId(targetDeckId)
+          await fetchDecks()
+        } else {
+          return
+        }
+      } catch {
+        return
+      }
+    }
+
+    setIsSubmitting(true)
+    try {
+      const cardsToInsert = validRows.map((r) => {
+        const cleanPhrase = r.phrase.trim()
+        const words = cleanPhrase.split(' ')
+        const head = r.headWord?.trim() || (words.length > 1 ? words[0] : cleanPhrase)
+        const tail = r.tailChunk?.trim() || (words.length > 1 ? words.slice(1).join(' ') : '')
+        const vi = r.vietnamese?.trim() || `Nghĩa của ${cleanPhrase}`
+        const lvl = r.level?.trim() || (cleanPhrase.length > 15 ? 'C1' : 'B2')
+        const topic = r.topic?.trim() || 'General'
+        const engDef = r.englishDef?.trim() || `Collocation: ${head} + ${tail}`
+        const exs = Array.isArray(r.examples) && r.examples.length > 0
+          ? r.examples
+          : (r.exampleSentences ? r.exampleSentences.split('\n').map((s: string) => s.replace(/^\d+\.\s*/, '').trim()).filter(Boolean) : [])
+
+        return {
+          term: cleanPhrase,
+          vietnameseDefinition: vi,
+          partOfSpeech: 'collocation',
+          cefrLevel: lvl,
+          phonetic: `/${cleanPhrase}/`,
+          exampleSentence: r.exampleSentences || (exs.length > 0 ? exs.join('\n\n• ') : ''),
+          englishMeaning: engDef,
+          allDefinitions: [
+            {
+              cefrLevel: lvl,
+              englishMeaning: engDef,
+              vietnameseMeaning: vi,
+              examples: exs.length > 0 ? exs : (r.exampleSentences ? [r.exampleSentences] : []),
+            }
+          ],
+          collocations: {
+            head_word: head,
+            tail_chunk: tail,
+            full_phrase: cleanPhrase,
+            meaning_vi: vi,
+            example_sentence: exs[0] || r.exampleSentences || '',
+            examples: exs,
+            ielts_topic: topic,
+            category: topic,
+            level: lvl,
+            distractors: r.distractors || [],
+          },
+        }
+      })
+
+      const res = await fetch(`/api/decks/${targetDeckId}/cards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cardsToInsert),
+      })
+
+      if (res.ok) {
+        cachedDashboardMetrics = null
+        resetCollocExcelGrid()
+        setShowCollocationModal(false)
+        fetchCards()
+        fetchDecks()
+        setCollocSuccessToast(`Đã thêm thành công ${cardsToInsert.length} Collocation và đa dạng ví dụ vào Deck!`)
+        setTimeout(() => setCollocSuccessToast(null), 3500)
+      }
+    } catch (err) {
+      console.error('Save colloc batch error:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Auto-Enrich pasted batch text and populate spreadsheet
+  const handleBatchEnrichAndPopulate = async () => {
+    if (!batchCollocText.trim() || isBatchEnriching) return
+    setIsBatchEnriching(true)
+
+    try {
+      const rawLines = batchCollocText
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0)
+
+      const enrichedRows = await Promise.all(
+        rawLines.map(async (line, idx) => {
+          const parts = line.split('|').map((p) => p.trim())
+          const phrase = parts[0]
+          if (!phrase) return null
+
+          try {
+            const res = await fetch(`/api/collocations/enrich?phrase=${encodeURIComponent(phrase)}`)
+            if (res.ok) {
+              const data = await res.json()
+              const exs = Array.isArray(data.examples) && data.examples.length > 0
+                ? data.examples
+                : (data.exampleSentence ? [data.exampleSentence] : [])
+              return {
+                id: String(Date.now() + idx + Math.random()),
+                phrase: data.fullPhrase || phrase,
+                headWord: data.headWord || (phrase.split(' ')[0] || phrase),
+                tailChunk: data.tailChunk || (phrase.split(' ').slice(1).join(' ') || ''),
+                level: data.cefrLevel || parts[3] || 'B2',
+                topic: data.ieltsTopic || parts[4] || 'General',
+                vietnamese: parts[1] || data.vietnameseMeaning || `Nghĩa của ${phrase}`,
+                englishDef: data.englishMeaning || '',
+                exampleSentences: exs.map((ex: string, i: number) => `${i + 1}. ${ex}`).join('\n') || parts[2] || '',
+                examples: exs,
+                distractors: data.distractors || [],
+              }
+            }
+          } catch {}
+
+          const words = phrase.split(' ')
+          return {
+            id: String(Date.now() + idx + Math.random()),
+            phrase,
+            headWord: words[0] || phrase,
+            tailChunk: words.slice(1).join(' ') || '',
+            level: parts[3] || 'B2',
+            topic: parts[4] || 'General',
+            vietnamese: parts[1] || `Nghĩa của ${phrase}`,
+            englishDef: '',
+            exampleSentences: parts[2] || '',
+            examples: parts[2] ? [parts[2]] : [],
+          }
+        })
+      )
+
+      const validEnriched = enrichedRows.filter(Boolean)
+      if (validEnriched.length > 0) {
+        setCollocExcelRows(validEnriched)
+        setCollocTab('grid')
+        setBatchCollocText('')
+      }
+    } catch (err) {
+      console.error('Batch enrich error:', err)
+    } finally {
+      setIsBatchEnriching(false)
+    }
+  }
+
+  // Save raw batch text directly into deck
+  const handleSaveBatchCollocations = async () => {
+    if (!batchCollocText.trim() || isSubmitting) return
+    setIsSubmitting(true)
+
+    let targetDeckId = selectedDeckId
+    if (!targetDeckId) {
+      try {
+        const res = await fetch('/api/decks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: 'Collocations Deck', description: 'Cụm từ cố định trong tiếng Anh' }),
+        })
+        const data = await res.json()
+        if (data.deck?.id) {
+          targetDeckId = data.deck.id
+          setSelectedDeckId(targetDeckId)
+          await fetchDecks()
+        } else {
+          return
+        }
+      } catch {
+        return
+      }
+    }
+
+    try {
+      const rawLines = batchCollocText
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0)
+
+      const cardsToInsert = await Promise.all(
+        rawLines.map(async (line) => {
+          const parts = line.split('|').map((p) => p.trim())
+          const phrase = parts[0]
+          if (!phrase) return null
+
+          let head = ''
+          let tail = ''
+          let vi = parts[1] || ''
+          let lvl = parts[3] || 'B2'
+          let topic = parts[4] || 'General'
+          let exs: string[] = parts[2] ? [parts[2]] : []
+          let engDef = ''
+          let distractors: string[] = []
+
+          try {
+            const res = await fetch(`/api/collocations/enrich?phrase=${encodeURIComponent(phrase)}`)
+            if (res.ok) {
+              const data = await res.json()
+              head = data.headWord || ''
+              tail = data.tailChunk || ''
+              if (!vi) vi = data.vietnameseMeaning || ''
+              if (!parts[3]) lvl = data.cefrLevel || 'B2'
+              if (!parts[4]) topic = data.ieltsTopic || 'General'
+              if (Array.isArray(data.examples) && data.examples.length > 0) {
+                exs = data.examples
+              } else if (data.exampleSentence && exs.length === 0) {
+                exs = [data.exampleSentence]
+              }
+              engDef = data.englishMeaning || ''
+              distractors = data.distractors || []
+            }
+          } catch {}
+
+          if (!head || !tail) {
+            const words = phrase.split(' ')
+            head = head || words[0] || phrase
+            tail = tail || words.slice(1).join(' ') || ''
+          }
+          if (!vi) vi = `Nghĩa của ${phrase}`
+          if (!engDef) engDef = `Collocation: ${head} + ${tail}`
+
+          return {
+            term: phrase,
+            vietnameseDefinition: vi,
+            partOfSpeech: 'collocation',
+            cefrLevel: lvl,
+            phonetic: `/${phrase}/`,
+            exampleSentence: exs.length > 0 ? exs.join('\n\n• ') : (parts[2] || ''),
+            englishMeaning: engDef,
+            allDefinitions: [
+              {
+                cefrLevel: lvl,
+                englishMeaning: engDef,
+                vietnameseMeaning: vi,
+                examples: exs.length > 0 ? exs : (parts[2] ? [parts[2]] : []),
+              }
+            ],
+            collocations: {
+              head_word: head,
+              tail_chunk: tail,
+              full_phrase: phrase,
+              meaning_vi: vi,
+              example_sentence: exs[0] || parts[2] || '',
+              examples: exs,
+              ielts_topic: topic,
+              category: topic,
+              level: lvl,
+              distractors: distractors,
+            },
+          }
+        })
+      )
+
+      const validCards = cardsToInsert.filter(Boolean)
+      if (validCards.length === 0) return
+
+      const res = await fetch(`/api/decks/${targetDeckId}/cards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(validCards),
+      })
+
+      if (res.ok) {
+        cachedDashboardMetrics = null
+        setBatchCollocText('')
+        setShowCollocationModal(false)
+        fetchCards()
+        fetchDecks()
+        setCollocSuccessToast(`Đã thêm thành công ${validCards.length} Collocation vào Deck!`)
+        setTimeout(() => setCollocSuccessToast(null), 3500)
+      }
+    } catch (err) {
+      console.error('Save batch collocations error:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleImportLibraryCollocations = async () => {
+    if (selectedCollocIds.size === 0 || isSubmitting) return
+
+    let targetDeckId = selectedDeckId
+    if (!targetDeckId) {
+      try {
+        const res = await fetch('/api/decks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: 'Collocations Deck', description: 'Cụm từ cố định trong tiếng Anh' }),
+        })
+        const data = await res.json()
+        if (data.deck?.id) {
+          targetDeckId = data.deck.id
+          setSelectedDeckId(targetDeckId)
+          await fetchDecks()
+        } else {
+          return
+        }
+      } catch {
+        return
+      }
+    }
+
+    setIsSubmitting(true)
+    try {
+      const selectedList = INITIAL_COLLOCATIONS.filter((c) => selectedCollocIds.has(c.id))
+      const cardsToInsert = selectedList.map((item) => ({
+        term: item.full_phrase,
+        vietnameseDefinition: item.meaning_vi || `Nghĩa của ${item.full_phrase}`,
+        partOfSpeech: 'collocation',
+        cefrLevel: item.cefr_level || 'B2',
+        phonetic: `/${item.full_phrase}/`,
+        exampleSentence: item.example_sentence || '',
+        englishMeaning: `Collocation: ${item.head_word} + ${item.tail_chunk}`,
+        allDefinitions: [
+          {
+            cefrLevel: item.cefr_level || 'B2',
+            englishMeaning: `Collocation: ${item.head_word} + ${item.tail_chunk}`,
+            vietnameseMeaning: item.meaning_vi,
+            examples: [item.example_sentence].filter(Boolean),
+          }
+        ],
+        collocations: {
+          head_word: item.head_word,
+          tail_chunk: item.tail_chunk,
+          full_phrase: item.full_phrase,
+          meaning_vi: item.meaning_vi,
+          example_sentence: item.example_sentence,
+          examples: [item.example_sentence].filter(Boolean),
+          ielts_topic: item.ielts_topic || item.category || 'General',
+          category: item.category || item.ielts_topic || 'General',
+          distractors: item.distractors || [],
+          level: item.cefr_level || 'B2',
+        },
+      }))
+
+      const res = await fetch(`/api/decks/${targetDeckId}/cards`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cardsToInsert),
+      })
+
+      if (res.ok) {
+        cachedDashboardMetrics = null
+        setSelectedCollocIds(new Set())
+        setShowCollocationModal(false)
+        fetchCards()
+        fetchDecks()
+        setCollocSuccessToast(`Đã thêm thành công ${cardsToInsert.length} collocation vào Deck!`)
+        setTimeout(() => setCollocSuccessToast(null), 3500)
+      }
+    } catch (err) {
+      console.error('Import collocations error:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const handleDeleteCard = async (cardId: string) => {
     if (!selectedDeckId) return
@@ -3201,10 +3848,43 @@ function Decks() {
       await fetch(`/api/decks/${selectedDeckId}/cards?cardId=${cardId}`, {
         method: 'DELETE',
       })
+      cachedDashboardMetrics = null
       fetchCards()
+      fetchDecks()
       setSelectedCardAction(null)
     } catch (err) {
       console.error('Delete card error:', err)
+    }
+  }
+
+  const handleDeleteDeck = async () => {
+    if (!selectedDeckId || isSubmitting) return
+    setIsSubmitting(true)
+    const deckToDelete = selectedDeckId
+    try {
+      const res = await fetch(`/api/decks/${deckToDelete}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        await fetch(`/api/decks?deckId=${deckToDelete}`, {
+          method: 'DELETE',
+        })
+      }
+      cachedDashboardMetrics = null
+      setShowDeleteDeckConfirmModal(false)
+      const remainingDecks = decksList.filter((d) => d.id !== deckToDelete)
+      setDecksList(remainingDecks)
+      if (remainingDecks.length > 0) {
+        setSelectedDeckId(remainingDecks[0].id)
+      } else {
+        setSelectedDeckId(null)
+        setCardsList([])
+      }
+      fetchDecks()
+    } catch (err) {
+      console.error('Delete deck error:', err)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -3293,21 +3973,24 @@ function Decks() {
     const cleanLower = cleanTerm.toLowerCase()
     const cleanType = type.trim().toLowerCase()
 
-    // 1. Instant local dictionaryDb lookup if available
+    // 1. Instant local dictionaryDb lookup if available and matches selected type
     if (dictionaryDb[cleanLower]) {
       const match = dictionaryDb[cleanLower]
-      setExcelRows((prev) => {
-        const updated = [...prev]
-        if (!updated[index]) return prev
-        const current = { ...updated[index] }
-        if (!current.level) current.level = match.level
-        if (!current.phonetic) current.phonetic = match.phonetic
-        if (!current.vietnameseDefinition) current.vietnameseDefinition = match.vietnamese
-        if (!current.englishDefinition) current.englishDefinition = match.definition
-        if (!current.exampleSentence) current.exampleSentence = match.example
-        updated[index] = current
-        return updated
-      })
+      const matchGrammar = (match.grammarLabel || '').toLowerCase()
+      if (!cleanType || matchGrammar.includes(cleanType) || cleanType.includes(matchGrammar)) {
+        setExcelRows((prev) => {
+          const updated = [...prev]
+          if (!updated[index]) return prev
+          const current = { ...updated[index] }
+          if (!current.level) current.level = match.level
+          if (!current.phonetic) current.phonetic = match.phonetic
+          if (!current.vietnameseDefinition) current.vietnameseDefinition = match.vietnamese
+          if (!current.englishDefinition) current.englishDefinition = match.definition
+          if (!current.exampleSentence) current.exampleSentence = match.example
+          updated[index] = current
+          return updated
+        })
+      }
     }
 
     // 2. Mark row as loading live enrichment
@@ -3341,6 +4024,9 @@ function Decks() {
         if (data.vietnameseMeaning) current.vietnameseDefinition = data.vietnameseMeaning
         if (data.englishMeaning) current.englishDefinition = data.englishMeaning
         if (data.example) current.exampleSentence = data.example
+        if (data.audioUrl) current.audioUrl = data.audioUrl
+        if (data.imageUrl) current.imageUrl = data.imageUrl
+        if (data.definitions) current.allDefinitions = data.definitions
         updated[index] = current
         return updated
       })
@@ -3528,6 +4214,9 @@ function Decks() {
           exampleSentence: ex || '',
           englishMeaning: engDef || '',
           cefrLevel: lvl || 'B1',
+          audioUrl: r.audioUrl || null,
+          imageUrl: r.imageUrl || null,
+          allDefinitions: r.allDefinitions || [],
           collocations: {
             level: lvl || 'B1',
             englishDefinition: engDef || '',
@@ -3591,20 +4280,25 @@ function Decks() {
       let engDef = newDefinition
       let lvl = newLevel
 
-      if (!vietDef || !phon || !ex || !pos || vietDef.startsWith('Nghĩa')) {
-        try {
-          const res = await fetch(`/api/enrich?word=${encodeURIComponent(newTerm.trim())}&type=${encodeURIComponent((pos || '').trim())}`)
-          if (res.ok) {
-            const data = await res.json()
-            if ((!vietDef || vietDef.startsWith('Nghĩa')) && data.vietnameseMeaning) vietDef = data.vietnameseMeaning
-            if (!phon && data.phonetic) phon = data.phonetic
-            if (!pos && data.partOfSpeech) pos = data.partOfSpeech
-            if (!ex && data.example) ex = data.example
-            if (!engDef && data.englishMeaning) engDef = data.englishMeaning
-            if (!lvl && data.cefrLevel) lvl = data.cefrLevel
-          }
-        } catch {}
-      }
+      let audioUrl: string | null = null
+      let imageUrl: string | null = null
+      let allDefinitions: any[] = []
+
+      try {
+        const res = await fetch(`/api/enrich?word=${encodeURIComponent(newTerm.trim())}&type=${encodeURIComponent((pos || '').trim())}`)
+        if (res.ok) {
+          const data = await res.json()
+          if ((!vietDef || vietDef.startsWith('Nghĩa')) && data.vietnameseMeaning) vietDef = data.vietnameseMeaning
+          if (!phon && data.phonetic) phon = data.phonetic
+          if (!pos && data.partOfSpeech) pos = data.partOfSpeech
+          if (!ex && data.example) ex = data.example
+          if (!engDef && data.englishMeaning) engDef = data.englishMeaning
+          if (!lvl && data.cefrLevel) lvl = data.cefrLevel
+          if (data.audioUrl) audioUrl = data.audioUrl
+          if (data.imageUrl) imageUrl = data.imageUrl
+          if (data.definitions) allDefinitions = data.definitions
+        }
+      } catch {}
 
       const gen = autoGenerateWordDetails(newTerm, pos || 'noun')
 
@@ -3617,6 +4311,11 @@ function Decks() {
           phonetic: phon || gen.phonetic || `/${newTerm.trim()}/`,
           partOfSpeech: pos || 'noun',
           exampleSentence: ex || gen.example || '',
+          englishMeaning: engDef || gen.definition || '',
+          cefrLevel: lvl || gen.level || 'B1',
+          audioUrl,
+          imageUrl,
+          allDefinitions,
           collocations: {
             level: lvl || gen.level || 'B1',
             englishDefinition: engDef || gen.definition || '',
@@ -3716,15 +4415,77 @@ function Decks() {
 
   return (
     <div className="page-content">
+      {/* SUCCESS TOAST NOTIFICATION */}
+      {collocSuccessToast && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '24px',
+            right: '24px',
+            zIndex: 999999,
+            backgroundColor: '#065f46',
+            color: '#ecfdf5',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '13.5px',
+            fontWeight: 600,
+            border: '1px solid #10b981',
+            animation: 'fadeIn 0.25s ease-out',
+          }}
+        >
+          <CheckCircle2 size={18} color="#34d399" />
+          <span>{collocSuccessToast}</span>
+        </div>
+      )}
+
       <div className="welcome-row">
         <div>
           <p className="eyebrow">YOUR LIBRARY</p>
           <h1>Decks & cards</h1>
           <p className="subhead">Organize your vocabulary into real database decks.</p>
         </div>
-        <div className="deck-actions">
+        <div className="deck-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {selectedDeckId && (
+            <button
+              type="button"
+              className="secondary-button"
+              style={{
+                color: '#ef4444',
+                borderColor: '#fca5a5',
+                backgroundColor: '#fff5f5',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+              onClick={() => setShowDeleteDeckConfirmModal(true)}
+              title="Xóa bộ từ này và toàn bộ từ vựng bên trong"
+            >
+              <Trash2 size={15} /> Xóa deck
+            </button>
+          )}
           <button className="secondary-button" onClick={() => setShowNewDeckModal(true)}>
             <Plus size={16} /> New deck
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'var(--card, #ffffff)',
+              borderColor: '#10b981',
+              color: '#059669',
+              fontWeight: 650,
+            }}
+            onClick={() => setShowCollocationModal(true)}
+            title="Thêm Collocations từ thư viện 500+ cụm từ hoặc tự tạo"
+          >
+            <Layers size={16} /> Thêm Collocation
           </button>
           <button
             className="hero-action"
@@ -3936,6 +4697,41 @@ function Decks() {
                   <span className="word-detail-label">PHÁT ÂM</span>
                   <span className="word-detail-phonetic">{selectedCardAction.phonetic || '—'}</span>
                 </div>
+                {typeof selectedCardAction.collocations === 'object' &&
+                  selectedCardAction.collocations !== null &&
+                  (selectedCardAction.collocations.head_word || selectedCardAction.collocations.tail_chunk) && (
+                    <div>
+                      <span className="word-detail-label">CẤU TRÚC COLLOCATION</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
+                        <span
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            color: '#059669',
+                            fontWeight: 700,
+                            fontSize: '12px',
+                          }}
+                        >
+                          {selectedCardAction.collocations.head_word} + {selectedCardAction.collocations.tail_chunk}
+                        </span>
+                        {(selectedCardAction.collocations.ielts_topic || selectedCardAction.collocations.category) && (
+                          <span
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              background: 'rgba(99, 102, 241, 0.1)',
+                              color: '#4f46e5',
+                              fontWeight: 600,
+                              fontSize: '11.5px',
+                            }}
+                          >
+                            Topic: {selectedCardAction.collocations.ielts_topic || selectedCardAction.collocations.category}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 <div>
                   <span className="word-detail-label">NGHĨA TIẾNG VIỆT</span>
                   <strong className="word-detail-vietnamese">{selectedCardAction.vietnameseDefinition}</strong>
@@ -3945,7 +4741,7 @@ function Decks() {
                   <p className="word-detail-english">
                     {typeof selectedCardAction.collocations === 'object' && selectedCardAction.collocations?.englishDefinition
                       ? selectedCardAction.collocations.englishDefinition
-                      : 'A key vocabulary term recorded in your database deck.'}
+                      : selectedCardAction.englishMeaning || 'A key vocabulary term recorded in your database deck.'}
                   </p>
                 </div>
                 <div>
@@ -4027,6 +4823,52 @@ function Decks() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </ClientPortal>
+      )}
+
+      {/* DELETE DECK CONFIRMATION MODAL */}
+      {showDeleteDeckConfirmModal && selectedDeckId && (
+        <ClientPortal>
+          <div className="modal-overlay" onClick={() => setShowDeleteDeckConfirmModal(false)}>
+            <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '460px' }}>
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ef4444' }}>
+                  <AlertTriangle size={20} />
+                  <h3 style={{ margin: 0, color: '#ef4444' }}>Xác nhận xóa bộ từ</h3>
+                </div>
+                <button className="modal-close" onClick={() => setShowDeleteDeckConfirmModal(false)}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div style={{ padding: '8px 0 16px', fontSize: '13.5px', color: '#475569', lineHeight: '1.6' }}>
+                Bạn có chắc chắn muốn xóa bộ từ <strong>"{decksList.find((d) => d.id === selectedDeckId)?.title || 'này'}"</strong> (gồm <strong>{cardsList.length}</strong> từ vựng)?
+                <p style={{ margin: '8px 0 0', color: '#dc2626', fontSize: '12.5px' }}>
+                  ⚠️ Hành động này sẽ xóa vĩnh viễn toàn bộ thẻ từ vựng, hình ảnh, âm thanh và trạng thái ghi nhớ SRS / Memory liên quan.
+                </p>
+              </div>
+
+              <div className="modal-actions" style={{ justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setShowDeleteDeckConfirmModal(false)}
+                  disabled={isSubmitting}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="button"
+                  className="hero-action"
+                  style={{ backgroundColor: '#ef4444', borderColor: '#dc2626', color: '#ffffff' }}
+                  onClick={handleDeleteDeck}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Đang xóa...' : 'Xác nhận xóa deck'}
+                </button>
+              </div>
             </div>
           </div>
         </ClientPortal>
@@ -4234,8 +5076,10 @@ function Decks() {
                           <option value="verb">verb</option>
                           <option value="adjective">adjective</option>
                           <option value="adverb">adverb</option>
+                          <option value="collocation">collocation</option>
                           <option value="idiom">idiom</option>
                           <option value="phrasal verb">phrasal verb</option>
+                          <option value="phrase">phrase</option>
                         </select>
 
                         {/* LEVEL (READ-ONLY WITH RED INTENSITY ACCORDING TO DIFFICULTY) */}
@@ -4536,6 +5380,956 @@ function Decks() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </ClientPortal>
+      )}
+
+      {/* COLLOCATIONS MODAL (EXCEL SPREADSHEET AUTO-ENRICHMENT, BATCH, LIBRARY) */}
+      {showCollocationModal && (
+        <ClientPortal>
+          <div className="modal-overlay" onClick={() => setShowCollocationModal(false)}>
+            <div
+              className="modal-card excel-modal"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: '1400px',
+                width: '96vw',
+                maxHeight: '92vh',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '20px 24px',
+                borderRadius: '16px',
+              }}
+            >
+              {/* MODAL HEADER */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '12px',
+                  marginBottom: '12px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '10px',
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#059669',
+                    }}
+                  >
+                    <Layers size={22} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 750, color: 'var(--foreground, #0f172a)' }}>
+                      Thêm Collocation vào Bộ từ (Deck)
+                    </h3>
+                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: 'var(--muted, #64748b)' }}>
+                      Chỉ cần nhập cụm từ — Hệ thống tự động điền Head Word, Tail Chunk, CEFR, nghĩa & nhiều câu ví dụ phong phú
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>
+                    Target Deck:
+                  </label>
+                  {isCreatingCustomDeck ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input
+                        type="text"
+                        className="input-field"
+                        style={{
+                          padding: '0 8px',
+                          fontSize: '11.5px',
+                          height: '30px',
+                          width: '160px',
+                          margin: 0,
+                          boxSizing: 'border-box',
+                          borderRadius: '6px',
+                        }}
+                        placeholder="Nhập tên Deck..."
+                        value={inlineDeckTitle}
+                        onChange={(e) => setInlineDeckTitle(e.target.value)}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleSaveInlineDeck()
+                          } else if (e.key === 'Escape') {
+                            setIsCreatingCustomDeck(false)
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        style={{
+                          height: '30px',
+                          padding: '0 12px',
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          borderRadius: '6px',
+                          background: '#10b981',
+                          color: '#ffffff',
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                        onClick={handleSaveInlineDeck}
+                      >
+                        Lưu
+                      </button>
+                      <button
+                        type="button"
+                        style={{
+                          height: '30px',
+                          padding: '0 12px',
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          borderRadius: '6px',
+                          background: '#ffffff',
+                          color: '#475569',
+                          border: '1px solid #cbd5e1',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => setIsCreatingCustomDeck(false)}
+                      >
+                        Hủy
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      className="select-field"
+                      style={{ padding: '4px 8px', fontSize: '11.5px', width: 'auto', minWidth: '180px' }}
+                      value={selectedDeckId || ''}
+                      onChange={(e) => handleDeckSelectChange(e.target.value)}
+                    >
+                      <optgroup label="Danh sách Deck hiện có">
+                        {decksList.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.title} ({d.cardCount || 0} từ)
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="＋ Tạo Deck mới">
+                        <option value="CREATE_CUSTOM">＋ Tạo Deck mới (Tự đặt tên...)</option>
+                        <option value="CREATE_AUTO">
+                          ＋ Tạo Deck tự động (Deck {new Date().toLocaleDateString('vi-VN')})
+                        </option>
+                      </optgroup>
+                    </select>
+                  )}
+
+                  {collocTab === 'grid' && (
+                    <>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        style={{ padding: '4px 8px', fontSize: '11px', height: '30px', gap: '4px' }}
+                        onClick={resetCollocExcelGrid}
+                        title="Làm mới danh sách bảng"
+                      >
+                        <RefreshCw size={13} /> Làm mới
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        style={{ padding: '4px 8px', fontSize: '11px', height: '30px', gap: '4px' }}
+                        onClick={() => addCollocExcelRow(5)}
+                      >
+                        <Plus size={13} /> Thêm 5 hàng
+                      </button>
+                    </>
+                  )}
+
+                  <button className="modal-close" onClick={() => setShowCollocationModal(false)}>
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* TABS NAVIGATION */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '6px',
+                  padding: '8px 12px',
+                  background: 'var(--bg-card-secondary, #f8fafc)',
+                  border: '1px solid var(--border, #e2e8f0)',
+                  borderRadius: '10px',
+                  marginBottom: '10px',
+                  alignItems: 'center',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setCollocTab('grid')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    fontSize: '12.5px',
+                    fontWeight: 650,
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: collocTab === 'grid' ? '#10b981' : 'transparent',
+                    color: collocTab === 'grid' ? '#ffffff' : 'var(--muted, #64748b)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Sparkles size={15} /> Bảng nhập Collocation (Tự động điền ⚡)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCollocTab('batch')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    fontSize: '12.5px',
+                    fontWeight: 650,
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: collocTab === 'batch' ? '#10b981' : 'transparent',
+                    color: collocTab === 'batch' ? '#ffffff' : 'var(--muted, #64748b)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <SlidersHorizontal size={15} /> Dán danh sách cụm từ (Nhập nhanh)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCollocTab('library')}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '8px',
+                    fontSize: '12.5px',
+                    fontWeight: 650,
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: collocTab === 'library' ? '#10b981' : 'transparent',
+                    color: collocTab === 'library' ? '#ffffff' : 'var(--muted, #64748b)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <BookOpen size={15} /> Thư viện Collocations ({INITIAL_COLLOCATIONS.length}+ cụm từ)
+                </button>
+              </div>
+
+              {/* TAB 1: SPREADSHEET AUTO-ENRICHMENT GRID */}
+              {collocTab === 'grid' && (
+                <form onSubmit={handleSaveCollocExcelBatch} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                  {/* INSTRUCTION BANNER */}
+                  <div
+                    style={{
+                      background: '#ecfdf5',
+                      border: '1px solid #a7f3d0',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      fontSize: '12px',
+                      color: '#065f46',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    <span style={{ fontSize: '15px' }}>💡</span>
+                    <span>
+                      <strong>Hướng dẫn:</strong> Bạn chỉ cần nhập <strong>COLLOCATION PHRASE *</strong> (ví dụ: <em>take advantage of</em>, <em>reach an agreement</em>, <em>bitterly cold</em>...). Hệ thống sẽ <strong>tự động phân tích</strong> Head Word + Tail Chunk, cấp độ CEFR ⚡, nghĩa tiếng Việt ⚡ và <strong>lấy nhiều câu ví dụ phong phú</strong> (3-4 câu đa dạng ngữ cảnh) ⚡ phục vụ ôn tập!
+                    </span>
+                  </div>
+
+                  {/* EXCEL SPREADSHEET TABLE GRID FOR COLLOCATIONS */}
+                  <div className="excel-grid-table" style={{ flex: 1, maxHeight: 'calc(92vh - 280px)' }}>
+                    <div className="excel-colloc-head">
+                      <span>#</span>
+                      <span>COLLOCATION PHRASE *</span>
+                      <span>HEAD WORD ⚡</span>
+                      <span>TAIL CHUNK ⚡</span>
+                      <span>LEVEL ⚡</span>
+                      <span>TOPIC ⚡</span>
+                      <span>VIETNAMESE ⚡</span>
+                      <span>DEFINITION ⚡</span>
+                      <span>EXAMPLES (3-4 CÂU ĐA DẠNG) ⚡</span>
+                      <span />
+                    </div>
+
+                    <div className="excel-body">
+                      {collocExcelRows.map((row, idx) => (
+                        <div className="excel-colloc-row" key={row.id}>
+                          <span className="row-num">{idx + 1}</span>
+
+                          {/* COLLOCATION PHRASE (USER INPUT TRIGGER) */}
+                          <input
+                            className="excel-input colloc-phrase-cell"
+                            placeholder="Nhập cụm từ (e.g. reach an agreement)"
+                            value={row.phrase}
+                            onChange={(e) => handleCollocExcelCellChange(idx, 'phrase', e.target.value)}
+                            onBlur={() => {
+                              if (row.phrase && row.phrase.trim().length >= 2 && (!row.vietnamese || !row.exampleSentences)) {
+                                fetchLiveCollocEnrichment(idx, row.phrase)
+                              }
+                            }}
+                          />
+
+                          {/* HEAD WORD */}
+                          <input
+                            className="excel-input auto-cell"
+                            placeholder="Từ chính (reach)"
+                            value={row.headWord}
+                            onChange={(e) => handleCollocExcelCellChange(idx, 'headWord', e.target.value)}
+                          />
+
+                          {/* TAIL CHUNK */}
+                          <input
+                            className="excel-input auto-cell"
+                            placeholder="Cụm đi kèm (an agreement)"
+                            value={row.tailChunk}
+                            onChange={(e) => handleCollocExcelCellChange(idx, 'tailChunk', e.target.value)}
+                          />
+
+                          {/* LEVEL BADGE */}
+                          <div className="excel-level-cell" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '4px 6px',
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                textAlign: 'center',
+                                width: '100%',
+                                boxSizing: 'border-box',
+                                userSelect: 'none',
+                                ...getLevelRedStyle(row.level || 'B2'),
+                              }}
+                              title="Cấp độ CEFR tự động"
+                            >
+                              {row.level || 'B2'}
+                            </span>
+                          </div>
+
+                          {/* TOPIC */}
+                          <input
+                            className="excel-input auto-cell"
+                            placeholder="Chủ đề (Business)"
+                            value={row.topic}
+                            onChange={(e) => handleCollocExcelCellChange(idx, 'topic', e.target.value)}
+                          />
+
+                          {/* VIETNAMESE */}
+                          <textarea
+                            className="excel-textarea auto-cell"
+                            rows={3}
+                            placeholder="Nghĩa tiếng Việt"
+                            value={row.vietnamese}
+                            onChange={(e) => handleCollocExcelCellChange(idx, 'vietnamese', e.target.value)}
+                          />
+
+                          {/* DEFINITION */}
+                          <textarea
+                            className="excel-textarea auto-cell"
+                            rows={3}
+                            placeholder="English definition"
+                            value={row.englishDef}
+                            onChange={(e) => handleCollocExcelCellChange(idx, 'englishDef', e.target.value)}
+                          />
+
+                          {/* DIVERSE MULTI-LINE EXAMPLES */}
+                          <textarea
+                            className="excel-textarea auto-cell"
+                            rows={3}
+                            style={{ minHeight: '65px', fontSize: '11px', lineHeight: '1.4' }}
+                            placeholder={`1. Câu ví dụ ngữ cảnh 1...\n2. Câu ví dụ ngữ cảnh 2...\n3. Câu ví dụ ngữ cảnh 3...`}
+                            value={row.exampleSentences}
+                            onChange={(e) => handleCollocExcelCellChange(idx, 'exampleSentences', e.target.value)}
+                          />
+
+                          {/* DELETE ROW */}
+                          <button
+                            type="button"
+                            className="delete-row-btn"
+                            title="Xóa hàng này"
+                            onClick={() => removeCollocExcelRow(idx)}
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* MODAL FOOTER */}
+                  <div className="modal-actions" style={{ marginTop: '14px' }}>
+                    <span style={{ fontSize: '11.5px', color: '#059669', fontWeight: 650 }}>
+                      ⚡ Đã sẵn sàng {collocExcelRows.filter((r) => r.phrase && r.phrase.trim().length > 0).length} Collocations (có câu ví dụ đa dạng) để thêm vào Deck
+                    </span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button type="button" className="secondary-button" onClick={() => setShowCollocationModal(false)}>
+                        Hủy
+                      </button>
+                      <button
+                        type="submit"
+                        className="hero-action"
+                        style={{
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                          borderColor: '#059669',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                        disabled={
+                          isSubmitting ||
+                          collocExcelRows.filter((r) => r.phrase && r.phrase.trim().length > 0).length === 0
+                        }
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" /> Đang lưu...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={16} />
+                            {`Lưu tất cả (${collocExcelRows.filter((r) => r.phrase && r.phrase.trim().length > 0).length}) Collocations vào Deck`}
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
+
+              {/* TAB 2: BATCH PASTE CONTENT */}
+              {collocTab === 'batch' && (
+                <div
+                  style={{
+                    padding: '12px 4px',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    flex: 1,
+                  }}
+                >
+                  <div
+                    style={{
+                      background: '#f0fdf4',
+                      border: '1px solid #bbf7d0',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      fontSize: '12px',
+                      color: '#15803d',
+                      lineHeight: '1.6',
+                    }}
+                  >
+                    <strong>💡 Hướng dẫn dán danh sách:</strong> Bạn chỉ cần dán danh sách cụm từ (mỗi dòng một cụm, ví dụ: <code>take advantage of</code>, <code>reach an agreement</code>, <code>make an effort</code>...).
+                    <br />
+                    Bấm nút <strong>"⚡ Tự động lấy toàn bộ thông tin & Chuyển sang bảng"</strong> để hệ thống tự động phân tích và sinh 3-4 câu ví dụ đa dạng cho từng cụm!
+                  </div>
+
+                  <div className="form-group" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--foreground, #0f172a)' }}>
+                      Dán danh sách cụm từ vào đây:
+                    </label>
+                    <textarea
+                      className="textarea-field"
+                      style={{
+                        minHeight: '220px',
+                        fontFamily: 'monospace',
+                        fontSize: '12.5px',
+                        flex: 1,
+                        lineHeight: '1.5',
+                      }}
+                      placeholder={`take advantage of\nreach an agreement\nmake an effort\nheavy rain\nbitterly cold\ndeeply rooted`}
+                      value={batchCollocText}
+                      onChange={(e) => setBatchCollocText(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="modal-actions" style={{ marginTop: 'auto', paddingTop: '12px' }}>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setShowCollocationModal(false)}
+                    >
+                      Hủy
+                    </button>
+
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      style={{
+                        borderColor: '#10b981',
+                        color: '#059669',
+                        fontWeight: 650,
+                      }}
+                      disabled={isSubmitting || !batchCollocText.trim()}
+                      onClick={handleSaveBatchCollocations}
+                    >
+                      Lưu trực tiếp vào Deck
+                    </button>
+
+                    <button
+                      type="button"
+                      className="hero-action"
+                      style={{
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        borderColor: '#059669',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                      disabled={isBatchEnriching || !batchCollocText.trim()}
+                      onClick={handleBatchEnrichAndPopulate}
+                    >
+                      {isBatchEnriching ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" /> Đang phân tích & sinh ví dụ...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={16} /> ⚡ Tự động lấy toàn bộ thông tin & Chuyển sang bảng
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: LIBRARY CONTENT */}
+              {collocTab === 'library' && (
+                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+                  {/* FILTERS & SEARCH TOOLBAR */}
+                  <div
+                    style={{
+                      padding: '12px 20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      flexWrap: 'wrap',
+                      background: 'var(--card, #ffffff)',
+                      borderBottom: '1px solid var(--border, #e2e8f0)',
+                    }}
+                  >
+                    <div style={{ flex: '1 1 240px', position: 'relative' }}>
+                      <Search
+                        size={16}
+                        style={{
+                          position: 'absolute',
+                          left: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: 'var(--muted, #94a3b8)',
+                        }}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Tìm theo cụm từ, head word, nghĩa tiếng Việt..."
+                        value={collocSearch}
+                        onChange={(e) => {
+                          setCollocSearch(e.target.value)
+                          setCollocPage(1)
+                        }}
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          padding: '7px 10px 7px 32px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border, #cbd5e1)',
+                          fontSize: '12.5px',
+                          background: 'var(--card, #ffffff)',
+                          color: 'var(--foreground, #0f172a)',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <select
+                        value={selectedCollocTopic}
+                        onChange={(e) => {
+                          setSelectedCollocTopic(e.target.value)
+                          setCollocPage(1)
+                        }}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border, #cbd5e1)',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          background: 'var(--card, #ffffff)',
+                          color: 'var(--foreground, #0f172a)',
+                        }}
+                      >
+                        <option value="ALL">Tất cả chủ đề ({allCollocTopics.length})</option>
+                        {allCollocTopics.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+
+                      <select
+                        value={selectedCollocCefr}
+                        onChange={(e) => {
+                          setSelectedCollocCefr(e.target.value)
+                          setCollocPage(1)
+                        }}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border, #cbd5e1)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          background: 'var(--card, #ffffff)',
+                          color: 'var(--foreground, #0f172a)',
+                        }}
+                      >
+                        <option value="ALL">Tất cả CEFR</option>
+                        <option value="B1">B1 (Intermediate)</option>
+                        <option value="B2">B2 (Upper-Int)</option>
+                        <option value="C1">C1 (Advanced)</option>
+                        <option value="C2">C2 (Proficiency)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* SELECTION ACTIONS & COUNTER BAR */}
+                  <div
+                    style={{
+                      padding: '8px 20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'var(--bg-card-secondary, #f8fafc)',
+                      borderBottom: '1px solid var(--border, #e2e8f0)',
+                      fontSize: '12px',
+                      flexWrap: 'wrap',
+                      gap: '8px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={toggleSelectAllPage}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border, #cbd5e1)',
+                          background: 'var(--card, #ffffff)',
+                          color: 'var(--foreground, #0f172a)',
+                          cursor: 'pointer',
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <CheckSquare size={13} />
+                        {paginatedCollocations.length > 0 &&
+                        paginatedCollocations.every((c) => selectedCollocIds.has(c.id))
+                          ? 'Bỏ chọn trang này'
+                          : 'Chọn cả trang này'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={selectAllFiltered}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border, #cbd5e1)',
+                          background: 'var(--card, #ffffff)',
+                          color: 'var(--foreground, #0f172a)',
+                          cursor: 'pointer',
+                          fontSize: '11.5px',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <CheckCheck size={13} /> Chọn tất cả ({filteredCollocations.length})
+                      </button>
+
+                      {selectedCollocIds.size > 0 && (
+                        <button
+                          type="button"
+                          onClick={deselectAllCollocs}
+                          style={{
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            border: '1px solid #fca5a5',
+                            background: '#fef2f2',
+                            color: '#dc2626',
+                            cursor: 'pointer',
+                            fontSize: '11.5px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Bỏ chọn tất cả
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ fontWeight: 650, color: selectedCollocIds.size > 0 ? '#059669' : 'var(--muted, #64748b)' }}>
+                      Đã chọn: <span style={{ color: '#059669', fontSize: '13px' }}>{selectedCollocIds.size}</span> / {filteredCollocations.length} cụm từ
+                    </div>
+                  </div>
+
+                  {/* COLLOCATIONS LIST VIEW */}
+                  <div
+                    style={{
+                      flex: 1,
+                      overflowY: 'auto',
+                      padding: '12px 20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                    }}
+                  >
+                    {filteredCollocations.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--muted, #64748b)' }}>
+                        <BookOpen size={32} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
+                        <p style={{ margin: 0, fontWeight: 500 }}>Không tìm thấy Collocation nào phù hợp bộ lọc.</p>
+                      </div>
+                    ) : (
+                      paginatedCollocations.map((item) => {
+                        const isSelected = selectedCollocIds.has(item.id)
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => toggleCollocSelect(item.id)}
+                            style={{
+                              padding: '12px 14px',
+                              borderRadius: '10px',
+                              border: isSelected
+                                ? '1.5px solid #10b981'
+                                : '1px solid var(--border, #e2e8f0)',
+                              background: isSelected
+                                ? 'rgba(16, 185, 129, 0.06)'
+                                : 'var(--card, #ffffff)',
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              gap: '12px',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <div style={{ marginTop: '2px' }}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleCollocSelect(item.id)}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#10b981' }}
+                              />
+                            </div>
+
+                            <div style={{ flex: 1 }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: '8px',
+                                  flexWrap: 'wrap',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <strong
+                                    style={{
+                                      fontSize: '14.5px',
+                                      color: isSelected ? '#047857' : 'var(--foreground, #0f172a)',
+                                    }}
+                                  >
+                                    {item.full_phrase}
+                                  </strong>
+                                  <span
+                                    style={{
+                                      fontSize: '11px',
+                                      padding: '2px 6px',
+                                      borderRadius: '4px',
+                                      background: 'var(--bg-card-secondary, #f1f5f9)',
+                                      color: 'var(--muted, #475569)',
+                                      fontFamily: 'monospace',
+                                    }}
+                                  >
+                                    {item.head_word} + {item.tail_chunk}
+                                  </span>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span
+                                    style={{
+                                      padding: '2px 8px',
+                                      borderRadius: '6px',
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      ...getLevelRedStyle(item.cefr_level || 'B2'),
+                                    }}
+                                  >
+                                    {item.cefr_level || 'B2'}
+                                  </span>
+                                  <span
+                                    style={{
+                                      padding: '2px 8px',
+                                      borderRadius: '6px',
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      background: 'rgba(99, 102, 241, 0.1)',
+                                      color: '#4f46e5',
+                                      border: '1px solid rgba(99, 102, 241, 0.2)',
+                                    }}
+                                  >
+                                    {item.category || item.ielts_topic}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div style={{ marginTop: '4px', fontSize: '13px', color: 'var(--foreground, #334155)' }}>
+                                <strong style={{ color: '#0f766e' }}>Nghĩa:</strong> {item.meaning_vi}
+                              </div>
+
+                              {item.example_sentence && (
+                                <div
+                                  style={{
+                                    marginTop: '4px',
+                                    fontSize: '12px',
+                                    color: 'var(--muted, #64748b)',
+                                    fontStyle: 'italic',
+                                  }}
+                                >
+                                  "{item.example_sentence}"
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+
+                  {/* PAGINATION & BOTTOM ACTION */}
+                  <div
+                    style={{
+                      padding: '12px 20px',
+                      borderTop: '1px solid var(--border, #e2e8f0)',
+                      background: 'var(--card, #ffffff)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setCollocPage((p) => Math.max(1, p - 1))}
+                        disabled={safeCollocPage <= 1}
+                        style={{
+                          padding: '5px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border, #cbd5e1)',
+                          background: safeCollocPage <= 1 ? 'transparent' : 'var(--card, #ffffff)',
+                          cursor: safeCollocPage <= 1 ? 'not-allowed' : 'pointer',
+                          opacity: safeCollocPage <= 1 ? 0.4 : 1,
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <ChevronLeft size={14} /> Trước
+                      </button>
+
+                      <span style={{ fontSize: '12px', fontWeight: 650, color: 'var(--foreground, #0f172a)' }}>
+                        Trang {safeCollocPage} / {totalCollocPages}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => setCollocPage((p) => Math.min(totalCollocPages, p + 1))}
+                        disabled={safeCollocPage >= totalCollocPages}
+                        style={{
+                          padding: '5px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border, #cbd5e1)',
+                          background: safeCollocPage >= totalCollocPages ? 'transparent' : 'var(--card, #ffffff)',
+                          cursor: safeCollocPage >= totalCollocPages ? 'not-allowed' : 'pointer',
+                          opacity: safeCollocPage >= totalCollocPages ? 0.4 : 1,
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        Sau <ChevronRight size={14} />
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => setShowCollocationModal(false)}
+                      >
+                        Đóng
+                      </button>
+                      <button
+                        type="button"
+                        className="hero-action"
+                        style={{
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                          borderColor: '#059669',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                        disabled={selectedCollocIds.size === 0 || isSubmitting}
+                        onClick={handleImportLibraryCollocations}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" /> Đang thêm...
+                          </>
+                        ) : (
+                          <>
+                            <Plus size={16} /> Thêm {selectedCollocIds.size} Collocations vào Deck
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+
             </div>
           </div>
         </ClientPortal>
