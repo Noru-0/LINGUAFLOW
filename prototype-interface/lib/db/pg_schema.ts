@@ -117,11 +117,13 @@ export const translationParagraphSubmissions = pgTable('translation_paragraph_su
 
 export const collocations = pgTable('collocations', {
   id: text('id').primaryKey(),
+  category: text('category'),
   headWord: text('head_word').notNull(),
   tailChunk: text('tail_chunk').notNull(),
   fullPhrase: text('full_phrase').notNull(),
   meaningVi: text('meaning_vi').notNull(),
   exampleSentence: text('example_sentence').notNull(),
+  distractorsJson: text('distractors_json').default('[]'),
   cefrLevel: text('cefr_level').default('C1'),
   ieltsTopic: text('ielts_topic').notNull(),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),

@@ -328,15 +328,20 @@ export function getDb(): any {
 
           CREATE TABLE IF NOT EXISTS public.collocations (
             id TEXT PRIMARY KEY,
+            category TEXT,
             head_word TEXT NOT NULL,
             tail_chunk TEXT NOT NULL,
             full_phrase TEXT NOT NULL,
             meaning_vi TEXT NOT NULL,
             example_sentence TEXT NOT NULL,
+            distractors_json TEXT DEFAULT '[]',
             cefr_level TEXT DEFAULT 'C1',
             ielts_topic TEXT NOT NULL,
             created_at TEXT NOT NULL DEFAULT NOW()::text
           );
+
+          ALTER TABLE public.collocations ADD COLUMN IF NOT EXISTS category TEXT;
+          ALTER TABLE public.collocations ADD COLUMN IF NOT EXISTS distractors_json TEXT DEFAULT '[]';
 
           CREATE TABLE IF NOT EXISTS public.collocation_dsr_state (
             id TEXT PRIMARY KEY,
