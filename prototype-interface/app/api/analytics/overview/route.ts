@@ -32,30 +32,36 @@ export async function GET() {
     const userDecks = await db.select({ id: decks.id }).from(decks).where(eq(decks.userId, userId))
     const userDeckIds = userDecks.map((d: any) => d.id)
 
-    // Fetch all analytics datasets in parallel to eliminate waterfall latency
+    const userCards = userDeckIds.length > 0
+      ? await db.select({ id: cards.id }).from(cards).where(inArray(cards.deckId, userDeckIds))
+      : []
+    const userCardIds = userCards.map((c: any) => c.id)
+    const totalCardsInDb = userCardIds.length
+
+    // Fetch all analytics datasets in parallel
     const [
       streaks,
       dueCountRes,
       totalDecksRes,
-      totalCardsRes,
       srsStates,
       sentenceLogs,
       paragraphLogsRes,
       userReviewLogs,
     ] = await Promise.all([
       db.select().from(userStreaks).where(eq(userStreaks.userId, userId)).limit(1),
-      db
-        .select({ val: count() })
-        .from(cardSrsStates)
-        .where(and(eq(cardSrsStates.userId, userId), lte(cardSrsStates.dueDate, nowIso))),
+      userCardIds.length > 0
+        ? db
+            .select({ val: count() })
+            .from(cardSrsStates)
+            .where(and(eq(cardSrsStates.userId, userId), inArray(cardSrsStates.cardId, userCardIds), lte(cardSrsStates.dueDate, nowIso)))
+        : Promise.resolve([{ val: 0 }]),
       db
         .select({ val: count() })
         .from(decks)
         .where(eq(decks.userId, userId)),
-      userDeckIds.length > 0
-        ? db.select({ val: count() }).from(cards).where(inArray(cards.deckId, userDeckIds))
-        : Promise.resolve([{ val: 0 }]),
-      db.select().from(cardSrsStates).where(eq(cardSrsStates.userId, userId)),
+      userCardIds.length > 0
+        ? db.select().from(cardSrsStates).where(and(eq(cardSrsStates.userId, userId), inArray(cardSrsStates.cardId, userCardIds)))
+        : Promise.resolve([]),
       db
         .select({
           id: translationLogs.id,
@@ -100,7 +106,6 @@ export async function GET() {
     const streakInfo = streaks[0] || { currentStreak: 0, longestStreak: 0 }
     const dueCount = dueCountRes[0]?.val || 0
     const totalDecks = totalDecksRes[0]?.val || 0
-    const totalCardsInDb = totalCardsRes[0]?.val || 0
     const paragraphLogs = paragraphLogsRes || []
 
     let masteredCount = 0

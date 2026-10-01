@@ -6,6 +6,8 @@ import { seedDatabase } from '@/lib/db/seed'
 import { eq, inArray } from 'drizzle-orm'
 import { safeJsonParse } from '@/lib/utils'
 import { enrichVocabulary } from '@/services/vocabulary-pipeline'
+import { fetchContextualImage } from '@/services/unsplash-service'
+import { getFallbackAudio } from '@/services/audio-fallback'
 
 export const dynamic = 'force-dynamic'
 
@@ -152,7 +154,9 @@ export async function POST(
         const cardId = `card_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
 
         const isPlaceholderViet = !item.vietnameseDefinition || item.vietnameseDefinition.startsWith('Nghĩa')
-        const needsEnrichment = isPlaceholderViet && (!item.englishMeaning && !item.phonetic)
+        const missingAudioOrImage = !item.audioUrl || !item.imageUrl
+        const missingDefinitions = !item.allDefinitions || !Array.isArray(item.allDefinitions) || item.allDefinitions.length === 0
+        const needsEnrichment = isPlaceholderViet || missingAudioOrImage || missingDefinitions || (!item.englishMeaning && !item.phonetic)
 
         let enriched: any = null
         if (needsEnrichment) {
@@ -172,9 +176,38 @@ export async function POST(
         const partOfSpeech = (item.partOfSpeech && item.partOfSpeech !== 'noun') ? item.partOfSpeech : (enriched?.partOfSpeech || item.partOfSpeech || 'noun')
         const exampleSentence = item.exampleSentence || primaryDef?.examples?.[0] || enriched?.examples?.[0] || ''
         const cefrLevel = item.cefrLevel || item.collocations?.level || primaryDef?.cefrLevel || enriched?.cefrLevel || 'B1'
-        const audioUrl = item.audioUrl || enriched?.audioUkUrl || enriched?.audioUsUrl || null
-        const imageUrl = item.imageUrl || enriched?.imageUrl || null
-        const allDefinitionsJson = JSON.stringify(item.allDefinitions || enriched?.definitions || [])
+
+        // Resolve audioUrl (never null)
+        let audioUrl = item.audioUrl || enriched?.audioUkUrl || enriched?.audioUsUrl || null
+        if (!audioUrl) {
+          try {
+            audioUrl = await getFallbackAudio(term)
+          } catch {}
+        }
+
+        // Resolve imageUrl (never null)
+        let imageUrl = item.imageUrl || enriched?.imageUrl || null
+        if (!imageUrl) {
+          try {
+            const imgRes = await fetchContextualImage(term, englishMeaning || vietnameseDefinition)
+            imageUrl = imgRes?.imageUrl || null
+          } catch {}
+        }
+
+        // Resolve allDefinitions (never empty)
+        const finalDefinitions = (item.allDefinitions && Array.isArray(item.allDefinitions) && item.allDefinitions.length > 0)
+          ? item.allDefinitions
+          : (enriched?.definitions && enriched.definitions.length > 0)
+            ? enriched.definitions
+            : [
+                {
+                  cefrLevel,
+                  englishMeaning,
+                  vietnameseMeaning: vietnameseDefinition,
+                  examples: exampleSentence ? [exampleSentence] : [],
+                },
+              ]
+        const allDefinitionsJson = JSON.stringify(finalDefinitions)
         const collocationsJson = JSON.stringify(item.collocations || item.collocationsJson || [])
 
         try {
@@ -223,8 +256,8 @@ export async function POST(
           } catch {
             if (typeof (db as any).execute === 'function') {
               await (db as any).execute(
-                `INSERT INTO cards (id, deck_id, term, vietnamese_definition, phonetic, part_of_speech, example_sentence, collocations_json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-                [cardId, deckId, term, vietnameseDefinition, phonetic, partOfSpeech, exampleSentence, collocationsJson]
+                `INSERT INTO cards (id, deck_id, term, vietnamese_definition, phonetic, part_of_speech, example_sentence, collocations_json, audio_url, image_url, all_definitions_json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                [cardId, deckId, term, vietnameseDefinition, phonetic, partOfSpeech, exampleSentence, collocationsJson, audioUrl, imageUrl, allDefinitionsJson]
               )
             }
           }
@@ -254,6 +287,7 @@ export async function POST(
           cefrLevel,
           audioUrl,
           imageUrl,
+          allDefinitions: finalDefinitions,
         }
       })
     )
@@ -281,7 +315,22 @@ export async function DELETE(
       return NextResponse.json({ error: 'Card ID required' }, { status: 400 })
     }
 
-    await db.delete(cardSrsStates).where(eq(cardSrsStates.cardId, cardId))
+    // Cascade clean all tables referencing this card
+    try {
+      await db.delete(cardMemoryState).where(eq(cardMemoryState.cardId, cardId))
+    } catch {}
+    try {
+      await db.delete(cardReviewHistory).where(eq(cardReviewHistory.cardId, cardId))
+    } catch {}
+    try {
+      await db.delete(cardDsrStates).where(eq(cardDsrStates.cardId, cardId))
+    } catch {}
+    try {
+      await db.delete(cardSrsStates).where(eq(cardSrsStates.cardId, cardId))
+    } catch {}
+    try {
+      await db.delete(reviewLogs).where(eq(reviewLogs.cardId, cardId))
+    } catch {}
     await db.delete(cards).where(eq(cards.id, cardId))
 
     return NextResponse.json({ success: true, deletedId: cardId })

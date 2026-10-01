@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { decks, cards, users } from '@/lib/db/schema'
+import { decks, cards, cardSrsStates, cardDsrStates, cardMemoryState, cardReviewHistory, reviewLogs, users } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
-import { eq, sql } from 'drizzle-orm'
+import { eq, and, inArray, sql } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,5 +82,53 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Create deck error:', error)
     return NextResponse.json({ error: 'Failed to create deck' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await getSession()
+    const userId = session?.userId || 'user_demo_alex_lee'
+    const { searchParams } = new URL(request.url)
+    const deckId = searchParams.get('deckId') || searchParams.get('id')
+
+    if (!deckId) {
+      return NextResponse.json({ error: 'Deck ID is required' }, { status: 400 })
+    }
+
+    const deckCards = await db
+      .select({ id: cards.id })
+      .from(cards)
+      .where(eq(cards.deckId, deckId))
+
+    const cardIds = deckCards.map((c: any) => c.id)
+
+    if (cardIds.length > 0) {
+      try {
+        await db.delete(cardMemoryState).where(inArray(cardMemoryState.cardId, cardIds))
+      } catch {}
+      try {
+        await db.delete(cardReviewHistory).where(inArray(cardReviewHistory.cardId, cardIds))
+      } catch {}
+      try {
+        await db.delete(cardDsrStates).where(inArray(cardDsrStates.cardId, cardIds))
+      } catch {}
+      try {
+        await db.delete(cardSrsStates).where(inArray(cardSrsStates.cardId, cardIds))
+      } catch {}
+      try {
+        await db.delete(reviewLogs).where(inArray(reviewLogs.cardId, cardIds))
+      } catch {}
+      try {
+        await db.delete(cards).where(eq(cards.deckId, deckId))
+      } catch {}
+    }
+
+    await db.delete(decks).where(and(eq(decks.id, deckId), eq(decks.userId, userId)))
+
+    return NextResponse.json({ success: true, deletedDeckId: deckId, deletedCardsCount: cardIds.length })
+  } catch (error: any) {
+    console.error('Delete deck error:', error)
+    return NextResponse.json({ error: error?.message || 'Failed to delete deck' }, { status: 500 })
   }
 }
