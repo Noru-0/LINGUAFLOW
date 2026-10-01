@@ -7254,7 +7254,7 @@ export default function Page() {
 
         <nav>
           {navItems.map(({ label, icon: Icon }) => {
-            const isLocked = user?.role !== 'admin' && (label === 'Collocations' || label === 'Speaking')
+            const isLocked = user?.role !== 'admin' && label === 'Speaking'
             return (
               <button
                 key={label}
@@ -7388,9 +7388,7 @@ export default function Page() {
         <div style={{ display: view === 'Translate' ? 'block' : 'none' }}>
           <Translate setView={setView} />
         </div>
-        {view === 'Collocations' && (
-          user?.role === 'admin' ? <CollocationMatcher /> : <FeatureLockScreen featureName="Collocations (Cụm từ)" setView={setView} />
-        )}
+        {view === 'Collocations' && <CollocationMatcher />}
         {view === 'Speaking' && (
           user?.role === 'admin' ? <SpeakingPractice /> : <FeatureLockScreen featureName="Speaking AI (Luyện nói)" setView={setView} />
         )}

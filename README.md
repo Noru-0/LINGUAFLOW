@@ -23,6 +23,7 @@ LinguaFlow eliminates social bloat, paywalls, and distracting gamification, deli
 ## ✨ Key Features
 
 - **⚡ SuperMemo SM-2 Flashcard Engine**: Automatically schedules daily review queues based on user rating quality (`Again`, `Hard`, `Good`, `Easy`), dynamically computing Ease Factors ($EF' \ge 1.3$), repetitions, and due dates.
+- **🔗 Collocation Matcher & Auto-Enrichment (v1.3.0)**: Dual-column matching game, 500+ Cambridge collocations library, and AI spreadsheet auto-enrichment generating 3-4 diverse example sentences across Academic, Business, and Daily contexts.
 - **✍️ Grammar Translation Console**: Vietnamese prompts evaluated using string normalization (whitespace collapse, punctuation stripping, lowercasing), canonical answer arrays, and character/word diff feedback.
 - **📊 Retention & Memory Analytics**: Live dashboard featuring active study streaks, card memory stability classification (*Learning*, *Young*, *Mature*), and past translation error logs.
 - **📚 Deck & Card Management**: Organize vocabulary into custom decks with support for phonetics, parts of speech, example sentences, collocations, and bulk CSV/JSON imports.
