@@ -22,8 +22,9 @@ async function fetchPage(url: string): Promise<cheerio.CheerioAPI | null> {
   }
 }
 
-export async function scrapeCambridge(word: string): Promise<Partial<VocabularyMetadata> | null> {
+export async function scrapeCambridge(word: string, targetPos?: string): Promise<Partial<VocabularyMetadata> | null> {
   const cleanWord = encodeURIComponent(word.trim().toLowerCase());
+  const cleanTargetPos = (targetPos || '').trim().toLowerCase();
   
   // Try Vietnamese dictionary first, then English dictionary if no definitions found
   let $ = await fetchPage(`${CAMBRIDGE_BASE_VI}/${cleanWord}`);
@@ -36,22 +37,31 @@ export async function scrapeCambridge(word: string): Promise<Partial<VocabularyM
 
   if (!$) return null;
 
-  // 1. Entry container
-  let entry = $('.entry-body__el').first();
-  if (!entry.length) {
-    entry = $('.entry-body, .pr.di, .di-body').first();
+  // 1. Entry containers
+  let allEntries = $('.entry-body__el, .entry-body, .pr.di, .di-body');
+  let matchedEntry: any = null;
+
+  if (cleanTargetPos && allEntries.length > 0) {
+    allEntries.each((_, el) => {
+      if (matchedEntry) return;
+      const posText = $(el).find('.pos').first().text().trim().toLowerCase();
+      if (posText && (posText.includes(cleanTargetPos) || cleanTargetPos.includes(posText))) {
+        matchedEntry = $(el);
+      }
+    });
   }
-  const root: any = entry.length ? entry : $('body');
+
+  const root: any = matchedEntry || allEntries.first() || $('body');
 
   // 2. Part of Speech
-  const partOfSpeech = root.find('.pos').first().text().trim() || 'noun';
+  const partOfSpeech = targetPos || root.find('.pos').first().text().trim() || 'noun';
 
   // 3. IPA UK / US
   const ukSection = root.find('.uk.dpron-i, .uk').first();
   const usSection = root.find('.us.dpron-i, .us').first();
 
-  let ipaUk = ukSection.find('.ipa').first().text().trim() || root.find('.ipa').eq(0).text().trim();
-  let ipaUs = usSection.find('.ipa').first().text().trim() || root.find('.ipa').eq(1).text().trim();
+  let ipaUk = ukSection.find('.ipa').first().text().trim() || root.find('.ipa').eq(0).text().trim() || $('.ipa').first().text().trim();
+  let ipaUs = usSection.find('.ipa').first().text().trim() || root.find('.ipa').eq(1).text().trim() || $('.ipa').eq(1).text().trim();
 
   // 4. Audio URLs
   const extractAudio = (sec: any) => {
@@ -89,6 +99,14 @@ export async function scrapeCambridge(word: string): Promise<Partial<VocabularyM
     });
   }
 
+  // Helper to validate complete sentence
+  const isCompleteSentence = (str: string): boolean => {
+    if (!str || typeof str !== 'string') return false;
+    const trimmed = str.trim();
+    const words = trimmed.split(/\s+/);
+    return words.length >= 3 && (trimmed.endsWith('.') || trimmed.endsWith('!') || trimmed.endsWith('?'));
+  };
+
   // 6. Definitions, CEFR level, and Examples
   const definitions: DefinitionItem[] = [];
   const defBlocks = root.find('.def-block.ddef_block, .def-block, .ddef_block');
@@ -107,13 +125,25 @@ export async function scrapeCambridge(word: string): Promise<Partial<VocabularyM
     // Vietnamese Meaning
     const vietnameseMeaning = $def.find('.trans.dtrans.dtrans-se, .trans').first().text().trim();
 
-    // Examples
+    // Examples (prefer complete sentences)
     const examples: string[] = [];
     $def.find('.examp.dexamp, .examp, .eg').each((__, exEl) => {
-      const egText = $(exEl).find('.eg.deg, .eg').text().trim() || $(exEl).text().trim();
-      if (egText && !examples.includes(egText)) {
-        examples.push(egText);
+      let egText = $(exEl).find('.eg.deg, .eg').text().trim() || $(exEl).text().trim();
+      if (egText) {
+        if (!egText.endsWith('.') && !egText.endsWith('!') && !egText.endsWith('?')) {
+          egText += '.';
+        }
+        if (!examples.includes(egText)) {
+          examples.push(egText);
+        }
       }
+    });
+
+    // Prioritize complete sentences in examples
+    examples.sort((a, b) => {
+      const aComp = isCompleteSentence(a) ? 1 : 0;
+      const bComp = isCompleteSentence(b) ? 1 : 0;
+      return bComp - aComp;
     });
 
     if (englishMeaning || vietnameseMeaning) {

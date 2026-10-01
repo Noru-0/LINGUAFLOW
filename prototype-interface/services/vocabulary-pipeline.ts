@@ -22,7 +22,7 @@ export async function enrichVocabulary(word: string, targetPos?: string): Promis
   const [geminiResult, fullDictResult, cambridgeResult] = await Promise.allSettled([
     fetchGeminiEnrichment(cleanInputWord, targetPos),
     fetchFullDictionaryData(cleanInputWord, targetPos),
-    scrapeCambridge(cleanInputWord).catch(() => null),
+    scrapeCambridge(cleanInputWord, targetPos).catch(() => null),
   ]);
 
   let geminiData = geminiResult.status === 'fulfilled' ? geminiResult.value : null;
@@ -78,8 +78,14 @@ export async function enrichVocabulary(word: string, targetPos?: string): Promis
     effectiveWord.length >= 10 ? 'C1' : effectiveWord.length >= 7 ? 'B2' : effectiveWord.length >= 5 ? 'B1' : 'A2'
   );
 
-  // Determine best Vietnamese Meaning (Multiple comma-separated meanings)
-  let bestVietnamese = fullDict.vietnameseMeaning || geminiData?.vietnameseMeaning || '';
+  // Determine best Vietnamese Meaning (Multiple comma-separated meanings, strictly matching targetPos if provided)
+  let bestVietnamese = '';
+  if (targetPos) {
+    bestVietnamese = geminiData?.vietnameseMeaning || fullDict.vietnameseMeaning || '';
+  } else {
+    bestVietnamese = fullDict.vietnameseMeaning || geminiData?.vietnameseMeaning || '';
+  }
+
   if (!bestVietnamese && definitions.length > 0) {
     const cleanViMeanings: string[] = [];
     for (const d of definitions) {
@@ -99,23 +105,52 @@ export async function enrichVocabulary(word: string, targetPos?: string): Promis
   }
 
   // Determine best English Definition
-  const bestEnglish = fullDict.englishDefinition || primaryDef?.englishMeaning || geminiData?.englishMeaning || '';
+  let bestEnglish = '';
+  if (targetPos) {
+    bestEnglish = geminiData?.englishMeaning || fullDict.englishDefinition || primaryDef?.englishMeaning || '';
+  } else {
+    bestEnglish = fullDict.englishDefinition || primaryDef?.englishMeaning || geminiData?.englishMeaning || '';
+  }
 
-  // Determine best Examples
-  const bestExamples: string[] = [];
-  if (fullDict.allExamples && fullDict.allExamples.length > 0) {
-    for (const ex of fullDict.allExamples) {
-      if (!bestExamples.includes(ex)) bestExamples.push(ex);
-    }
+  // Helper to validate complete sentence (Subject + Verb structure with min words & punctuation)
+  const isCompleteSentence = (str: string): boolean => {
+    if (!str || typeof str !== 'string') return false;
+    const trimmed = str.trim();
+    const words = trimmed.split(/\s+/);
+    return words.length >= 4 && (trimmed.endsWith('.') || trimmed.endsWith('!') || trimmed.endsWith('?'));
+  };
+
+  // Determine best Examples (Strictly prioritize full complete sentences matching targetPos)
+  const candidateExamples: string[] = [];
+  if (geminiData?.exampleSentence && isCompleteSentence(geminiData.exampleSentence)) {
+    candidateExamples.push(geminiData.exampleSentence.trim());
   }
   if (primaryDef?.examples && primaryDef.examples.length > 0) {
     for (const ex of primaryDef.examples) {
-      if (!bestExamples.includes(ex)) bestExamples.push(ex);
+      if (ex && !candidateExamples.includes(ex.trim())) {
+        candidateExamples.push(ex.trim());
+      }
     }
   }
-  if (geminiData?.exampleSentence && !bestExamples.includes(geminiData.exampleSentence)) {
-    bestExamples.push(geminiData.exampleSentence);
+  if (fullDict.allExamples && fullDict.allExamples.length > 0) {
+    for (const ex of fullDict.allExamples) {
+      if (ex && !candidateExamples.includes(ex.trim())) {
+        candidateExamples.push(ex.trim());
+      }
+    }
   }
+  if (geminiData?.exampleSentence && !candidateExamples.includes(geminiData.exampleSentence.trim())) {
+    candidateExamples.push(geminiData.exampleSentence.trim());
+  }
+
+  // Sort candidate examples so complete sentences are always on top
+  candidateExamples.sort((a, b) => {
+    const aScore = isCompleteSentence(a) ? 2 : 0;
+    const bScore = isCompleteSentence(b) ? 2 : 0;
+    return bScore - aScore;
+  });
+
+  const bestExamples = candidateExamples.slice(0, 4);
 
   let finalDefinitions = [...definitions];
 
@@ -134,8 +169,8 @@ export async function enrichVocabulary(word: string, targetPos?: string): Promis
         return {
           ...def,
           vietnameseMeaning: bestVietnamese || def.vietnameseMeaning,
-          englishMeaning: def.englishMeaning || bestEnglish,
-          examples: def.examples && def.examples.length > 0 ? def.examples : bestExamples.slice(0, 3),
+          englishMeaning: bestEnglish || def.englishMeaning,
+          examples: bestExamples.length > 0 ? bestExamples.slice(0, 3) : (def.examples || []),
         };
       }
       return def;

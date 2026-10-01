@@ -82,66 +82,9 @@ Yêu cầu đánh giá theo định dạng JSON với các thuộc tính:
 Chỉ xuất dữ liệu dưới dạng JSON thuần túy (no markdown wrappers, no introductory text).
 `
 
-  // 1. Try DeepSeek AI API (deepseek-v4-flash / deepseek-chat)
-  if (deepseekApiKey) {
-    const deepseekModels = ['deepseek-v4-flash', 'deepseek-chat', 'deepseek-reasoner']
-    const deepseekEndpoints = [
-      'https://api.deepseek.com/chat/completions',
-      'https://api.deepseek.com/v1/chat/completions',
-    ]
-
-    for (const endpoint of deepseekEndpoints) {
-      for (const modelName of deepseekModels) {
-        try {
-          const response = await axios.post(
-            endpoint,
-            {
-              model: modelName,
-              messages: [
-                {
-                  role: 'system',
-                  content: 'Bạn là chuyên gia chấm thi IELTS Writing. Trả về kết quả hoàn toàn dưới dạng JSON hợp lệ.',
-                },
-                {
-                  role: 'user',
-                  content: promptContent,
-                },
-              ],
-              response_format: { type: 'json_object' },
-              temperature: 0.2,
-            },
-            {
-              headers: {
-                Authorization: `Bearer ${deepseekApiKey}`,
-                'Content-Type': 'application/json',
-              },
-              timeout: 20000,
-            }
-          )
-
-          const text = response.data?.choices?.[0]?.message?.content
-          if (!text) continue
-
-          const cleanJson = text.replace(/```json/gi, '').replace(/```/g, '').trim()
-          const parsed = JSON.parse(cleanJson)
-
-          return {
-            estimatedCefr: parsed.estimatedCefr || 'B2',
-            overallFeedback: parsed.overallFeedback || fallbackEvaluation.overallFeedback,
-            grammarErrors: Array.isArray(parsed.grammarErrors) ? parsed.grammarErrors : [],
-            grammarSuggestions: Array.isArray(parsed.grammarSuggestions) ? parsed.grammarSuggestions : fallbackEvaluation.grammarSuggestions,
-            betterAlternatives: Array.isArray(parsed.betterAlternatives) ? parsed.betterAlternatives : [],
-          }
-        } catch (err: any) {
-          console.warn(`[DeepSeek Evaluator] Model ${modelName} at ${endpoint} failed:`, err?.response?.data?.error?.message || err?.message)
-        }
-      }
-    }
-  }
-
-  // 2. Fallback to Gemini API if DeepSeek API Key is unconfigured or fails
+  // 1. Try Google Gemini API first for ultra-fast, high-accuracy response (< 2s)
   if (geminiApiKey) {
-    const geminiModels = ['gemini-2.5-flash', 'gemini-1.5-flash']
+    const geminiModels = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-3.5-flash-lite']
     for (const modelName of geminiModels) {
       try {
         const response = await axios.post(
@@ -153,7 +96,7 @@ Chỉ xuất dữ liệu dưới dạng JSON thuần túy (no markdown wrappers,
               temperature: 0.2,
             },
           },
-          { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
+          { headers: { 'Content-Type': 'application/json' }, timeout: 8000 }
         )
 
         const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text
@@ -170,8 +113,55 @@ Chỉ xuất dữ liệu dưới dạng JSON thuần túy (no markdown wrappers,
           betterAlternatives: Array.isArray(parsed.betterAlternatives) ? parsed.betterAlternatives : [],
         }
       } catch (err: any) {
-        console.warn(`[Gemini Evaluator Fallback] Model ${modelName} failed:`, err?.response?.data?.error?.message || err?.message)
+        console.warn(`[Gemini Paragraph Evaluator] Model ${modelName} failed:`, err?.response?.data?.error?.message || err?.message)
       }
+    }
+  }
+
+  // 2. Secondary fallback to DeepSeek AI API if configured
+  if (deepseekApiKey) {
+    try {
+      const response = await axios.post(
+        'https://api.deepseek.com/chat/completions',
+        {
+          model: 'deepseek-chat',
+          messages: [
+            {
+              role: 'system',
+              content: 'Bạn là chuyên gia chấm thi IELTS Writing. Trả về kết quả hoàn toàn dưới dạng JSON hợp lệ.',
+            },
+            {
+              role: 'user',
+              content: promptContent,
+            },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.2,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${deepseekApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 5000,
+        }
+      )
+
+      const text = response.data?.choices?.[0]?.message?.content
+      if (text) {
+        const cleanJson = text.replace(/```json/gi, '').replace(/```/g, '').trim()
+        const parsed = JSON.parse(cleanJson)
+
+        return {
+          estimatedCefr: parsed.estimatedCefr || 'B2',
+          overallFeedback: parsed.overallFeedback || fallbackEvaluation.overallFeedback,
+          grammarErrors: Array.isArray(parsed.grammarErrors) ? parsed.grammarErrors : [],
+          grammarSuggestions: Array.isArray(parsed.grammarSuggestions) ? parsed.grammarSuggestions : fallbackEvaluation.grammarSuggestions,
+          betterAlternatives: Array.isArray(parsed.betterAlternatives) ? parsed.betterAlternatives : [],
+        }
+      }
+    } catch (err: any) {
+      console.warn('[DeepSeek Paragraph Evaluator] Fallback failed:', err?.response?.data?.error?.message || err?.message)
     }
   }
 
@@ -201,8 +191,8 @@ export interface SentenceEvaluationResult {
 }
 
 /**
- * Evaluate single sentence translation using DeepSeek AI API (deepseek-v4-flash / deepseek-chat).
- * Fallback to Gemini 2.5 Flash or rule-based string normalization if DEEPSEEK_API_KEY is not configured or fails.
+ * Evaluate single sentence translation using Google Gemini (gemini-2.5-flash) or DeepSeek.
+ * Fallback to rule-based string normalization if LLM APIs are not configured or fail.
  */
 export async function evaluateSingleSentenceWithDeepSeek(
   vietnamesePrompt: string,
@@ -270,74 +260,9 @@ Yêu cầu trả về JSON thuần túy (không bọc trong markdown codeblock) 
    [{ "type": "Sửa lỗi ngữ pháp" | "Nâng cấp từ vựng" | "Cấu trúc nâng cao", "original": "từ/cụm từ của học viên", "suggested": "từ/cụm từ gợi ý", "reason": "lý do ngắn gọn bằng tiếng Việt" }]
 `
 
-  if (deepseekApiKey) {
-    const deepseekModels = ['deepseek-v4-flash', 'deepseek-chat', 'deepseek-reasoner']
-    const deepseekEndpoints = [
-      'https://api.deepseek.com/chat/completions',
-      'https://api.deepseek.com/v1/chat/completions',
-    ]
-
-    for (const endpoint of deepseekEndpoints) {
-      for (const modelName of deepseekModels) {
-        try {
-          const response = await axios.post(
-            endpoint,
-            {
-              model: modelName,
-              messages: [
-                {
-                  role: 'system',
-                  content: 'Bạn là chuyên gia chấm thi tiếng Anh. Trả về kết quả hoàn toàn dưới dạng JSON hợp lệ.',
-                },
-                {
-                  role: 'user',
-                  content: promptContent,
-                },
-              ],
-              response_format: { type: 'json_object' },
-              temperature: 0.2,
-            },
-            {
-              headers: {
-                Authorization: `Bearer ${deepseekApiKey}`,
-                'Content-Type': 'application/json',
-              },
-              timeout: 15000,
-            }
-          )
-
-          const text = response.data?.choices?.[0]?.message?.content
-          if (!text) continue
-
-          const cleanJson = text.replace(/```json/gi, '').replace(/```/g, '').trim()
-          const parsed = JSON.parse(cleanJson)
-
-          return {
-            isCorrect: Boolean(parsed.isCorrect ?? ruleEvaluation.isCorrect),
-            score: typeof parsed.score === 'number' ? parsed.score : (parsed.isCorrect ? 95 : 70),
-            overallAnalysis: parsed.overallAnalysis || fallbackResult.overallAnalysis,
-            suggestedAnswer: parsed.suggestedAnswer || fallbackResult.suggestedAnswer,
-            detailedFeedback: {
-              accuracy: parsed.detailedFeedback?.accuracy || fallbackResult.detailedFeedback.accuracy,
-              grammarAndStructure: parsed.detailedFeedback?.grammarAndStructure || fallbackResult.detailedFeedback.grammarAndStructure,
-              wordChoice: parsed.detailedFeedback?.wordChoice || fallbackResult.detailedFeedback.wordChoice,
-            },
-            grammarNotes: parsed.grammarNotes || grammarNotes || fallbackResult.grammarNotes,
-            improvementSuggestions: Array.isArray(parsed.improvementSuggestions)
-              ? parsed.improvementSuggestions
-              : fallbackResult.improvementSuggestions,
-            diff: ruleEvaluation.diff,
-          }
-        } catch (err: any) {
-          console.warn(`[DeepSeek Sentence Evaluator] Model ${modelName} failed:`, err?.response?.data?.error?.message || err?.message)
-        }
-      }
-    }
-  }
-
-  // Fallback to Gemini
+  // 1. Try Google Gemini API first (ultra-fast, ~1-2s response time)
   if (geminiApiKey) {
-    const geminiModels = ['gemini-2.5-flash', 'gemini-1.5-flash']
+    const geminiModels = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-3.5-flash-lite']
     for (const modelName of geminiModels) {
       try {
         const response = await axios.post(
@@ -349,7 +274,7 @@ Yêu cầu trả về JSON thuần túy (không bọc trong markdown codeblock) 
               temperature: 0.2,
             },
           },
-          { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
+          { headers: { 'Content-Type': 'application/json' }, timeout: 8000 }
         )
 
         const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text
@@ -375,8 +300,64 @@ Yêu cầu trả về JSON thuần túy (không bọc trong markdown codeblock) 
           diff: ruleEvaluation.diff,
         }
       } catch (err: any) {
-        console.warn(`[Gemini Sentence Evaluator Fallback] Model ${modelName} failed:`, err?.response?.data?.error?.message || err?.message)
+        console.warn(`[Gemini Sentence Evaluator] Model ${modelName} failed:`, err?.response?.data?.error?.message || err?.message)
       }
+    }
+  }
+
+  // 2. Secondary fallback to DeepSeek AI API
+  if (deepseekApiKey) {
+    try {
+      const response = await axios.post(
+        'https://api.deepseek.com/chat/completions',
+        {
+          model: 'deepseek-chat',
+          messages: [
+            {
+              role: 'system',
+              content: 'Bạn là chuyên gia chấm thi tiếng Anh. Trả về kết quả hoàn toàn dưới dạng JSON hợp lệ.',
+            },
+            {
+              role: 'user',
+              content: promptContent,
+            },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.2,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${deepseekApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 5000,
+        }
+      )
+
+      const text = response.data?.choices?.[0]?.message?.content
+      if (text) {
+        const cleanJson = text.replace(/```json/gi, '').replace(/```/g, '').trim()
+        const parsed = JSON.parse(cleanJson)
+
+        return {
+          isCorrect: Boolean(parsed.isCorrect ?? ruleEvaluation.isCorrect),
+          score: typeof parsed.score === 'number' ? parsed.score : (parsed.isCorrect ? 95 : 70),
+          overallAnalysis: parsed.overallAnalysis || fallbackResult.overallAnalysis,
+          suggestedAnswer: parsed.suggestedAnswer || fallbackResult.suggestedAnswer,
+          detailedFeedback: {
+            accuracy: parsed.detailedFeedback?.accuracy || fallbackResult.detailedFeedback.accuracy,
+            grammarAndStructure: parsed.detailedFeedback?.grammarAndStructure || fallbackResult.detailedFeedback.grammarAndStructure,
+            wordChoice: parsed.detailedFeedback?.wordChoice || fallbackResult.detailedFeedback.wordChoice,
+          },
+          grammarNotes: parsed.grammarNotes || grammarNotes || fallbackResult.grammarNotes,
+          improvementSuggestions: Array.isArray(parsed.improvementSuggestions)
+            ? parsed.improvementSuggestions
+            : fallbackResult.improvementSuggestions,
+          diff: ruleEvaluation.diff,
+        }
+      }
+    } catch (err: any) {
+      console.warn('[DeepSeek Sentence Evaluator] Fallback failed:', err?.response?.data?.error?.message || err?.message)
     }
   }
 

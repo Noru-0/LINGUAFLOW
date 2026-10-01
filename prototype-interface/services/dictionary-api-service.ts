@@ -53,35 +53,25 @@ async function queryFreeDictionaryApi(word: string, targetPos?: string) {
     }
 
     const meanings = Array.isArray(entry.meanings) ? entry.meanings : [];
-    let matchedMeaning = meanings[0];
-    if (targetPos && targetPos.trim()) {
-      const cleanTarget = targetPos.trim().toLowerCase();
-      const found = meanings.find((m: any) => (m.partOfSpeech || '').toLowerCase().includes(cleanTarget));
-      if (found) matchedMeaning = found;
-    }
+    const cleanTarget = (targetPos || '').trim().toLowerCase();
+
+    // Find meanings matching targetPos
+    const filteredMeanings = cleanTarget
+      ? meanings.filter((m: any) => {
+          const pos = (m.partOfSpeech || '').toLowerCase();
+          return pos === cleanTarget || pos.includes(cleanTarget) || cleanTarget.includes(pos);
+        })
+      : meanings;
+
+    const activeMeanings = filteredMeanings.length > 0 ? filteredMeanings : (cleanTarget ? [] : meanings);
 
     const definitions: string[] = [];
     const examples: string[] = [];
 
-    // Prioritize matched meaning
-    if (matchedMeaning && Array.isArray(matchedMeaning.definitions)) {
-      for (const d of matchedMeaning.definitions) {
-        if (d.definition && !definitions.includes(d.definition)) {
-          definitions.push(d.definition.trim());
-        }
-        if (d.example) {
-          const ex = cleanExample(d.example, word);
-          if (ex && !examples.includes(ex)) examples.push(ex);
-        }
-      }
-    }
-
-    // Add remaining definitions
-    for (const m of meanings) {
-      if (m === matchedMeaning) continue;
+    for (const m of activeMeanings) {
       if (Array.isArray(m.definitions)) {
         for (const d of m.definitions) {
-          if (d.definition && !definitions.includes(d.definition)) {
+          if (d.definition && !definitions.includes(d.definition.trim())) {
             definitions.push(d.definition.trim());
           }
           if (d.example) {
@@ -95,7 +85,7 @@ async function queryFreeDictionaryApi(word: string, targetPos?: string) {
     return {
       phonetic,
       audioUrl,
-      partOfSpeech: matchedMeaning?.partOfSpeech || meanings[0]?.partOfSpeech || '',
+      partOfSpeech: activeMeanings[0]?.partOfSpeech || targetPos || meanings[0]?.partOfSpeech || '',
       definitions,
       examples,
     };
@@ -161,7 +151,7 @@ async function queryGoogleDefinitions(word: string, targetPos?: string) {
 /**
  * 3. Fetch from Datamuse Definitions API
  */
-async function queryDatamuseDefinitions(word: string) {
+async function queryDatamuseDefinitions(word: string, targetPos?: string) {
   try {
     const clean = encodeURIComponent(word.trim().toLowerCase());
     const res = await axios.get(`https://api.datamuse.com/words?sp=${clean}&md=dp`, {
@@ -171,10 +161,20 @@ async function queryDatamuseDefinitions(word: string) {
     const entry = Array.isArray(res.data) ? res.data.find((item: any) => item.word.toLowerCase() === word.trim().toLowerCase()) || res.data[0] : null;
     if (!entry) return null;
 
+    const cleanTarget = (targetPos || '').trim().toLowerCase();
+    let posPrefix = '';
+    if (cleanTarget.includes('verb')) posPrefix = 'v\t';
+    else if (cleanTarget.includes('noun')) posPrefix = 'n\t';
+    else if (cleanTarget.includes('adj')) posPrefix = 'adj\t';
+    else if (cleanTarget.includes('adv')) posPrefix = 'adv\t';
+
     const definitions: string[] = [];
     if (Array.isArray(entry.defs)) {
       for (const rawDef of entry.defs) {
         if (typeof rawDef === 'string') {
+          if (posPrefix && !rawDef.toLowerCase().startsWith(posPrefix)) {
+            continue;
+          }
           // Format is "v\tTo finish successfully."
           const cleanDef = rawDef.replace(/^[a-z]+\t/i, '').trim();
           if (cleanDef && !definitions.includes(cleanDef)) {
@@ -207,18 +207,19 @@ export async function fetchGoogleBilingualVietnamese(word: string, targetPos?: s
     );
 
     const collectedVi: string[] = [];
+    const cleanTarget = (targetPos || '').trim().toLowerCase();
 
     // Check res.data[1] (Dictionary groupings by part of speech)
     const dictGroups = res.data?.[1];
     if (Array.isArray(dictGroups) && dictGroups.length > 0) {
-      let matchedGroup = dictGroups[0];
-      if (targetPos && targetPos.trim()) {
-        const cleanTarget = targetPos.trim().toLowerCase();
-        const found = dictGroups.find((g: any) => typeof g[0] === 'string' && g[0].toLowerCase().includes(cleanTarget));
-        if (found) matchedGroup = found;
+      let matchedGroup = null;
+      if (cleanTarget) {
+        matchedGroup = dictGroups.find((g: any) => typeof g[0] === 'string' && (g[0].toLowerCase().includes(cleanTarget) || cleanTarget.includes(g[0].toLowerCase())));
+      } else {
+        matchedGroup = dictGroups[0];
       }
 
-      if (Array.isArray(matchedGroup?.[1])) {
+      if (matchedGroup && Array.isArray(matchedGroup[1])) {
         for (const term of matchedGroup[1]) {
           if (typeof term === 'string' && term.trim()) {
             const cleanT = term.trim();
@@ -230,25 +231,26 @@ export async function fetchGoogleBilingualVietnamese(word: string, targetPos?: s
       }
     }
 
-    // Check res.data[5] (Alternative translations)
-    const altTranslations = res.data?.[5]?.[0]?.[2];
-    if (Array.isArray(altTranslations)) {
-      for (const item of altTranslations) {
-        const term = item?.[0];
-        if (typeof term === 'string' && term.trim()) {
-          const cleanT = term.trim();
-          if (!collectedVi.includes(cleanT) && collectedVi.length < 4) {
-            collectedVi.push(cleanT);
+    // Only check general translations if no targetPos matched group was found
+    if (collectedVi.length === 0 && !cleanTarget) {
+      const altTranslations = res.data?.[5]?.[0]?.[2];
+      if (Array.isArray(altTranslations)) {
+        for (const item of altTranslations) {
+          const term = item?.[0];
+          if (typeof term === 'string' && term.trim()) {
+            const cleanT = term.trim();
+            if (!collectedVi.includes(cleanT) && collectedVi.length < 4) {
+              collectedVi.push(cleanT);
+            }
           }
         }
       }
-    }
 
-    // Fallback to main translation if nothing collected
-    if (collectedVi.length === 0) {
-      const mainTrans = res.data?.[0]?.[0]?.[0];
-      if (mainTrans && typeof mainTrans === 'string' && !mainTrans.toLowerCase().includes('het tien')) {
-        collectedVi.push(mainTrans.trim());
+      if (collectedVi.length === 0) {
+        const mainTrans = res.data?.[0]?.[0]?.[0];
+        if (mainTrans && typeof mainTrans === 'string' && !mainTrans.toLowerCase().includes('het tien')) {
+          collectedVi.push(mainTrans.trim());
+        }
       }
     }
 

@@ -42,28 +42,30 @@ export async function fetchGeminiEnrichment(
   if (!cleanWord) return null;
 
   if (apiKey) {
-    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-2.0-flash'];
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-3.5-flash-lite'];
 
-    const promptText = `Analyze the English word/phrase "${cleanWord}"${partOfSpeech ? ` (${partOfSpeech})` : ''}:
+    const targetPosNotice = partOfSpeech ? `\nCRITICAL: The user has explicitly selected the part of speech as "${partOfSpeech.trim()}". You MUST strictly provide definitions, Vietnamese meanings, and an example sentence for "${cleanWord}" acting as a "${partOfSpeech.trim()}". Do NOT provide meanings for other parts of speech.` : '';
+
+    const promptText = `Analyze the English word/phrase "${cleanWord}"${partOfSpeech ? ` (as a ${partOfSpeech})` : ''}:${targetPosNotice}
 
 1. Check if "${cleanWord}" is misspelled (e.g. "relentness" is a typo for "relentless"). If misspelled, set "isTypo": true and "correctedWord": "relentless".
-2. For vietnameseMeaning: Provide 3 most accurate and common meanings. Output only the Vietnamese words, separated by commas. No explanation or intro. Do NOT output generic placeholders like "Nghĩa của...".
-3. For englishMeaning: Concise English definition.
-4. For partOfSpeech: Exact correct part of speech (noun, verb, adjective, adverb).
-5. For phonetic: "/UK or US IPA/".
-6. For cefrLevel: "A1 or A2 or B1 or B2 or C1 or C2".
-7. For exampleSentence: "A clear, natural example sentence in English using the word."
+2. For vietnameseMeaning: Provide 2 to 3 most accurate and natural Vietnamese meanings strictly corresponding to the word as a ${partOfSpeech || 'given part of speech'}. Output only the Vietnamese meanings separated by commas (e.g. "nghĩa 1, nghĩa 2"). Do NOT output placeholders like "Nghĩa của...".
+3. For englishMeaning: A concise, accurate English definition strictly matching the word as a ${partOfSpeech || 'given part of speech'}.
+4. For partOfSpeech: Exact part of speech (${partOfSpeech || 'noun, verb, adjective, adverb, preposition, conjunction, phrase'}).
+5. For phonetic: Accurate standard IPA transcription (e.g. "/.../").
+6. For cefrLevel: CEFR level ("A1", "A2", "B1", "B2", "C1", "C2").
+7. For exampleSentence: A COMPLETE, natural, grammatically correct full English sentence (with subject, verb, and proper punctuation) showing the word functioning strictly as a ${partOfSpeech || 'specified part of speech'}. MUST NOT be a mere phrase, collocation or incomplete clause.
 
 Return ONLY a raw JSON object with no markdown formatting, no codeblocks (do NOT use \`\`\`json):
 {
   "isTypo": false,
   "correctedWord": "${cleanWord}",
-  "vietnameseMeaning": "nghĩa 1, nghĩa 2, nghĩa 3",
+  "vietnameseMeaning": "nghĩa 1, nghĩa 2",
   "englishMeaning": "Concise English definition",
-  "partOfSpeech": "adjective",
+  "partOfSpeech": "${partOfSpeech || 'noun'}",
   "phonetic": "/IPA/",
   "cefrLevel": "B1",
-  "exampleSentence": "Clear example sentence."
+  "exampleSentence": "A complete, natural English sentence."
 }`;
 
     for (const modelName of modelsToTry) {

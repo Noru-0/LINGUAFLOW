@@ -13,58 +13,91 @@ export async function fetchContextualImage(
   term: string,
   contextHint?: string
 ): Promise<ImageResult | null> {
-  if (!UNSPLASH_ACCESS_KEY) {
-    console.warn('[Unsplash] No access key provided. Skipping image fetch.');
-    return null;
-  }
+  const cleanTerm = term.trim().toLowerCase();
+  if (!cleanTerm) return null;
 
-  // Tinh chỉnh search query: nếu có ngữ cảnh (ví dụ: nghĩa ngắn gọn) thì bổ sung 1 từ khóa
-  let searchQuery = term;
-  if (contextHint) {
-    // Lấy 1 từ quan trọng nhất từ nghĩa để làm context (bỏ stop words)
-    const keywords = contextHint
-      .replace(/[^\w\s]/gi, '')
-      .split(' ')
-      .filter((w) => w.length > 4 && !['something', 'someone', 'action', 'state'].includes(w.toLowerCase()));
-    
-    if (keywords.length > 0) {
-      searchQuery = `${term} ${keywords[0]}`;
-    }
-  }
-
-  try {
-    const res = await axios.get('https://api.unsplash.com/search/photos', {
-      params: {
-        query: searchQuery,
-        page: 1,
-        per_page: 1,
-        orientation: 'landscape',
-        content_filter: 'high',
-      },
-      headers: {
-        Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}`,
-      },
-      timeout: 5000,
-    });
-
-    const photo = res.data.results?.[0];
-    if (!photo) {
-      // Fallback: nếu query nâng cao không ra kết quả, search lại duy nhất tên từ vựng
-      if (searchQuery !== term) {
-        return fetchContextualImage(term);
+  // 1. Try Unsplash if access key is available
+  if (UNSPLASH_ACCESS_KEY) {
+    let searchQuery = cleanTerm;
+    if (contextHint) {
+      const keywords = contextHint
+        .replace(/[^\w\s]/gi, '')
+        .split(' ')
+        .filter((w) => w.length > 4 && !['something', 'someone', 'action', 'state'].includes(w.toLowerCase()));
+      
+      if (keywords.length > 0) {
+        searchQuery = `${cleanTerm} ${keywords[0]}`;
       }
-      return null;
     }
 
-    return {
-      // Sử dụng kích thước 'small' (400px width) cho flashcard UI
-      imageUrl: photo.urls.small,
-      thumbnailUrl: photo.urls.thumb,
-      photographer: photo.user.name,
-      sourceUrl: photo.links.html,
-    };
-  } catch (error: any) {
-    console.error('[Unsplash Service Error]:', error.message);
-    return null;
+    try {
+      const res = await axios.get('https://api.unsplash.com/search/photos', {
+        params: {
+          query: searchQuery,
+          page: 1,
+          per_page: 1,
+          orientation: 'landscape',
+          content_filter: 'high',
+        },
+        headers: {
+          Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}`,
+        },
+        timeout: 5000,
+      });
+
+      const photo = res.data.results?.[0];
+      if (photo) {
+        return {
+          imageUrl: photo.urls.small,
+          thumbnailUrl: photo.urls.thumb,
+          photographer: photo.user.name,
+          sourceUrl: photo.links.html,
+        };
+      } else if (searchQuery !== cleanTerm) {
+        // Retry with just cleanTerm
+        const retryRes = await axios.get('https://api.unsplash.com/search/photos', {
+          params: { query: cleanTerm, page: 1, per_page: 1, orientation: 'landscape' },
+          headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` },
+          timeout: 4000,
+        });
+        const retryPhoto = retryRes.data.results?.[0];
+        if (retryPhoto) {
+          return {
+            imageUrl: retryPhoto.urls.small,
+            thumbnailUrl: retryPhoto.urls.thumb,
+            photographer: retryPhoto.user.name,
+            sourceUrl: retryPhoto.links.html,
+          };
+        }
+      }
+    } catch (error: any) {
+      console.warn('[Unsplash Service Error]:', error.message);
+    }
   }
+
+  // 2. Try Openverse Public API (Free, no API key required)
+  try {
+    const openverseRes = await axios.get(`https://api.openverse.org/v1/images/`, {
+      params: { q: cleanTerm, page_size: 1 },
+      timeout: 4000,
+    });
+    const item = openverseRes.data?.results?.[0];
+    if (item && item.url) {
+      return {
+        imageUrl: item.url,
+        thumbnailUrl: item.thumbnail || item.url,
+        photographer: item.creator || 'Openverse Community',
+        sourceUrl: item.foreign_landing_url || item.url,
+      };
+    }
+  } catch {}
+
+  // 3. Guaranteed visual fallback
+  return {
+    imageUrl: `https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&auto=format&fit=crop&q=80`,
+    thumbnailUrl: `https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=200&auto=format&fit=crop&q=80`,
+    photographer: 'Unsplash Community',
+    sourceUrl: 'https://unsplash.com',
+  };
 }
+

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed:collocations": "npx tsx scripts/seed-collocations-from-pdf.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -15,7 +16,7 @@
     "@vercel/analytics": "1.6.1",
     "axios": "^1.20.0",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^13.0.3",
+    "better-sqlite3": "^11.8.1",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
