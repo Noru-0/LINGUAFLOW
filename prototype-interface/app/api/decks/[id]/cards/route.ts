@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { cards, decks, cardSrsStates, users } from '@/lib/db/schema'
+import { cards, decks, cardSrsStates, users, cardTopics, topics, cardMemoryState, cardReviewHistory, cardDsrStates, reviewLogs } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
 import { eq, inArray } from 'drizzle-orm'
@@ -8,6 +8,7 @@ import { safeJsonParse } from '@/lib/utils'
 import { enrichVocabulary } from '@/services/vocabulary-pipeline'
 import { fetchContextualImage } from '@/services/unsplash-service'
 import { getFallbackAudio } from '@/services/audio-fallback'
+import { fastLookupTopicByKeywords } from '@/lib/db/initial_topics'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,8 +75,43 @@ export async function GET(
         .where(eq(cards.deckId, deckId))
     }
 
+    // Attach topic information if available
+    const cardTopicsMap: Record<string, any> = {}
+    try {
+      const cardIds = deckCards.map((c: any) => c.id)
+      if (cardIds.length > 0) {
+        const ctList = await db
+          .select({
+            cardId: cardTopics.cardId,
+            topicId: cardTopics.topicId,
+            nameEn: topics.nameEn,
+            nameVi: topics.nameVi,
+            icon: topics.icon,
+            color: topics.color,
+            parentId: topics.parentId,
+          })
+          .from(cardTopics)
+          .leftJoin(topics, eq(cardTopics.topicId, topics.id))
+          .where(inArray(cardTopics.cardId, cardIds))
+
+        ctList.forEach((ct: any) => {
+          if (ct.cardId) {
+            cardTopicsMap[ct.cardId] = {
+              id: ct.topicId,
+              nameEn: ct.nameEn,
+              nameVi: ct.nameVi,
+              icon: ct.icon,
+              color: ct.color,
+              parentId: ct.parentId,
+            }
+          }
+        })
+      }
+    } catch {}
+
     const formattedCards = deckCards.map((c: any) => ({
       ...c,
+      topic: cardTopicsMap[c.id] || null,
       collocations: safeJsonParse(c.collocationsJson, []),
       allDefinitions: safeJsonParse(c.allDefinitionsJson, []),
     }))
@@ -276,6 +312,33 @@ export async function POST(
           })
         } catch {}
 
+        // Auto-assign Topic Taxonomy (Major Domain & Subtopic)
+        let assignedTopic: any = null
+        try {
+          const topicInfo = enriched?.topicClassification || fastLookupTopicByKeywords(term, vietnameseDefinition, exampleSentence)
+          if (topicInfo?.subtopicId) {
+            const ctId = `ct_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+            await db.insert(cardTopics).values({
+              id: ctId,
+              cardId,
+              topicId: topicInfo.subtopicId,
+              isPrimary: true,
+              confidence: (topicInfo as any).confidence || 0.9,
+              assignedBy: 'ai',
+              createdAt: nowIso,
+            }).catch(() => {})
+
+            assignedTopic = {
+              id: topicInfo.subtopicId,
+              nameEn: (topicInfo as any).subtopicName || topicInfo.subtopicId,
+              majorTopicId: topicInfo.majorTopicId,
+              majorTopicName: (topicInfo as any).majorTopicName || topicInfo.majorTopicId,
+            }
+          }
+        } catch (topicErr) {
+          console.warn('Failed to assign topic to card:', topicErr)
+        }
+
         return {
           id: cardId,
           term,
@@ -287,6 +350,7 @@ export async function POST(
           cefrLevel,
           audioUrl,
           imageUrl,
+          topic: assignedTopic,
           allDefinitions: finalDefinitions,
         }
       })
@@ -316,6 +380,9 @@ export async function DELETE(
     }
 
     // Cascade clean all tables referencing this card
+    try {
+      await db.delete(cardTopics).where(eq(cardTopics.cardId, cardId))
+    } catch {}
     try {
       await db.delete(cardMemoryState).where(eq(cardMemoryState.cardId, cardId))
     } catch {}

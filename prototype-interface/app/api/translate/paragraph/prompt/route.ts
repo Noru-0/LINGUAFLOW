@@ -4,7 +4,7 @@ import { translationParagraphs, translationParagraphSubmissions } from '@/lib/db
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
 import { safeJsonParse } from '@/lib/utils'
-import { eq } from 'drizzle-orm'
+import { eq, or, asc } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,22 +21,30 @@ export async function GET(request: Request) {
     let paragraphs = []
     let completedParagraphIds: string[] = []
 
+    const userCondition =
+      userId === 'user_demo_alex_lee'
+        ? eq(translationParagraphSubmissions.userId, userId)
+        : or(
+            eq(translationParagraphSubmissions.userId, userId),
+            eq(translationParagraphSubmissions.userId, 'user_demo_alex_lee')
+          )
+
     try {
-      paragraphs = await activeDb.select().from(translationParagraphs)
+      paragraphs = await activeDb.select().from(translationParagraphs).orderBy(asc(translationParagraphs.createdAt))
       const userSubs = await activeDb
         .select({ paragraphId: translationParagraphSubmissions.paragraphId })
         .from(translationParagraphSubmissions)
-        .where(eq(translationParagraphSubmissions.userId, userId))
+        .where(userCondition)
       completedParagraphIds = Array.from(new Set(userSubs.map((s: any) => s.paragraphId)))
     } catch (err: any) {
       console.warn('PostgreSQL translationParagraphs query failed, falling back to local SQLite:', err?.message || err)
       activeDb = fallbackToSqlite()
       await seedDatabase()
-      paragraphs = await activeDb.select().from(translationParagraphs)
+      paragraphs = await activeDb.select().from(translationParagraphs).orderBy(asc(translationParagraphs.createdAt))
       const userSubs = await activeDb
         .select({ paragraphId: translationParagraphSubmissions.paragraphId })
         .from(translationParagraphSubmissions)
-        .where(eq(translationParagraphSubmissions.userId, userId))
+        .where(userCondition)
       completedParagraphIds = Array.from(new Set(userSubs.map((s: any) => s.paragraphId)))
     }
 

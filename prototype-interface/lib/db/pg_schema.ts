@@ -193,4 +193,39 @@ export const cardReviewHistory = pgTable('card_review_history', {
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 })
 
+// Hierarchical Topics & Card Clustering tables
+export const topics = pgTable('topics', {
+  id: text('id').primaryKey(), // 'env', 'env.climate'
+  parentId: text('parent_id'),
+  nameEn: text('name_en').notNull(),
+  nameVi: text('name_vi').notNull(),
+  description: text('description'),
+  icon: text('icon').default('Folder'),
+  color: text('color').default('#3B82F6'),
+  orderIndex: integer('order_index').default(0),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const cardTopics = pgTable('card_topics', {
+  id: text('id').primaryKey(),
+  cardId: text('card_id').notNull().references(() => cards.id, { onDelete: 'cascade' }),
+  topicId: text('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),
+  isPrimary: boolean('is_primary').notNull().default(true),
+  confidence: doublePrecision('confidence').default(1.0),
+  assignedBy: text('assigned_by').default('ai'), // 'ai' | 'user' | 'system'
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const userTopicStats = pgTable('user_topic_stats', {
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  topicId: text('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),
+  totalCards: integer('total_cards').notNull().default(0),
+  learningCards: integer('learning_cards').notNull().default(0),
+  matureCards: integer('mature_cards').notNull().default(0),
+  avgRetrievability: doublePrecision('avg_retrievability').notNull().default(0.0),
+  lastStudiedAt: text('last_studied_at'),
+  updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+
 

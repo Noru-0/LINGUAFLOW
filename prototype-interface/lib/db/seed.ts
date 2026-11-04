@@ -1,11 +1,12 @@
 import { db, fallbackToSqlite } from './index'
-import { users, decks, cards, cardSrsStates, translationPrompts, translationParagraphs, userStreaks, collocations, speakingPrompts } from './schema'
+import { users, decks, cards, cardSrsStates, translationPrompts, translationParagraphs, userStreaks, collocations, speakingPrompts, topics } from './schema'
 import { eq } from 'drizzle-orm'
 import { hashPassword } from '../auth/password'
 import { initial100Paragraphs } from './initial_100_paragraphs'
 import { initial500Sentences } from './initial_500_sentences'
 import { INITIAL_COLLOCATIONS } from './initial_collocations'
 import { INITIAL_SPEAKING_PROMPTS } from './initial_speaking_prompts'
+import { INITIAL_TOPICS } from './initial_topics'
 
 export const sampleParagraphs = initial100Paragraphs
 export const sampleSentences = initial500Sentences
@@ -194,6 +195,42 @@ export async function seedDatabase() {
     // 4. Create 500 Sentence Translation Prompts & 100 Paragraph Prompts
     await activeDb.insert(translationPrompts).values(initial500Sentences)
     await activeDb.insert(translationParagraphs).values(initial100Paragraphs)
+
+    // 5. Seed Initial Topics & Subtopics
+    try {
+      const existingTopics = await activeDb.select({ id: topics.id }).from(topics).limit(1)
+      if (existingTopics.length === 0) {
+        let order = 0
+        for (const major of INITIAL_TOPICS) {
+          order++
+          await activeDb.insert(topics).values({
+            id: major.id,
+            parentId: null,
+            nameEn: major.nameEn,
+            nameVi: major.nameVi,
+            description: major.description,
+            icon: major.icon,
+            color: major.color,
+            orderIndex: order,
+          }).catch(() => {})
+          for (const sub of major.subtopics) {
+            order++
+            await activeDb.insert(topics).values({
+              id: sub.id,
+              parentId: sub.parentId,
+              nameEn: sub.nameEn,
+              nameVi: sub.nameVi,
+              description: sub.description,
+              icon: sub.icon || 'Folder',
+              color: major.color,
+              orderIndex: order,
+            }).catch(() => {})
+          }
+        }
+      }
+    } catch (topicErr) {
+      console.warn('[Database Seed Warning] Error seeding topics:', topicErr)
+    }
   } catch (insertErr) {
     console.warn('[Database Seed Warning] Non-critical error during initial data insert:', insertErr)
   }

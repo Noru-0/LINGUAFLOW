@@ -240,3 +240,51 @@ BEGIN
     CREATE POLICY "Allow full access user_streaks" ON public.user_streaks FOR ALL USING (true) WITH CHECK (true);
   END IF;
 END $$;
+
+-- ============================================================================
+-- LinguaFlow Topic Taxonomy & Card Clustering Migration
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS topics (
+    id VARCHAR(50) PRIMARY KEY,
+    parent_id VARCHAR(50) REFERENCES topics(id) ON DELETE CASCADE,
+    name_en VARCHAR(100) NOT NULL,
+    name_vi VARCHAR(100) NOT NULL,
+    description TEXT,
+    icon VARCHAR(50) DEFAULT 'Folder',
+    color VARCHAR(20) DEFAULT '#3B82F6',
+    order_index INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_topics_parent ON topics(parent_id);
+
+CREATE TABLE IF NOT EXISTS card_topics (
+    id VARCHAR(100) PRIMARY KEY,
+    card_id VARCHAR(100) NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    topic_id VARCHAR(50) NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+    is_primary BOOLEAN NOT NULL DEFAULT TRUE,
+    confidence REAL DEFAULT 1.0,
+    assigned_by VARCHAR(20) DEFAULT 'ai',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_card_topic UNIQUE(card_id, topic_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_card_topics_card ON card_topics(card_id);
+CREATE INDEX IF NOT EXISTS idx_card_topics_topic ON card_topics(topic_id);
+CREATE INDEX IF NOT EXISTS idx_card_topics_primary ON card_topics(card_id, is_primary);
+
+CREATE TABLE IF NOT EXISTS user_topic_stats (
+    user_id VARCHAR(100) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    topic_id VARCHAR(50) NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+    total_cards INT NOT NULL DEFAULT 0,
+    learning_cards INT NOT NULL DEFAULT 0,
+    mature_cards INT NOT NULL DEFAULT 0,
+    avg_retrievability REAL NOT NULL DEFAULT 0.0,
+    last_studied_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, topic_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_topic_stats_user ON user_topic_stats(user_id);
+

@@ -205,6 +205,7 @@ export async function enrichVocabulary(word: string, targetPos?: string): Promis
     definitions: finalDefinitions,
     imageUrl: imageData?.imageUrl || null,
     imagePhotographer: imageData?.photographer || null,
+    topicClassification: geminiData?.topicClassification || null,
   };
 
   if (pipelineCache.size >= 1000) {

@@ -4,7 +4,7 @@ import { translationPrompts, translationLogs } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
 import { safeJsonParse } from '@/lib/utils'
-import { eq } from 'drizzle-orm'
+import { eq, or, asc } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,20 +21,25 @@ export async function GET(request: Request) {
     let prompts = []
     let completedPromptIds: string[] = []
 
+    const userCondition =
+      userId === 'user_demo_alex_lee'
+        ? eq(translationLogs.userId, userId)
+        : or(eq(translationLogs.userId, userId), eq(translationLogs.userId, 'user_demo_alex_lee'))
+
     try {
-      prompts = await activeDb.select().from(translationPrompts)
+      prompts = await activeDb.select().from(translationPrompts).orderBy(asc(translationPrompts.id))
       const userLogs = await activeDb
         .select({ promptId: translationLogs.promptId })
         .from(translationLogs)
-        .where(eq(translationLogs.userId, userId))
+        .where(userCondition)
       completedPromptIds = Array.from(new Set(userLogs.map((l: any) => l.promptId)))
     } catch {
       activeDb = fallbackToSqlite()
-      prompts = await activeDb.select().from(translationPrompts)
+      prompts = await activeDb.select().from(translationPrompts).orderBy(asc(translationPrompts.id))
       const userLogs = await activeDb
         .select({ promptId: translationLogs.promptId })
         .from(translationLogs)
-        .where(eq(translationLogs.userId, userId))
+        .where(userCondition)
       completedPromptIds = Array.from(new Set(userLogs.map((l: any) => l.promptId)))
     }
 

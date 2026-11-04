@@ -5,6 +5,14 @@ export interface DefinitionItem {
   examples: string[];            // Danh sách câu ví dụ
 }
 
+export interface TopicClassification {
+  majorTopicId: string;
+  majorTopicName: string;
+  subtopicId: string;
+  subtopicName: string;
+  confidence: number;
+}
+
 export interface VocabularyMetadata {
   term: string;
   partOfSpeech: string;          // "noun", "verb", "adjective", etc.
@@ -16,4 +24,5 @@ export interface VocabularyMetadata {
   cefrLevel?: string | null;
   imageUrl: string | null;
   imagePhotographer: string | null;
+  topicClassification?: TopicClassification | null;
 }

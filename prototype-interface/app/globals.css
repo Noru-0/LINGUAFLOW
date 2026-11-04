@@ -1375,8 +1375,8 @@ button:active, .nav-item:active, .secondary-button:active, .hero-action:active {
 /* Decks Screen */
 .deck-actions { display: flex; gap: 6px; }
 .deck-actions .hero-action { margin: 0; }
-.deck-tabs { display: flex; gap: 16px; border-bottom: 1px solid #e2e8f0; margin-top: 10px; flex-shrink: 0; }
-.deck-tabs button { border: 0; background: transparent; color: #94a3b8; font-size: 11.5px; padding: 0 0 8px; transition: color 0.15s; }
+.deck-tabs { display: flex; flex-wrap: wrap; gap: 8px 14px; border-bottom: 1px solid #e2e8f0; margin-top: 10px; flex-shrink: 0; max-width: 100%; }
+.deck-tabs button { border: 0; background: transparent; color: #94a3b8; font-size: 12px; padding: 4px 6px 8px; transition: color 0.15s; white-space: nowrap; }
 .deck-tabs button.active { color: #4f46e5; border-bottom: 2px solid #4f46e5; font-weight: 700; }
 .deck-tabs span { margin-left: 3px; background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 9px; color: #64748b; }
 .cards-panel { margin-top: 10px; padding: 14px 18px; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
@@ -1747,7 +1747,7 @@ button:active, .nav-item:active, .secondary-button:active, .hero-action:active {
   .table-toolbar { flex-direction: column; gap: 8px; }
   .search-box { width: 100%; }
   .deck-actions { flex-wrap: wrap; }
-  .deck-tabs { gap: 12px; overflow-x: auto; scrollbar-width: none; }
+  .deck-tabs { gap: 8px 12px; flex-wrap: wrap; overflow-x: visible; }
   .deck-tabs::-webkit-scrollbar { display: none; }
 
   .prompt-card h2 { font-size: 18px; }

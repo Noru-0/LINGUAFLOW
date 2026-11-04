@@ -1,16 +1,33 @@
 import { NextResponse } from 'next/server'
 import { db, fallbackToSqlite } from '@/lib/db'
-import { translationParagraphs, translationParagraphSubmissions, userStreaks } from '@/lib/db/schema'
+import { translationParagraphs, translationParagraphSubmissions, userStreaks, users } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { evaluateUserParagraph } from '@/services/gemini-translation-evaluator'
 import { eq } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
+async function ensureUserExists(userId: string, email?: string, name?: string) {
+  try {
+    const existing = await db.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1)
+    if (existing.length === 0) {
+      await db.insert(users).values({
+        id: userId,
+        email: email || `${userId}@user.local`,
+        passwordHash: 'auth_user_session',
+        name: name || 'Learner',
+        role: 'user',
+        createdAt: new Date().toISOString(),
+      }).catch(() => {})
+    }
+  } catch {}
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getSession()
     const userId = session?.userId || 'user_demo_alex_lee'
+    await ensureUserExists(userId, session?.email, session?.name)
 
     const body = await request.json()
     const { paragraphId, userTranslation } = body
@@ -66,13 +83,27 @@ export async function POST(request: Request) {
         createdAt: nowIso,
       })
     } catch (dbErr) {
-      console.warn('[Submission Log Warning] Failed to log paragraph submission:', dbErr)
+      console.warn('[Submission Log Warning] Failed to log paragraph submission to Postgres, trying SQLite:', dbErr)
+      try {
+        const fallbackDb = fallbackToSqlite()
+        await fallbackDb.insert(translationParagraphSubmissions).values({
+          id: submissionId,
+          userId,
+          paragraphId,
+          userTranslation,
+          overallFeedback: evaluation.overallFeedback,
+          estimatedCefr: evaluation.estimatedCefr,
+          grammarErrorsJson: JSON.stringify(evaluation.grammarErrors),
+          betterAlternativesJson: JSON.stringify(evaluation.betterAlternatives),
+          createdAt: nowIso,
+        })
+      } catch {}
     }
 
-    // Update user streak
-    const todayDate = nowIso.split('T')[0]
+    // Update daily streak
     try {
-      const userStreakRecord = await db
+      const todayDate = nowIso.split('T')[0]
+      const userStreakRecord = await activeDb
         .select()
         .from(userStreaks)
         .where(eq(userStreaks.userId, userId))
@@ -83,7 +114,7 @@ export async function POST(request: Request) {
         if (streak.lastActivityDate !== todayDate) {
           const newStreak = (streak.currentStreak || 0) + 1
           const newLongest = Math.max(newStreak, streak.longestStreak || 0)
-          await db
+          await activeDb
             .update(userStreaks)
             .set({
               currentStreak: newStreak,
@@ -92,19 +123,25 @@ export async function POST(request: Request) {
             })
             .where(eq(userStreaks.userId, userId))
         }
+      } else {
+        await activeDb.insert(userStreaks).values({
+          userId,
+          currentStreak: 1,
+          longestStreak: 1,
+          lastActivityDate: todayDate,
+        })
       }
-    } catch {}
+    } catch (streakErr) {
+      console.warn('[Streak Update Warning] Failed to update streak:', streakErr)
+    }
 
     return NextResponse.json({
       success: true,
       evaluation,
-      modelParagraph: {
-        text: paragraph.modelTranslation,
-        grammarBreakdown: paragraph.grammarBreakdown,
-      },
+      modelParagraph: paragraph.modelTranslation,
     })
-  } catch (error: any) {
-    console.error('Paragraph translation submission error:', error)
-    return NextResponse.json({ error: error?.message || 'Failed to evaluate paragraph' }, { status: 500 })
+  } catch (error) {
+    console.error('Submit translation paragraph error:', error)
+    return NextResponse.json({ error: 'Failed to evaluate paragraph translation' }, { status: 500 })
   }
 }

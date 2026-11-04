@@ -7,7 +7,7 @@ export interface InitialCollocation {
   meaning_vi: string
   example_sentence: string
   distractors: string[]
-  cefr_level: 'B1' | 'B2' | 'C1' | 'C2'
+  cefr_level: 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
   ielts_topic: string
 }
 

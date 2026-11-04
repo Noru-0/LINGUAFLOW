@@ -523,7 +523,7 @@ export function CollocationMatcher() {
   const [hubSearch, setHubSearch] = useState<string>('')
   const [selectedTopic, setSelectedTopic] = useState<string>('ALL')
   const [selectedLevel, setSelectedLevel] = useState<string>('ALL')
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState<'ALL' | 'UNLEARNED' | 'LEARNING' | 'MASTERED'>('ALL')
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<'ALL' | 'NOT_STARTED' | 'LEARNING' | 'MASTERED'>('ALL')
   const [hubCurrentPage, setHubCurrentPage] = useState<number>(1)
   const [topicsPerPage, setTopicsPerPage] = useState<number>(6)
 
@@ -1328,7 +1328,7 @@ export function CollocationMatcher() {
                 <span className="font-bold text-slate-500 dark:text-slate-400 uppercase text-[11px] mr-1">Lọc theo tiến độ:</span>
                 {[
                   { id: 'ALL', label: 'Tất cả chủ đề', count: topicsSummary.length },
-                  { id: 'UNLEARNED', label: '⚪ Chưa học', count: topicsSummary.filter((t) => t.status === 'UNLEARNED').length },
+                  { id: 'NOT_STARTED', label: '⚪ Chưa học', count: topicsSummary.filter((t) => t.status === 'NOT_STARTED').length },
                   { id: 'LEARNING', label: '🚀 Đang học', count: topicsSummary.filter((t) => t.status === 'LEARNING').length },
                   { id: 'MASTERED', label: '⭐ Đã hoàn thành lượt đầu', count: topicsSummary.filter((t) => t.status === 'MASTERED').length },
                 ].map((st) => (

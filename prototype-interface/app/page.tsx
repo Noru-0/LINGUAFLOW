@@ -56,6 +56,8 @@ import {
   Lock,
   CheckCircle2,
   Trash2,
+  Trophy,
+  RotateCcw,
 } from 'lucide-react'
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -65,14 +67,16 @@ import { evaluateFillInBlank, buildHintPattern, firstLetterOf } from '@/lib/srs/
 import { playSuccessChime, playErrorChime, triggerConfetti, triggerBatchCompleteCelebration } from '@/lib/effects/celebration'
 import { CollocationMatcher } from '@/components/collocation/CollocationMatcher'
 import { SpeakingPractice } from '@/components/speaking/SpeakingPractice'
+import { TopicExplorer } from '@/components/topics/TopicExplorer'
 import { INITIAL_COLLOCATIONS, InitialCollocation } from '@/lib/db/initial_collocations'
 
-type View = 'Dashboard' | 'Review' | 'Translate' | 'Decks' | 'Analytics' | 'Resources' | 'Collocations' | 'Speaking'
+type View = 'Dashboard' | 'Review' | 'Translate' | 'Topics' | 'Decks' | 'Analytics' | 'Resources' | 'Collocations' | 'Speaking'
 
 const navItems: { label: View; icon: typeof LayoutDashboard }[] = [
   { label: 'Dashboard', icon: LayoutDashboard },
   { label: 'Review', icon: Zap },
   { label: 'Translate', icon: BookOpen },
+  { label: 'Topics', icon: Compass },
   { label: 'Collocations', icon: Layers },
   { label: 'Speaking', icon: Mic },
   { label: 'Decks', icon: Library },
@@ -1099,12 +1103,46 @@ function Review({ setView }: { setView: (view: View) => void }) {
     const targetLen = term.length || 1
 
     const handleSlotInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      let val = e.target.value
+      let rawVal = e.target.value
       // If term contains no digits, filter out any browser autofilled numbers
       if (!/[0-9]/.test(term)) {
-        val = val.replace(/[0-9]/g, '')
+        rawVal = rawVal.replace(/[0-9]/g, '')
       }
-      setFillInput(val)
+
+      // If user deleted (backspace)
+      if (rawVal.length < fillInput.length) {
+        let trimmed = rawVal
+        while (trimmed.length > 0 && term[trimmed.length] === '-') {
+          trimmed = trimmed.slice(0, -1)
+        }
+        setFillInput(trimmed)
+        return
+      }
+
+      // User typed forward: reconstruct string taking hyphens into account
+      let result = ''
+      let rawIdx = 0
+
+      for (let i = 0; i < term.length && rawIdx < rawVal.length; i++) {
+        const targetChar = term[i]
+        if (targetChar === '-') {
+          result += '-'
+          // If the typed character at this position was a hyphen or space, consume it
+          if (rawVal[rawIdx] === '-' || rawVal[rawIdx] === ' ') {
+            rawIdx++
+          }
+        } else {
+          result += rawVal[rawIdx]
+          rawIdx++
+        }
+      }
+
+      // If next char in term is a hyphen, auto-advance past it immediately
+      while (result.length < term.length && term[result.length] === '-') {
+        result += '-'
+      }
+
+      setFillInput(result)
     }
 
     return (
@@ -1141,6 +1179,15 @@ function Review({ setView }: { setView: (view: View) => void }) {
           value={fillInput}
           onChange={handleSlotInputChange}
           onKeyDown={(e) => {
+            if (e.key === 'Backspace' && fillInput.endsWith('-')) {
+              e.preventDefault()
+              let trimmed = fillInput
+              while (trimmed.length > 0 && trimmed.endsWith('-')) trimmed = trimmed.slice(0, -1)
+              if (trimmed.length > 0) trimmed = trimmed.slice(0, -1)
+              while (trimmed.length > 0 && trimmed.endsWith('-')) trimmed = trimmed.slice(0, -1)
+              setFillInput(trimmed)
+              return
+            }
             if (e.key === 'Enter') {
               e.preventDefault()
               e.stopPropagation()
@@ -1778,6 +1825,29 @@ const SENTENCE_PATTERNS = [
 // ----------------------------------------------------
 // Translate View (Bilingual Drills & IELTS Paragraph Translation)
 // ----------------------------------------------------
+const LOCAL_SENTENCE_DONE_KEY = 'linguaflow_done_sentences'
+const LOCAL_PARAGRAPH_DONE_KEY = 'linguaflow_done_paragraphs'
+
+const getLocalDone = (key: string): string[] => {
+  if (typeof window === 'undefined') return []
+  try {
+    const val = localStorage.getItem(key)
+    return val ? JSON.parse(val) : []
+  } catch {
+    return []
+  }
+}
+
+const saveLocalDone = (key: string, id: string) => {
+  if (typeof window === 'undefined') return
+  try {
+    const current = getLocalDone(key)
+    if (!current.includes(id)) {
+      localStorage.setItem(key, JSON.stringify([...current, id]))
+    }
+  } catch {}
+}
+
 function Translate({ setView }: { setView: (view: View) => void }) {
   const [activeTab, setActiveTab] = useState<'sentence' | 'paragraph'>('paragraph')
   const [selectedLevel, setSelectedLevel] = useState<'ALL' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'>('ALL')
@@ -1860,13 +1930,19 @@ function Translate({ setView }: { setView: (view: View) => void }) {
       .then((data) => {
         const fetchedPrompts = data.prompts || []
         setPrompts(fetchedPrompts)
-        const done = new Set<string>(data.completedPromptIds || [])
-        setCompletedPromptIds(done)
-        const firstUncompleted = fetchedPrompts.find((p: any) => !done.has(p.id))
+        const localDone = getLocalDone(LOCAL_SENTENCE_DONE_KEY)
+        const serverDone = data.completedPromptIds || []
+        const mergedDone = new Set<string>([...localDone, ...serverDone])
+        setCompletedPromptIds(mergedDone)
+        try {
+          localStorage.setItem(LOCAL_SENTENCE_DONE_KEY, JSON.stringify(Array.from(mergedDone)))
+        } catch {}
+
+        const firstUncompleted = fetchedPrompts.find((p: any) => !mergedDone.has(p.id))
         if (firstUncompleted) {
           setActivePromptId(firstUncompleted.id)
-        } else if (fetchedPrompts[0]) {
-          setActivePromptId(fetchedPrompts[0].id)
+        } else {
+          setActivePromptId(null)
         }
         setLoadingSentence(false)
       })
@@ -1878,13 +1954,19 @@ function Translate({ setView }: { setView: (view: View) => void }) {
       .then((data) => {
         const fetchedParagraphs = data.paragraphs || []
         setParagraphPrompts(fetchedParagraphs)
-        const done = new Set<string>(data.completedParagraphIds || [])
-        setCompletedParagraphIds(done)
-        const firstUncompleted = fetchedParagraphs.find((p: any) => !done.has(p.id))
+        const localDone = getLocalDone(LOCAL_PARAGRAPH_DONE_KEY)
+        const serverDone = data.completedParagraphIds || []
+        const mergedDone = new Set<string>([...localDone, ...serverDone])
+        setCompletedParagraphIds(mergedDone)
+        try {
+          localStorage.setItem(LOCAL_PARAGRAPH_DONE_KEY, JSON.stringify(Array.from(mergedDone)))
+        } catch {}
+
+        const firstUncompleted = fetchedParagraphs.find((p: any) => !mergedDone.has(p.id))
         if (firstUncompleted) {
           setActiveParagraphId(firstUncompleted.id)
-        } else if (fetchedParagraphs[0]) {
-          setActiveParagraphId(fetchedParagraphs[0].id)
+        } else {
+          setActiveParagraphId(null)
         }
         setLoadingParagraph(false)
       })
@@ -1897,43 +1979,68 @@ function Translate({ setView }: { setView: (view: View) => void }) {
       .catch(() => {})
   }, [])
 
-  // Filter queues by selected level and topic / pattern (retaining active prompt while viewing)
-  const filteredPrompts = prompts.filter((p) => {
-    const matchLevel =
-      selectedLevel === 'ALL' ||
-      (p.difficulty || '').toUpperCase() === selectedLevel.toUpperCase()
-    const matchPattern =
-      selectedPattern === 'ALL' ||
-      (p.grammarCategory || '').toLowerCase().includes(selectedPattern.toLowerCase()) ||
-      (p.grammarNotes || '').toLowerCase().includes(selectedPattern.toLowerCase())
-    const isUncompletedOrActive = !completedPromptIds.has(p.id) || p.id === activePromptId
-    return matchLevel && matchPattern && isUncompletedOrActive
-  })
+  // Filter queues by selected level and topic / pattern
+  const matchingPrompts = useMemo(() => {
+    return prompts.filter((p) => {
+      const matchLevel =
+        selectedLevel === 'ALL' ||
+        (p.difficulty || '').toUpperCase() === selectedLevel.toUpperCase()
+      const matchPattern =
+        selectedPattern === 'ALL' ||
+        (p.grammarCategory || '').toLowerCase().includes(selectedPattern.toLowerCase()) ||
+        (p.grammarNotes || '').toLowerCase().includes(selectedPattern.toLowerCase())
+      return matchLevel && matchPattern
+    })
+  }, [prompts, selectedLevel, selectedPattern])
 
-  const filteredParagraphs = paragraphPrompts.filter((p) => {
-    const matchLevel = selectedLevel === 'ALL' || (p.targetBand || '').toUpperCase() === selectedLevel
-    const matchTopic =
-      selectedTopic === 'ALL' ||
-      (p.themeCategory || '').toLowerCase().includes(selectedTopic.toLowerCase()) ||
-      (p.subTopic || '').toLowerCase().includes(selectedTopic.toLowerCase())
-    const isUncompletedOrActive = !completedParagraphIds.has(p.id) || p.id === activeParagraphId
-    return matchLevel && matchTopic && isUncompletedOrActive
-  })
+  const uncompletedPrompts = useMemo(() => {
+    return matchingPrompts.filter((p) => !completedPromptIds.has(p.id))
+  }, [matchingPrompts, completedPromptIds])
 
-  const currentPrompt =
-    (activePromptId ? filteredPrompts.find((p) => p.id === activePromptId) : null) ||
-    filteredPrompts.find((p) => !completedPromptIds.has(p.id)) ||
-    filteredPrompts[0] ||
-    null
+  const currentPrompt = useMemo(() => {
+    if (activePromptId) {
+      const found = matchingPrompts.find((p) => p.id === activePromptId)
+      if (found) return found
+    }
+    if (uncompletedPrompts.length > 0) {
+      return uncompletedPrompts[0]
+    }
+    return null
+  }, [activePromptId, matchingPrompts, uncompletedPrompts])
 
-  const currentParagraph =
-    (activeParagraphId ? filteredParagraphs.find((p) => p.id === activeParagraphId) : null) ||
-    filteredParagraphs.find((p) => !completedParagraphIds.has(p.id)) ||
-    filteredParagraphs[0] ||
-    null
+  const currentSentenceIndex = currentPrompt
+    ? matchingPrompts.findIndex((p) => p.id === currentPrompt.id)
+    : -1
 
-  const currentSentenceIndex = filteredPrompts.findIndex((p) => p.id === currentPrompt?.id)
-  const currentParagraphIndex = filteredParagraphs.findIndex((p) => p.id === currentParagraph?.id)
+  const matchingParagraphs = useMemo(() => {
+    return paragraphPrompts.filter((p) => {
+      const matchLevel = selectedLevel === 'ALL' || (p.targetBand || '').toUpperCase() === selectedLevel
+      const matchTopic =
+        selectedTopic === 'ALL' ||
+        (p.themeCategory || '').toLowerCase().includes(selectedTopic.toLowerCase()) ||
+        (p.subTopic || '').toLowerCase().includes(selectedTopic.toLowerCase())
+      return matchLevel && matchTopic
+    })
+  }, [paragraphPrompts, selectedLevel, selectedTopic])
+
+  const uncompletedParagraphs = useMemo(() => {
+    return matchingParagraphs.filter((p) => !completedParagraphIds.has(p.id))
+  }, [matchingParagraphs, completedParagraphIds])
+
+  const currentParagraph = useMemo(() => {
+    if (activeParagraphId) {
+      const found = matchingParagraphs.find((p) => p.id === activeParagraphId)
+      if (found) return found
+    }
+    if (uncompletedParagraphs.length > 0) {
+      return uncompletedParagraphs[0]
+    }
+    return null
+  }, [activeParagraphId, matchingParagraphs, uncompletedParagraphs])
+
+  const currentParagraphIndex = currentParagraph
+    ? matchingParagraphs.findIndex((p) => p.id === currentParagraph.id)
+    : -1
 
   // Sync active IDs on load or filter change
   useEffect(() => {
@@ -1977,6 +2084,7 @@ function Translate({ setView }: { setView: (view: View) => void }) {
       if (currentPrompt?.id) {
         setActivePromptId(currentPrompt.id)
         setCompletedPromptIds((prev) => new Set([...Array.from(prev), currentPrompt.id]))
+        saveLocalDone(LOCAL_SENTENCE_DONE_KEY, currentPrompt.id)
       }
     } catch (err: any) {
       console.error('Translation sentence error:', err)
@@ -1989,17 +2097,55 @@ function Translate({ setView }: { setView: (view: View) => void }) {
     }
   }
 
+  // Advance to next uncompleted sentence
   const handleNextSentence = () => {
     setEvaluation(null)
     setUserSubmission('')
     setSentenceSubmitError(null)
     setSentenceRetryCount(0)
     setSentenceRewriteInput('')
-    if (filteredPrompts.length <= 1) return
-    const currIdx = filteredPrompts.findIndex((p) => p.id === (currentPrompt?.id || activePromptId))
-    const nextIdx = currIdx >= 0 && currIdx + 1 < filteredPrompts.length ? currIdx + 1 : 0
-    if (filteredPrompts[nextIdx]) {
-      setActivePromptId(filteredPrompts[nextIdx].id)
+
+    const nextUncompleted = matchingPrompts.find(
+      (p) => !completedPromptIds.has(p.id) && p.id !== currentPrompt?.id
+    )
+    if (nextUncompleted) {
+      setActivePromptId(nextUncompleted.id)
+    } else {
+      setActivePromptId(null)
+    }
+  }
+
+  // Skip among uncompleted sentences without submitting
+  const handleSkipToNextUncompletedSentence = () => {
+    setEvaluation(null)
+    setUserSubmission('')
+    setSentenceSubmitError(null)
+    setSentenceRetryCount(0)
+    setSentenceRewriteInput('')
+
+    if (uncompletedPrompts.length <= 1) return
+    const currIdx = uncompletedPrompts.findIndex((p) => p.id === currentPrompt?.id)
+    const nextIdx = currIdx >= 0 && currIdx + 1 < uncompletedPrompts.length ? currIdx + 1 : 0
+    if (uncompletedPrompts[nextIdx]) {
+      setActivePromptId(uncompletedPrompts[nextIdx].id)
+    }
+  }
+
+  // Reset progress for current sentence filter
+  const handleResetSentenceProgress = () => {
+    const idsToReset = new Set(matchingPrompts.map((p) => p.id))
+    const updated = new Set(Array.from(completedPromptIds).filter((id) => !idsToReset.has(id)))
+    setCompletedPromptIds(updated)
+    try {
+      localStorage.setItem(LOCAL_SENTENCE_DONE_KEY, JSON.stringify(Array.from(updated)))
+    } catch {}
+    setEvaluation(null)
+    setUserSubmission('')
+    setSentenceSubmitError(null)
+    setSentenceRetryCount(0)
+    setSentenceRewriteInput('')
+    if (matchingPrompts.length > 0) {
+      setActivePromptId(matchingPrompts[0].id)
     }
   }
 
@@ -2033,6 +2179,7 @@ function Translate({ setView }: { setView: (view: View) => void }) {
       if (currentParagraph?.id) {
         setActiveParagraphId(currentParagraph.id)
         setCompletedParagraphIds((prev) => new Set([...Array.from(prev), currentParagraph.id]))
+        saveLocalDone(LOCAL_PARAGRAPH_DONE_KEY, currentParagraph.id)
       }
     } catch (err: any) {
       console.error('Paragraph translation error:', err)
@@ -2045,6 +2192,7 @@ function Translate({ setView }: { setView: (view: View) => void }) {
     }
   }
 
+  // Advance to next uncompleted paragraph
   const handleNextParagraph = () => {
     setParagraphEvaluation(null)
     setModelParagraph(null)
@@ -2052,11 +2200,50 @@ function Translate({ setView }: { setView: (view: View) => void }) {
     setParagraphSubmitError(null)
     setParagraphRetryCount(0)
     setParagraphRewriteInput('')
-    if (filteredParagraphs.length <= 1) return
-    const currIdx = filteredParagraphs.findIndex((p) => p.id === (currentParagraph?.id || activeParagraphId))
-    const nextIdx = currIdx >= 0 && currIdx + 1 < filteredParagraphs.length ? currIdx + 1 : 0
-    if (filteredParagraphs[nextIdx]) {
-      setActiveParagraphId(filteredParagraphs[nextIdx].id)
+
+    const nextUncompleted = matchingParagraphs.find(
+      (p) => !completedParagraphIds.has(p.id) && p.id !== currentParagraph?.id
+    )
+    if (nextUncompleted) {
+      setActiveParagraphId(nextUncompleted.id)
+    } else {
+      setActiveParagraphId(null)
+    }
+  }
+
+  // Skip among uncompleted paragraphs without submitting
+  const handleSkipToNextUncompletedParagraph = () => {
+    setParagraphEvaluation(null)
+    setModelParagraph(null)
+    setUserParagraphSubmission('')
+    setParagraphSubmitError(null)
+    setParagraphRetryCount(0)
+    setParagraphRewriteInput('')
+
+    if (uncompletedParagraphs.length <= 1) return
+    const currIdx = uncompletedParagraphs.findIndex((p) => p.id === currentParagraph?.id)
+    const nextIdx = currIdx >= 0 && currIdx + 1 < uncompletedParagraphs.length ? currIdx + 1 : 0
+    if (uncompletedParagraphs[nextIdx]) {
+      setActiveParagraphId(uncompletedParagraphs[nextIdx].id)
+    }
+  }
+
+  // Reset progress for current paragraph filter
+  const handleResetParagraphProgress = () => {
+    const idsToReset = new Set(matchingParagraphs.map((p) => p.id))
+    const updated = new Set(Array.from(completedParagraphIds).filter((id) => !idsToReset.has(id)))
+    setCompletedParagraphIds(updated)
+    try {
+      localStorage.setItem(LOCAL_PARAGRAPH_DONE_KEY, JSON.stringify(Array.from(updated)))
+    } catch {}
+    setParagraphEvaluation(null)
+    setModelParagraph(null)
+    setUserParagraphSubmission('')
+    setParagraphSubmitError(null)
+    setParagraphRetryCount(0)
+    setParagraphRewriteInput('')
+    if (matchingParagraphs.length > 0) {
+      setActiveParagraphId(matchingParagraphs[0].id)
     }
   }
 
@@ -2359,39 +2546,68 @@ function Translate({ setView }: { setView: (view: View) => void }) {
             alignItems: 'start',
           }}
         >
-          {filteredParagraphs.length > 0 && currentParagraph ? (
+          {matchingParagraphs.length > 0 && currentParagraph ? (
             <section className="prompt-card paragraph-prompt-card">
-              <div className="prompt-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <div className="prompt-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '8px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                   <span className="tag purple-tag">{currentParagraph?.themeCategory || 'IELTS ACADEMIC'}</span>
                   <span className={`tag ${getLevelBadge(currentParagraph?.targetBand).class}`}>
                     {getLevelBadge(currentParagraph?.targetBand).label}
                   </span>
                   <span className="prompt-number">
-                    Đề {(currentParagraphIndex >= 0 ? currentParagraphIndex : 0) + 1} / {filteredParagraphs.length}
+                    Đề {(currentParagraphIndex >= 0 ? currentParagraphIndex : 0) + 1} / {matchingParagraphs.length}
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#059669', fontWeight: 650, backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '12px' }}>
+                    Đã làm: {matchingParagraphs.length - uncompletedParagraphs.length}/{matchingParagraphs.length}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleNextParagraph}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '5px 12px',
-                    fontSize: '12.5px',
-                    fontWeight: 650,
-                    borderRadius: '8px',
-                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
-                    color: '#4f46e5',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  title="Chuyển sang đề/đoạn văn khác"
-                >
-                  <RefreshCw size={13} /> Đổi bài
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {uncompletedParagraphs.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={handleSkipToNextUncompletedParagraph}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '5px 12px',
+                        fontSize: '12.5px',
+                        fontWeight: 650,
+                        borderRadius: '8px',
+                        border: '1px solid rgba(99, 102, 241, 0.3)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                        color: '#4f46e5',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title="Chuyển sang đề/đoạn văn chưa làm khác"
+                    >
+                      <RefreshCw size={13} /> Đổi bài ({uncompletedParagraphs.length})
+                    </button>
+                  )}
+                  {matchingParagraphs.length - uncompletedParagraphs.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleResetParagraphProgress}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '5px 10px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        backgroundColor: '#ffffff',
+                        color: '#64748b',
+                        cursor: 'pointer',
+                      }}
+                      title="Làm lại danh mục này từ đầu"
+                    >
+                      <RotateCcw size={12} /> Làm lại
+                    </button>
+                  )}
+                </div>
               </div>
 
               <h2 style={{ fontSize: '18px', fontWeight: 700, margin: '12px 0 6px', color: '#4f46e5' }}>
@@ -2567,6 +2783,46 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                 )}
               </div>
             </section>
+          ) : matchingParagraphs.length > 0 && uncompletedParagraphs.length === 0 ? (
+            <div className="prompt-card paragraph-prompt-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <Trophy size={32} />
+              </div>
+              <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px' }}>
+                Hoàn thành tất cả bài đoạn văn!
+              </h2>
+              <p style={{ color: '#64748b', fontSize: '14px', maxWidth: '460px', margin: '0 auto 20px', lineHeight: 1.6 }}>
+                Bạn đã hoàn thành xuất sắc toàn bộ {matchingParagraphs.length} đề bài đoạn văn trong danh mục <strong>{selectedLevel} {selectedTopic !== 'ALL' ? `· ${selectedTopic}` : ''}</strong>.
+              </p>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  className="hero-action"
+                  onClick={handleResetParagraphProgress}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <RotateCcw size={15} /> Luyện tập lại danh mục này
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedLevel('ALL')
+                    setSelectedTopic('ALL')
+                    setActiveParagraphId(null)
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#f8fafc',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Xem tất cả trình độ
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="prompt-card paragraph-prompt-card" style={{ textAlign: 'center', padding: '40px 20px' }}>
               <CircleHelp size={32} style={{ color: '#94a3b8', margin: '0 auto 12px' }} />
@@ -2729,39 +2985,68 @@ function Translate({ setView }: { setView: (view: View) => void }) {
             alignItems: 'start',
           }}
         >
-          {filteredPrompts.length > 0 && currentPrompt ? (
+          {matchingPrompts.length > 0 && currentPrompt ? (
             <section className="prompt-card sentence-prompt-card">
-              <div className="prompt-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <div className="prompt-top" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '8px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                   <span className="tag purple-tag">{currentPrompt?.grammarCategory || 'GRAMMAR'}</span>
                   <span className={`tag ${getLevelBadge(currentPrompt?.difficulty).class}`}>
                     {getLevelBadge(currentPrompt?.difficulty).label}
                   </span>
                   <span className="prompt-number">
-                    Câu {(currentSentenceIndex >= 0 ? currentSentenceIndex : 0) + 1} / {filteredPrompts.length}
+                    Câu {(currentSentenceIndex >= 0 ? currentSentenceIndex : 0) + 1} / {matchingPrompts.length}
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#059669', fontWeight: 650, backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '12px' }}>
+                    Đã làm: {matchingPrompts.length - uncompletedPrompts.length}/{matchingPrompts.length}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleNextSentence}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '5px 12px',
-                    fontSize: '12.5px',
-                    fontWeight: 650,
-                    borderRadius: '8px',
-                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
-                    color: '#4f46e5',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  title="Chuyển sang câu luyện tập khác"
-                >
-                  <RefreshCw size={13} /> Đổi câu
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {uncompletedPrompts.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={handleSkipToNextUncompletedSentence}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '5px 12px',
+                        fontSize: '12.5px',
+                        fontWeight: 650,
+                        borderRadius: '8px',
+                        border: '1px solid rgba(99, 102, 241, 0.3)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                        color: '#4f46e5',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title="Chuyển sang câu luyện tập chưa làm khác"
+                    >
+                      <RefreshCw size={13} /> Đổi câu ({uncompletedPrompts.length})
+                    </button>
+                  )}
+                  {matchingPrompts.length - uncompletedPrompts.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleResetSentenceProgress}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '5px 10px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        backgroundColor: '#ffffff',
+                        color: '#64748b',
+                        cursor: 'pointer',
+                      }}
+                      title="Làm lại danh mục này từ đầu"
+                    >
+                      <RotateCcw size={12} /> Làm lại
+                    </button>
+                  )}
+                </div>
               </div>
               <p className="eyebrow">TRANSLATE THIS SENTENCE TO ENGLISH</p>
               <h2>{currentPrompt?.vietnameseText || 'Loading prompt...'}</h2>
@@ -2919,6 +3204,46 @@ function Translate({ setView }: { setView: (view: View) => void }) {
                 )}
               </div>
             </section>
+          ) : matchingPrompts.length > 0 && uncompletedPrompts.length === 0 ? (
+            <div className="prompt-card sentence-prompt-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                <Trophy size={32} />
+              </div>
+              <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px' }}>
+                Hoàn thành tất cả câu luyện dịch!
+              </h2>
+              <p style={{ color: '#64748b', fontSize: '14px', maxWidth: '460px', margin: '0 auto 20px', lineHeight: 1.6 }}>
+                Bạn đã hoàn thành xuất sắc toàn bộ {matchingPrompts.length} câu trong danh mục <strong>{selectedLevel} {selectedPattern !== 'ALL' ? `· ${selectedPattern}` : ''}</strong>.
+              </p>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  className="hero-action"
+                  onClick={handleResetSentenceProgress}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <RotateCcw size={15} /> Luyện tập lại danh mục này
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedLevel('ALL')
+                    setSelectedPattern('ALL')
+                    setActivePromptId(null)
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    backgroundColor: '#f8fafc',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Xem tất cả trình độ
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="prompt-card sentence-prompt-card" style={{ textAlign: 'center', padding: '40px 20px' }}>
               <CircleHelp size={32} style={{ color: '#94a3b8', margin: '0 auto 12px' }} />
@@ -4496,7 +4821,7 @@ function Decks() {
         </div>
       </div>
 
-      <div className="deck-tabs">
+      <div className="deck-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', maxWidth: '100%' }}>
         {decksList.map((d) => (
           <button
             key={d.id}
@@ -5713,7 +6038,6 @@ function Decks() {
                                 padding: '4px 6px',
                                 borderRadius: '6px',
                                 fontSize: '11px',
-                                fontWeight: 700,
                                 textAlign: 'center',
                                 width: '100%',
                                 boxSizing: 'border-box',
@@ -6186,7 +6510,6 @@ function Decks() {
                                       padding: '2px 8px',
                                       borderRadius: '6px',
                                       fontSize: '11px',
-                                      fontWeight: 700,
                                       ...getLevelRedStyle(item.cefr_level || 'B2'),
                                     }}
                                   >
@@ -7389,6 +7712,7 @@ export default function Page() {
           <Translate setView={setView} />
         </div>
         {view === 'Collocations' && <CollocationMatcher />}
+        {view === 'Topics' && <TopicExplorer setView={setView} />}
         {view === 'Speaking' && (
           user?.role === 'admin' ? <SpeakingPractice /> : <FeatureLockScreen featureName="Speaking AI (Luyện nói)" setView={setView} />
         )}

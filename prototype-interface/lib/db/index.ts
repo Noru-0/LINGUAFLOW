@@ -8,6 +8,7 @@ import path from 'path'
 import fs from 'fs'
 import { INITIAL_COLLOCATIONS } from './initial_collocations'
 import { INITIAL_SPEAKING_PROMPTS } from './initial_speaking_prompts'
+import { INITIAL_TOPICS } from './initial_topics'
 
 let dbInstance: any = null
 let initializedSqlite = false
@@ -255,6 +256,53 @@ function getSqliteDb() {
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
         FOREIGN KEY (prompt_id) REFERENCES speaking_prompts(id) ON DELETE CASCADE
       );
+
+      CREATE TABLE IF NOT EXISTS topics (
+        id TEXT PRIMARY KEY,
+        parent_id TEXT,
+        name_en TEXT NOT NULL,
+        name_vi TEXT NOT NULL,
+        description TEXT,
+        icon TEXT DEFAULT 'Folder',
+        color TEXT DEFAULT '#3B82F6',
+        order_index INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (parent_id) REFERENCES topics(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_topics_parent ON topics(parent_id);
+
+      CREATE TABLE IF NOT EXISTS card_topics (
+        id TEXT PRIMARY KEY,
+        card_id TEXT NOT NULL,
+        topic_id TEXT NOT NULL,
+        is_primary INTEGER NOT NULL DEFAULT 1,
+        confidence REAL DEFAULT 1.0,
+        assigned_by TEXT DEFAULT 'ai',
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE,
+        FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_card_topics_card ON card_topics(card_id);
+      CREATE INDEX IF NOT EXISTS idx_card_topics_topic ON card_topics(topic_id);
+      CREATE INDEX IF NOT EXISTS idx_card_topics_primary ON card_topics(card_id, is_primary);
+
+      CREATE TABLE IF NOT EXISTS user_topic_stats (
+        user_id TEXT NOT NULL,
+        topic_id TEXT NOT NULL,
+        total_cards INTEGER NOT NULL DEFAULT 0,
+        learning_cards INTEGER NOT NULL DEFAULT 0,
+        mature_cards INTEGER NOT NULL DEFAULT 0,
+        avg_retrievability REAL NOT NULL DEFAULT 0.0,
+        last_studied_at TEXT,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, topic_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_user_topic_stats_user ON user_topic_stats(user_id);
     `)
     try {
       const colCountRow = sqlite.prepare('SELECT count(*) as count FROM collocations').get() as { count: number }
@@ -278,8 +326,25 @@ function getSqliteDb() {
           stmt.run(item.id, item.part, item.topic, item.question_prompt, item.cue_points_json, item.model_response, item.suggested_vocabulary_json, new Date().toISOString())
         }
       }
+
+      const topicCountRow = sqlite.prepare('SELECT count(*) as count FROM topics').get() as { count: number }
+      if (!topicCountRow || topicCountRow.count === 0) {
+        const insertTopicStmt = sqlite.prepare(`
+          INSERT INTO topics (id, parent_id, name_en, name_vi, description, icon, color, order_index, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        let order = 0
+        for (const major of INITIAL_TOPICS) {
+          order++
+          insertTopicStmt.run(major.id, null, major.nameEn, major.nameVi, major.description, major.icon, major.color, order, new Date().toISOString())
+          for (const sub of major.subtopics) {
+            order++
+            insertTopicStmt.run(sub.id, sub.parentId, sub.nameEn, sub.nameVi, sub.description, sub.icon || 'Folder', major.color, order, new Date().toISOString())
+          }
+        }
+      }
     } catch (e) {
-      console.error('Error auto-seeding collocations & speaking prompts:', e)
+      console.error('Error auto-seeding collocations, speaking prompts & topics:', e)
     }
     initializedSqlite = true
   }

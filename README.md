@@ -23,11 +23,12 @@ LinguaFlow eliminates social bloat, paywalls, and distracting gamification, deli
 ## ✨ Key Features
 
 - **⚡ SuperMemo SM-2 Flashcard Engine**: Automatically schedules daily review queues based on user rating quality (`Again`, `Hard`, `Good`, `Easy`), dynamically computing Ease Factors ($EF' \ge 1.3$), repetitions, and due dates.
+- **🗂️ Automated Topic Taxonomy & Dual-Engine Clustering (v1.4.0)**: Automatic categorization of vocabulary cards into 10 Major & 50+ Common Subtopics with hierarchical taxonomy, dual classification engine (Gemini LLM semantic clustering + rule-based fast keyword mapping fallback), interactive `/topics` explorer, and instant auto-tagging on card ingestion.
 - **🔗 Collocation Matcher & Auto-Enrichment (v1.3.0)**: Dual-column matching game, 500+ Cambridge collocations library, and AI spreadsheet auto-enrichment generating 3-4 diverse example sentences across Academic, Business, and Daily contexts.
-- **✍️ Grammar Translation Console**: Vietnamese prompts evaluated using string normalization (whitespace collapse, punctuation stripping, lowercasing), canonical answer arrays, and character/word diff feedback.
+- **✍️ Grammar Translation Console & Persistent Drills**: Vietnamese prompts evaluated via normalization, canonical answers, and character/word diff feedback; featuring persistent cross-session progress tracking, auto-advancing to uncompleted drills, and celebration review screens.
 - **📊 Retention & Memory Analytics**: Live dashboard featuring active study streaks, card memory stability classification (*Learning*, *Young*, *Mature*), and past translation error logs.
-- **📚 Deck & Card Management**: Organize vocabulary into custom decks with support for phonetics, parts of speech, example sentences, collocations, and bulk CSV/JSON imports.
-- **⌨️ Keyboard-First Ergonomics**: Designed for high-speed review loops without touching the mouse (`Space` = flip card, `1-4` = grade recall, `Enter` = submit translation).
+- **📚 Deck & Card Management**: Organize vocabulary into custom decks with support for phonetics, parts of speech, example sentences, collocations, bulk CSV/JSON imports, and responsive multiline wrapping.
+- **⌨️ Keyboard-First Ergonomics**: Designed for high-speed review loops without touching the mouse (`Space` = flip card, `1-4` = grade recall, `Enter` = submit translation, and hyphen-skipping fill-in-the-blank drills).
 
 ---
 
