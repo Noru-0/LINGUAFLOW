@@ -452,7 +452,15 @@ function Dashboard({ setView, user }: { setView: (view: View) => void; user: any
 // ----------------------------------------------------
 // Review View (SRS Flashcards & Fill-in-the-Blank DSR)
 // ----------------------------------------------------
-function Review({ setView }: { setView: (view: View) => void }) {
+function Review({
+  setView,
+  topicFilter = null,
+  onClearTopicFilter,
+}: {
+  setView: (view: View) => void
+  topicFilter?: { id: string; name: string } | null
+  onClearTopicFilter?: () => void
+}) {
   const BATCH_SIZE = 12
   const SESSION_STORAGE_KEY = 'linguaflow_review_session_progress_v1'
 
@@ -480,11 +488,12 @@ function Review({ setView }: { setView: (view: View) => void }) {
   const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastSubmitTimeRef = useRef<number>(0)
 
-  const fetchQueue = (all = false, resetSavedSession = false) => {
+  const fetchQueue = (all = false, resetSavedSession = false, currentTopic = topicFilter) => {
     setLoading(true)
 
     // Restore saved session if user left in the middle of a batch
-    if (!all && !resetSavedSession) {
+    // Do not restore standard session when reviewing a specific topic
+    if (!all && !resetSavedSession && !currentTopic) {
       try {
         const saved = localStorage.getItem(SESSION_STORAGE_KEY)
         if (saved) {
@@ -509,11 +518,18 @@ function Review({ setView }: { setView: (view: View) => void }) {
     }
 
     // Otherwise fetch fresh queue from server
-    try {
-      localStorage.removeItem(SESSION_STORAGE_KEY)
-    } catch {}
+    if (!currentTopic) {
+      try {
+        localStorage.removeItem(SESSION_STORAGE_KEY)
+      } catch {}
+    }
 
-    fetch(`/api/srs/queue${all ? '?all=true' : ''}`)
+    let url = `/api/srs/queue${all || currentTopic ? '?all=true' : ''}`
+    if (currentTopic) {
+      url += `${url.includes('?') ? '&' : '?'}topicId=${encodeURIComponent(currentTopic.id)}`
+    }
+
+    fetch(url)
       .then((res) => res.json())
       .then((data) => {
         const rawQueue: any[] = data.queue || []
@@ -541,7 +557,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
 
   // Auto-save session progress on state change (debounced 500ms to avoid blocking card switching)
   useEffect(() => {
-    if (loading || activeBatchQueue.length === 0) return
+    if (loading || activeBatchQueue.length === 0 || topicFilter) return
     const timer = setTimeout(() => {
       try {
         const payload = {
@@ -559,7 +575,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
       } catch {}
     }, 500)
     return () => clearTimeout(timer)
-  }, [batchIndex, activeBatchQueue, batchCompletedCardIds, gradedCardIds, currentIndex, fullQueue, batches, hasStartedBatch, loading])
+  }, [batchIndex, activeBatchQueue, batchCompletedCardIds, gradedCardIds, currentIndex, fullQueue, batches, hasStartedBatch, loading, topicFilter])
 
   // Asset preloading for upcoming cards (images & audio)
   useEffect(() => {
@@ -595,8 +611,8 @@ function Review({ setView }: { setView: (view: View) => void }) {
   }
 
   useEffect(() => {
-    fetchQueue()
-  }, [])
+    fetchQueue(!!topicFilter, !!topicFilter, topicFilter)
+  }, [topicFilter])
 
   useEffect(() => {
     resetCardState()
@@ -706,10 +722,12 @@ function Review({ setView }: { setView: (view: View) => void }) {
 
   const executeEndReviewSession = () => {
     setShowEndConfirmModal(false)
-    try {
-      localStorage.removeItem(SESSION_STORAGE_KEY)
-    } catch {}
-    fetchQueue(false, true)
+    if (!topicFilter) {
+      try {
+        localStorage.removeItem(SESSION_STORAGE_KEY)
+      } catch {}
+    }
+    fetchQueue(false, true, topicFilter)
   }
 
   const renderConfirmModal = () => {
@@ -1012,25 +1030,27 @@ function Review({ setView }: { setView: (view: View) => void }) {
 
           <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '1px', color: '#6366f1', textTransform: 'uppercase' }}>
             {isEmptyQueue
-              ? 'CHƯA CÓ TỪ CẦN ÔN HÔM NAY'
+              ? (topicFilter ? `CHỦ ĐỀ: ${topicFilter.name.toUpperCase()}` : 'CHƯA CÓ TỪ CẦN ÔN HÔM NAY')
               : isFinal
-              ? 'TẤT CẢ BÀI HỌC HOÀN THÀNH'
+              ? (topicFilter ? `HOÀN THÀNH CHỦ ĐỀ ${topicFilter.name.toUpperCase()}` : 'TẤT CẢ BÀI HỌC HOÀN THÀNH')
               : `ĐỢT HỌC ${batchIndex + 1} / ${batches.length} HOÀN THÀNH`}
           </div>
 
           <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
             {isEmptyQueue
-              ? 'Tuyệt vời! Bạn đã hoàn thành toàn bộ từ vựng đến hạn'
+              ? (topicFilter ? `Chủ đề "${topicFilter.name}" chưa có từ vựng` : 'Tuyệt vời! Bạn đã hoàn thành toàn bộ từ vựng đến hạn')
               : isFinal
-              ? `Xuất sắc! Hoàn thành toàn bộ ${fullQueue.length} từ vựng`
+              ? `Xuất sắc! Hoàn thành toàn bộ ${fullQueue.length} từ vựng${topicFilter ? ` của chủ đề "${topicFilter.name}"` : ''}`
               : `Hoàn thành Đợt ${batchIndex + 1} (${totalBatchUniqueCount}/${totalBatchUniqueCount} từ)!`}
           </h2>
 
           <p style={{ fontSize: '13.5px', color: '#64748b', margin: 0, maxWidth: '460px', lineHeight: 1.5 }}>
             {isEmptyQueue
-              ? 'Hiện tại không có từ vựng nào đến lịch cần ôn tập. Bạn có thể bấm "Ôn Luyện Tự Do Thêm" để ôn lại toàn bộ deck hoặc thêm từ vựng mới!'
+              ? (topicFilter
+                  ? `Chưa tìm thấy từ vựng nào thuộc chủ đề "${topicFilter.name}". Bạn có thể thêm từ vựng mới hoặc quay lại cây chủ đề để chọn chủ đề khác!`
+                  : 'Hiện tại không có từ vựng nào đến lịch cần ôn tập. Bạn có thể bấm "Ôn Luyện Tự Do Thêm" để ôn lại toàn bộ deck hoặc thêm từ vựng mới!')
               : isFinal
-              ? 'Bạn đã làm chủ hoàn toàn các từ vựng trong lượt ôn tập này. Hãy tiếp tục duy trì thói quen học hàng ngày!'
+              ? `Bạn đã làm chủ hoàn toàn các từ vựng trong lượt ôn tập này${topicFilter ? ` của chủ đề "${topicFilter.name}"` : ''}. Hãy tiếp tục duy trì thói quen học hàng ngày!`
               : `Bạn đã làm chủ ${totalBatchUniqueCount} từ vựng trong Đợt ${batchIndex + 1}. Bạn có muốn tiếp tục sang đợt tiếp theo?`}
           </p>
 
@@ -1055,6 +1075,27 @@ function Review({ setView }: { setView: (view: View) => void }) {
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '12px', width: '100%', justifyContent: 'center', flexWrap: 'wrap' }}>
+            {topicFilter && (
+              <button
+                type="button"
+                className="secondary-button"
+                style={{
+                  padding: '10px 16px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  borderRadius: '10px',
+                  color: '#4f46e5',
+                  borderColor: '#c7d2fe',
+                }}
+                onClick={() => {
+                  onClearTopicFilter?.()
+                  setView('Topics')
+                }}
+              >
+                Quay lại Cây chủ đề
+              </button>
+            )}
+
             <button
               type="button"
               className="secondary-button"
@@ -1087,7 +1128,7 @@ function Review({ setView }: { setView: (view: View) => void }) {
                 type="button"
                 className="hero-action"
                 style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', margin: 0 }}
-                onClick={() => fetchQueue(true)}
+                onClick={() => fetchQueue(true, true, topicFilter)}
               >
                 <RefreshCw size={14} /> Ôn Luyện Tự Do Thêm
               </button>
@@ -1359,10 +1400,67 @@ function Review({ setView }: { setView: (view: View) => void }) {
   return (
     <div className="page-content review-page">
       {renderConfirmModal()}
+
+      {topicFilter && (
+        <div className="topic-review-banner">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '20px' }}>🏷️</span>
+            <div>
+              <div className="topic-review-banner-eyebrow">
+                Đang ôn theo chủ đề
+              </div>
+              <div className="topic-review-banner-name">
+                {topicFilter.name}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              className="secondary-button"
+              style={{
+                padding: '6px 12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+              onClick={() => {
+                onClearTopicFilter?.()
+                fetchQueue(false, true, null)
+              }}
+            >
+              <X size={14} /> Thoát ôn chủ đề (Về SRS chung)
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              style={{
+                padding: '6px 12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+              onClick={() => {
+                onClearTopicFilter?.()
+                setView('Topics')
+              }}
+            >
+              Quay lại Cây chủ đề
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="review-top">
         <div>
           <p className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            VOCABULARY REVIEW · {currentCard.deckTitle}
+            {topicFilter ? `CHỦ ĐỀ: ${topicFilter.name.toUpperCase()}` : 'VOCABULARY REVIEW'} · {currentCard.deckTitle}
             {batches.length > 1 && (
               <span
                 style={{
@@ -1378,10 +1476,12 @@ function Review({ setView }: { setView: (view: View) => void }) {
               </span>
             )}
           </p>
-          <h1>Daily review</h1>
+          <h1>{topicFilter ? `Ôn tập: ${topicFilter.name}` : 'Daily review'}</h1>
           <p className="subhead">
             {batches.length > 1
               ? `Đợt ${batchIndex + 1}: Luyện tập ${totalBatchUniqueCount} từ vựng (Tổng ${fullQueue.length} từ)`
+              : topicFilter
+              ? `Luyện tập ${fullQueue.length} từ vựng thuộc chủ đề "${topicFilter.name}"`
               : 'Luyện tập & ghi nhớ từ vựng hàng ngày'}
           </p>
         </div>
@@ -4821,16 +4921,33 @@ function Decks() {
         </div>
       </div>
 
-      <div className="deck-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 12px', maxWidth: '100%' }}>
-        {decksList.map((d) => (
-          <button
-            key={d.id}
-            className={selectedDeckId === d.id ? 'active' : ''}
-            onClick={() => setSelectedDeckId(d.id)}
-          >
-            {d.title} <span>{d.cardCount}</span>
-          </button>
-        ))}
+      {/* List Decks có thanh cuộn ngang (horizontal scrollbar) và thanh ngang phân cách */}
+      <div className="w-full relative mb-3">
+        <div
+          className="deck-tabs custom-horizontal-scrollbar"
+          style={{
+            display: 'flex',
+            flexWrap: 'nowrap',
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            gap: '8px 12px',
+            maxWidth: '100%',
+            paddingBottom: '8px',
+            borderBottom: '2px solid var(--border, #e2e8f0)',
+            WebkitOverflowScrolling: 'touch',
+          }}
+        >
+          {decksList.map((d) => (
+            <button
+              key={d.id}
+              className={selectedDeckId === d.id ? 'active' : ''}
+              onClick={() => setSelectedDeckId(d.id)}
+              style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+            >
+              {d.title} <span>{d.cardCount}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="panel cards-panel">
@@ -7425,9 +7542,24 @@ function FeatureLockScreen({ featureName, setView }: { featureName: string; setV
 export default function Page() {
   const router = useRouter()
   const [view, setView] = useState<View>('Dashboard')
+  const [reviewTopicFilter, setReviewTopicFilter] = useState<{ id: string; name: string } | null>(null)
   const [user, setUser] = useState<any>(null)
   const [authChecking, setAuthChecking] = useState(true)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  // Auto-restore pending topic review if requested from external navigation
+  useEffect(() => {
+    try {
+      const pending = localStorage.getItem('linguaflow_pending_topic_review')
+      if (pending) {
+        const parsed = JSON.parse(pending)
+        if (parsed?.id) {
+          setReviewTopicFilter(parsed)
+          localStorage.removeItem('linguaflow_pending_topic_review')
+        }
+      }
+    } catch {}
+  }, [view])
 
   // Theme & Auth Modals
   const [theme, setTheme] = useState<'light' | 'dark' | 'pink'>('light')
@@ -7583,6 +7715,13 @@ export default function Page() {
                 key={label}
                 className={view === label ? 'nav-item active' : 'nav-item'}
                 onClick={() => {
+                  if (label === 'Review' && view !== 'Review') {
+                    setReviewTopicFilter(null)
+                    try { localStorage.removeItem('linguaflow_pending_topic_review') } catch {}
+                  } else if (label !== 'Review') {
+                    setReviewTopicFilter(null)
+                    try { localStorage.removeItem('linguaflow_pending_topic_review') } catch {}
+                  }
                   setView(label)
                   setMobileNavOpen(false)
                 }}
@@ -7707,12 +7846,31 @@ export default function Page() {
         </header>
 
         {view === 'Dashboard' && <Dashboard setView={setView} user={user} />}
-        {view === 'Review' && <Review setView={setView} />}
+        {view === 'Review' && (
+          <Review
+            setView={setView}
+            topicFilter={reviewTopicFilter}
+            onClearTopicFilter={() => {
+              setReviewTopicFilter(null)
+              try {
+                localStorage.removeItem('linguaflow_pending_topic_review')
+              } catch {}
+            }}
+          />
+        )}
         <div style={{ display: view === 'Translate' ? 'block' : 'none' }}>
           <Translate setView={setView} />
         </div>
         {view === 'Collocations' && <CollocationMatcher />}
-        {view === 'Topics' && <TopicExplorer setView={setView} />}
+        {view === 'Topics' && (
+          <TopicExplorer
+            setView={setView}
+            onStartTopicReview={(topicId, topicName) => {
+              setReviewTopicFilter({ id: topicId, name: topicName })
+              setView('Review')
+            }}
+          />
+        )}
         {view === 'Speaking' && (
           user?.role === 'admin' ? <SpeakingPractice /> : <FeatureLockScreen featureName="Speaking AI (Luyện nói)" setView={setView} />
         )}
@@ -7726,7 +7884,16 @@ export default function Page() {
           <button
             key={label}
             className={view === label ? 'bottom-nav-item active' : 'bottom-nav-item'}
-            onClick={() => setView(label)}
+            onClick={() => {
+              if (label === 'Review' && view !== 'Review') {
+                setReviewTopicFilter(null)
+                try { localStorage.removeItem('linguaflow_pending_topic_review') } catch {}
+              } else if (label !== 'Review') {
+                setReviewTopicFilter(null)
+                try { localStorage.removeItem('linguaflow_pending_topic_review') } catch {}
+              }
+              setView(label)
+            }}
           >
             <Icon size={20} />
             <span>{label}</span>

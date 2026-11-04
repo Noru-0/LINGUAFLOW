@@ -283,7 +283,13 @@ export function getTopicTheme(majorId: string): TopicThemeConfig {
   return TOPIC_THEMES[rootId] || TOPIC_THEMES.env
 }
 
-export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
+export function TopicExplorer({
+  setView,
+  onStartTopicReview,
+}: {
+  setView?: (view: any) => void
+  onStartTopicReview?: (topicId: string, topicName: string) => void
+}) {
   const [topicsData, setTopicsData] = useState<MajorTopicStat[]>([])
   const [stats, setStats] = useState<{
     totalUserCards: number
@@ -401,25 +407,37 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
     }
   }
 
-  // Launch Topic Review Sprint
+  // Launch Topic Review - Transitions to the main Review page
   const launchTopicSprint = async (topicId: string, topicName: string) => {
     try {
-      const res = await fetch(`/api/topics/${topicId}/cards`)
-      if (res.ok) {
-        const data = await res.json()
-        const cards = data.cards || []
-        if (cards.length === 0) {
-          alert('Chủ đề này chưa có từ vựng nào trong các decks của bạn.')
-          return
-        }
-        setSprintTopic({ id: topicId, name: topicName })
-        setSprintCards(cards)
-        setSprintIndex(0)
-        setIsFlipped(false)
-        setSprintComplete(false)
+      setSelectedSubtopic(null)
+
+      if (onStartTopicReview) {
+        onStartTopicReview(topicId, topicName)
+        return
       }
+
+      if (setView) {
+        try {
+          localStorage.setItem(
+            'linguaflow_pending_topic_review',
+            JSON.stringify({ id: topicId, name: topicName })
+          )
+        } catch {}
+        setView('Review')
+        return
+      }
+
+      // Standalone route fallback
+      try {
+        localStorage.setItem(
+          'linguaflow_pending_topic_review',
+          JSON.stringify({ id: topicId, name: topicName })
+        )
+        window.location.href = '/?view=Review'
+      } catch {}
     } catch (e) {
-      console.error('Failed to launch sprint:', e)
+      console.error('Failed to launch topic review:', e)
     }
   }
 
@@ -514,35 +532,35 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
   }, [topicsData, searchQuery, activeFilter, selectedMajorFilter])
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 py-8 space-y-8 animate-fadeIn">
+    <div className="topic-explorer-page w-full max-w-7xl mx-auto px-4 py-8 space-y-8 animate-fadeIn">
       {/* 1. Header Banner & Executive Stats */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-6 md:p-8 shadow-2xl border border-slate-800">
+      <div className="topic-hub-hero relative overflow-hidden rounded-3xl p-6 md:p-8 shadow-2xl transition-all duration-300">
         <div className="absolute right-0 top-0 -mt-10 -mr-10 w-72 h-72 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute left-1/3 bottom-0 -mb-10 w-60 h-60 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2.5 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-semibold tracking-wide text-indigo-200 border border-white/10">
+            <div className="topic-hero-badge inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wide backdrop-blur-md">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
               TOPIC TAXONOMY • DUAL CLASSIFICATION ENGINE
             </div>
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight">
+            <h1 className="topic-hero-title text-2xl md:text-3xl font-black tracking-tight">
               Bản Đồ Tri Thức Từ Vựng Theo Chủ Đề
             </h1>
-            <p className="text-sm md:text-base text-slate-300 leading-relaxed">
+            <p className="topic-hero-desc text-sm md:text-base leading-relaxed">
               Tự động gom nhóm toàn bộ từ vựng từ các Decks của bạn vào 10 Chủ đề Lớn và hơn 50 Chủ đề Nhỏ chuẩn Cambridge/IELTS Academic. Khi thêm từ mới vào deck, AI sẽ tự động phân loại ngay lập tức.
             </p>
 
             {/* Spectrum mini dots preview */}
             <div className="flex items-center gap-2 pt-1 flex-wrap">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">Chủ đề:</span>
+              <span className="topic-hero-label text-[11px] font-bold uppercase tracking-wider mr-1">Chủ đề:</span>
               {INITIAL_TOPICS.map((top) => {
                 const th = getTopicTheme(top.id)
                 return (
                   <span
                     key={top.id}
                     title={`${top.nameEn} (${top.nameVi})`}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/10 border border-white/10 backdrop-blur-xs text-slate-200"
+                    className="topic-spectrum-pill inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold backdrop-blur-xs"
                   >
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: th.primaryHex }} />
                     {top.nameEn.split('&')[0].trim()}
@@ -556,10 +574,8 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
             <button
               onClick={handleAutoCluster}
               disabled={isClustering}
-              className={`inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm shadow-xl transition-all duration-200 ${
-                isClustering
-                  ? 'bg-indigo-900/80 text-indigo-200 cursor-not-allowed opacity-80 border border-indigo-700'
-                  : 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-400 hover:to-teal-500 hover:shadow-emerald-500/25 hover:scale-105 active:scale-95'
+              className={`topic-cluster-btn inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm shadow-xl transition-all duration-200 ${
+                isClustering ? 'is-clustering' : 'hover:scale-105 active:scale-95'
               }`}
             >
               <RefreshCw className={`w-4 h-4 ${isClustering ? 'animate-spin' : ''}`} />
@@ -569,27 +585,27 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
         </div>
 
         {/* Aggregate Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10">
-          <div className="bg-white/5 backdrop-blur-md rounded-2xl p-3.5 text-center border border-white/10">
-            <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Tổng Từ Vựng</div>
-            <div className="text-2xl font-black mt-1 text-white">{stats.totalUserCards}</div>
+        <div className="topic-hero-stats-row grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t">
+          <div className="topic-stat-box rounded-2xl p-3.5 text-center">
+            <div className="topic-stat-label text-xs uppercase tracking-wider font-semibold">Tổng Từ Vựng</div>
+            <div className="topic-stat-value text-2xl font-black mt-1">{stats.totalUserCards}</div>
           </div>
-          <div className="bg-white/5 backdrop-blur-md rounded-2xl p-3.5 text-center border border-white/10">
-            <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Đã Phân Loại</div>
-            <div className="text-2xl font-black mt-1 text-emerald-400">
+          <div className="topic-stat-box rounded-2xl p-3.5 text-center">
+            <div className="topic-stat-label text-xs uppercase tracking-wider font-semibold">Đã Phân Loại</div>
+            <div className="topic-stat-classified text-2xl font-black mt-1">
               {stats.totalClassifiedCards}
-              <span className="text-xs font-normal text-slate-400 ml-1">
+              <span className="topic-stat-percent text-xs font-normal ml-1">
                 ({stats.totalUserCards > 0 ? Math.round((stats.totalClassifiedCards / stats.totalUserCards) * 100) : 100}%)
               </span>
             </div>
           </div>
-          <div className="bg-white/5 backdrop-blur-md rounded-2xl p-3.5 text-center border border-white/10">
-            <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Chưa Phân Loại</div>
-            <div className="text-2xl font-black mt-1 text-amber-300">{stats.totalUnclassifiedCards}</div>
+          <div className="topic-stat-box rounded-2xl p-3.5 text-center">
+            <div className="topic-stat-label text-xs uppercase tracking-wider font-semibold">Chưa Phân Loại</div>
+            <div className="topic-stat-unclassified text-2xl font-black mt-1">{stats.totalUnclassifiedCards}</div>
           </div>
-          <div className="bg-white/5 backdrop-blur-md rounded-2xl p-3.5 text-center border border-white/10">
-            <div className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Chủ Đề Chuẩn Hóa</div>
-            <div className="text-2xl font-black mt-1 text-indigo-300">10 Lớn • 50+ Nhỏ</div>
+          <div className="topic-stat-box rounded-2xl p-3.5 text-center">
+            <div className="topic-stat-label text-xs uppercase tracking-wider font-semibold">Chủ Đề Chuẩn Hóa</div>
+            <div className="topic-stat-topics text-2xl font-black mt-1">10 Lớn • 50+ Nhỏ</div>
           </div>
         </div>
       </div>
@@ -621,43 +637,37 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="relative w-full sm:w-96">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search className="topic-search-icon w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Tìm theo chủ đề, từ khóa (e.g. climate, ai, finance)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-xs"
+              className="topic-search-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none shadow-xs transition-colors"
             />
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
             <button
               onClick={() => setActiveFilter('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${
-                activeFilter === 'all'
-                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
+              className={`topic-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${
+                activeFilter === 'all' ? 'active' : ''
               }`}
             >
               Tất cả ({topicsData.length})
             </button>
             <button
               onClick={() => setActiveFilter('has_cards')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${
-                activeFilter === 'has_cards'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
+              className={`topic-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${
+                activeFilter === 'has_cards' ? 'active' : ''
               }`}
             >
               Có từ vựng của bạn
             </button>
             <button
               onClick={() => setActiveFilter('due')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 ${
-                activeFilter === 'due'
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
+              className={`topic-filter-btn px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors flex items-center gap-1 ${
+                activeFilter === 'due' ? 'active due-btn' : ''
               }`}
             >
               <Clock className="w-3 h-3 text-amber-500" /> Đến hạn ôn tập
@@ -665,37 +675,39 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
           </div>
         </div>
 
-        {/* Major Topic Color Filter Chips */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          <button
-            onClick={() => setSelectedMajorFilter('ALL')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 border ${
-              selectedMajorFilter === 'ALL'
-                ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900 dark:border-white shadow-xs'
-                : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:bg-gray-50'
-            }`}
-          >
-            Tất cả Themes
-          </button>
-          {topicsData.map((t) => {
-            const th = getTopicTheme(t.id)
-            const isSelected = selectedMajorFilter === t.id
-            return (
-              <button
-                key={t.id}
-                onClick={() => setSelectedMajorFilter(isSelected ? 'ALL' : t.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 border ${
-                  isSelected
-                    ? `${th.buttonPrimary} shadow-sm border-transparent scale-105`
-                    : `${th.tagBg} hover:opacity-100 hover:scale-105 active:scale-95`
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: th.primaryHex }} />
-                <span>{t.nameEn.split('&')[0].trim()}</span>
-                <span className="opacity-75 font-normal">({t.totalCards})</span>
-              </button>
-            )
-          })}
+        {/* Major Topic Color Filter Chips with styled horizontal scrollbar & divider bar */}
+        <div className="w-full pt-1">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2.5 custom-horizontal-scrollbar">
+            <button
+              onClick={() => setSelectedMajorFilter('ALL')}
+              className={`topic-all-themes-btn px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 border ${
+                selectedMajorFilter === 'ALL' ? 'active' : ''
+              }`}
+            >
+              Tất cả Themes
+            </button>
+            {topicsData.map((t) => {
+              const th = getTopicTheme(t.id)
+              const isSelected = selectedMajorFilter === t.id
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setSelectedMajorFilter(isSelected ? 'ALL' : t.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 border ${
+                    isSelected
+                      ? `${th.buttonPrimary} shadow-sm border-transparent scale-105`
+                      : `${th.tagBg} hover:opacity-100 hover:scale-105 active:scale-95`
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: th.primaryHex }} />
+                  <span>{t.nameEn.split('&')[0].trim()}</span>
+                  <span className="opacity-75 font-normal">({t.totalCards})</span>
+                </button>
+              )
+            })}
+          </div>
+          {/* Thanh ngang phân cách rõ ràng */}
+          <div className="topic-horizontal-divider w-full h-0.5 mt-1" />
         </div>
       </div>
 
@@ -730,10 +742,10 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
             return (
               <div
                 key={major.id}
-                className={`bg-white dark:bg-gray-900 rounded-3xl border-2 border-t-4 border-gray-200/90 dark:border-gray-800 ${theme.accentBorder} ${theme.cardBorderHover} shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col group/card`}
+                className={`topic-card rounded-3xl border-2 border-t-4 ${theme.accentBorder} ${theme.cardBorderHover} shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col group/card`}
               >
                 {/* Card Header with Theme Gradient Tint */}
-                <div className={`p-5 border-b border-gray-100 dark:border-gray-800/80 bg-gradient-to-r ${theme.headerGradient} flex items-start justify-between gap-4`}>
+                <div className={`topic-card-header p-5 border-b bg-gradient-to-r ${theme.headerGradient} flex items-start justify-between gap-4`}>
                   <div className="flex items-center gap-3.5">
                     <div
                       className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0 transition-transform duration-300 group-hover/card:scale-110"
@@ -745,10 +757,10 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
                       {renderIcon(major.icon, 'w-6 h-6')}
                     </div>
                     <div>
-                      <h2 className="text-base font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                      <h2 className="topic-card-title text-base font-black flex items-center gap-2">
                         {major.nameEn}
                       </h2>
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">{major.nameVi}</p>
+                      <p className="topic-card-sub text-xs font-medium mt-0.5">{major.nameVi}</p>
                     </div>
                   </div>
 
@@ -765,10 +777,10 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
                 </div>
 
                 {/* Retention Progress Bar */}
-                <div className="px-5 py-2.5 bg-gray-50/70 dark:bg-gray-800/20 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between text-xs">
-                  <span className="text-gray-500 font-medium">Độ nhớ vững (Mature):</span>
+                <div className="topic-retention-bar px-5 py-2.5 border-b flex items-center justify-between text-xs">
+                  <span className="topic-retention-label font-medium">Độ nhớ vững (Mature):</span>
                   <div className="flex items-center gap-2.5">
-                    <div className="w-28 bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+                    <div className="topic-progress-track w-28 h-2 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{
@@ -777,13 +789,13 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
                         }}
                       />
                     </div>
-                    <span className="font-extrabold text-gray-700 dark:text-gray-300 text-[11.5px]">{major.retentionRate}%</span>
+                    <span className="topic-retention-value font-extrabold text-[11.5px]">{major.retentionRate}%</span>
                   </div>
                 </div>
 
                 {/* Subtopics List */}
                 <div className="p-4 flex-1 space-y-2">
-                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-1">
+                  <div className="topic-subtopics-header text-[11px] font-bold uppercase tracking-wider px-1">
                     Chủ đề nhánh ({major.subtopics.length})
                   </div>
                   <div className="space-y-1.5">
@@ -791,13 +803,13 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
                       <div
                         key={sub.id}
                         onClick={() => openSubtopicDrawer(sub, major)}
-                        className={`group flex items-center justify-between p-2.5 rounded-xl border border-transparent cursor-pointer transition-all ${theme.subtopicHover}`}
+                        className={`topic-subtopic-row group flex items-center justify-between p-2.5 rounded-xl border border-transparent cursor-pointer transition-all ${theme.subtopicHover}`}
                       >
                         <div className="min-w-0 pr-2">
-                          <div className="text-sm font-semibold text-gray-800 dark:text-gray-200 transition-colors truncate">
+                          <div className="topic-subtopic-title text-sm font-semibold transition-colors truncate">
                             {sub.nameEn}
                           </div>
-                          <div className="text-xs text-gray-400 truncate">{sub.nameVi}</div>
+                          <div className="topic-subtopic-vi text-xs truncate">{sub.nameVi}</div>
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
@@ -806,7 +818,7 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
                               {sub.cardCount} từ
                             </span>
                           ) : (
-                            <span className="text-xs text-gray-300 dark:text-gray-600">0 từ</span>
+                            <span className="topic-subtopic-empty text-xs">0 từ</span>
                           )}
                           <ChevronRight className="w-4 h-4 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
                         </div>
@@ -816,10 +828,10 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
                 </div>
 
                 {/* Card Footer Actions */}
-                <div className="p-4 bg-gray-50/60 dark:bg-gray-800/40 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
+                <div className="topic-card-footer p-4 border-t flex items-center justify-between gap-3">
                   <button
                     onClick={() => openSubtopicDrawer(major.subtopics[0], major)}
-                    className={`text-xs font-bold text-gray-600 dark:text-gray-400 hover:${theme.textColor} flex items-center gap-1 transition-colors`}
+                    className={`topic-detail-btn text-xs font-bold flex items-center gap-1 transition-colors`}
                   >
                     <BookOpen className="w-3.5 h-3.5" /> Xem chi tiết
                   </button>
@@ -830,7 +842,7 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
                     className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-xs ${
                       major.totalCards > 0
                         ? `${theme.buttonPrimary} hover:scale-105 active:scale-95`
-                        : 'bg-gray-200 dark:bg-gray-800 text-gray-400 cursor-not-allowed'
+                        : 'topic-review-btn-disabled'
                     }`}
                   >
                     <Zap className="w-3.5 h-3.5 fill-current" /> Ôn Tập ({major.totalCards})
@@ -848,9 +860,9 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
           {(() => {
             const majorTheme = getTopicTheme(selectedMajor.id)
             return (
-              <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-3xl w-full max-h-[88vh] flex flex-col shadow-2xl border-2 border-gray-200 dark:border-gray-800 overflow-hidden">
+              <div className="topic-drawer-modal rounded-3xl max-w-3xl w-full max-h-[88vh] flex flex-col shadow-2xl border-2 overflow-hidden">
                 {/* Drawer Header Styled in Major Theme */}
-                <div className={`p-5 border-b border-gray-200 dark:border-gray-800 flex items-start justify-between gap-4 bg-gradient-to-r ${majorTheme.drawerGrad}`}>
+                <div className={`topic-drawer-header p-5 border-b flex items-start justify-between gap-4 bg-gradient-to-r ${majorTheme.drawerGrad}`}>
                   <div className="flex items-center gap-3.5">
                     <div
                       className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-md"
@@ -865,10 +877,10 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
                       <div className="text-xs font-extrabold uppercase tracking-wider" style={{ color: majorTheme.primaryHex }}>
                         {selectedMajor.nameEn}
                       </div>
-                      <h3 className="text-lg font-black text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                      <h3 className="topic-drawer-title text-lg font-black flex items-center gap-2">
                         {selectedSubtopic.nameEn}
                       </h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{selectedSubtopic.nameVi}</p>
+                      <p className="topic-drawer-sub text-xs">{selectedSubtopic.nameVi}</p>
                     </div>
                   </div>
 
@@ -882,7 +894,7 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
                     </button>
                     <button
                       onClick={() => setSelectedSubtopic(null)}
-                      className="p-1.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-600 transition-colors"
+                      className="topic-drawer-close p-1.5 rounded-xl transition-colors"
                     >
                       <X className="w-5 h-5" />
                     </button>
@@ -890,17 +902,17 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
                 </div>
 
                 {/* Cards List Body */}
-                <div className="p-5 flex-1 overflow-y-auto space-y-3">
+                <div className="topic-drawer-body p-5 flex-1 overflow-y-auto space-y-3">
                   {loadingCards ? (
                     <div className="py-16 text-center space-y-3">
                       <RefreshCw className="w-7 h-7 animate-spin mx-auto" style={{ color: majorTheme.primaryHex }} />
                       <p className="text-xs text-gray-500">Đang gom các thẻ từ vựng thuộc chủ đề này...</p>
                     </div>
                   ) : drawerCards.length === 0 ? (
-                    <div className="py-12 text-center bg-gray-50 dark:bg-gray-800/40 rounded-2xl p-6 border border-dashed border-gray-300 dark:border-gray-700 space-y-2">
-                      <BookOpen className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                      <div className="text-sm font-bold text-gray-700 dark:text-gray-300">Chưa có từ vựng trong chủ đề này</div>
-                      <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+                    <div className="topic-drawer-empty py-12 text-center rounded-2xl p-6 border border-dashed space-y-2">
+                      <BookOpen className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                      <div className="text-sm font-bold">Chưa có từ vựng trong chủ đề này</div>
+                      <p className="text-xs mt-1 max-w-sm mx-auto opacity-75">
                         Khi bạn thêm từ mới liên quan đến "{selectedSubtopic.nameEn}" vào bất kỳ Deck nào, hệ thống AI sẽ tự động gom vào đây!
                       </p>
                     </div>
@@ -908,20 +920,20 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
                     drawerCards.map((card) => (
                       <div
                         key={card.id}
-                        className={`p-4 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800/50 ${majorTheme.cardBorderHover} transition-colors space-y-2 shadow-xs`}
+                        className={`topic-drawer-card p-4 rounded-2xl border ${majorTheme.cardBorderHover} transition-colors space-y-2 shadow-xs`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-base font-bold text-gray-900 dark:text-gray-100">{card.term}</span>
-                              {card.phonetic && <span className="text-xs text-gray-400 font-mono">{card.phonetic}</span>}
+                              <span className="topic-card-term text-base font-bold">{card.term}</span>
+                              {card.phonetic && <span className="topic-card-phonetic text-xs font-mono">{card.phonetic}</span>}
                               {card.cefrLevel && (
                                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border ${majorTheme.badgeStyle.light} ${majorTheme.badgeStyle.dark}`}>
                                   {card.cefrLevel}
                                 </span>
                               )}
                               {card.partOfSpeech && (
-                                <span className="text-xs italic text-gray-500">({card.partOfSpeech})</span>
+                                <span className="topic-card-pos text-xs italic">({card.partOfSpeech})</span>
                               )}
                             </div>
                           </div>
@@ -929,25 +941,25 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
                           <div className="flex items-center gap-2 shrink-0">
                             <button
                               onClick={() => playAudio(card.audioUrl, card.term)}
-                              className="p-1 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                              className="topic-audio-btn p-1 rounded-lg transition-colors"
                               style={{ color: majorTheme.primaryHex }}
                               title="Nghe phát âm"
                             >
                               <Volume2 className="w-4 h-4" />
                             </button>
-                            <span className="text-[11px] font-medium text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
+                            <span className="topic-deck-pill text-[11px] font-medium px-2 py-0.5 rounded-full">
                               Deck: {card.deckTitle}
                             </span>
                           </div>
                         </div>
 
-                        <div className={`text-sm font-semibold ${majorTheme.textColor}`}>
+                        <div className={`text-sm font-semibold`} style={{ color: majorTheme.primaryHex }}>
                           {card.vietnameseDefinition}
                         </div>
 
                         {card.exampleSentence && (
                           <div
-                            className="text-xs text-gray-600 dark:text-gray-400 italic bg-gray-50 dark:bg-gray-900/50 p-2.5 rounded-xl border-l-3"
+                            className="topic-example-box text-xs italic p-2.5 rounded-xl border-l-3"
                             style={{ borderLeftColor: majorTheme.primaryHex }}
                           >
                             "{card.exampleSentence}"
@@ -959,11 +971,11 @@ export function TopicExplorer({ setView }: { setView?: (view: any) => void }) {
                 </div>
 
                 {/* Drawer Footer */}
-                <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 flex items-center justify-between text-xs text-gray-500">
+                <div className="topic-card-footer p-4 border-t flex items-center justify-between text-xs text-gray-500">
                   <span>Hiển thị {drawerCards.length} thẻ từ các Decks cá nhân</span>
                   <button
                     onClick={() => setSelectedSubtopic(null)}
-                    className="px-4 py-2 rounded-xl bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
+                    className="topic-detail-btn px-4 py-2 rounded-xl font-bold transition-colors"
                   >
                     Đóng
                   </button>
