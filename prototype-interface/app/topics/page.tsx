@@ -14,12 +14,18 @@ export default function TopicsPage() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <button
             onClick={() => router.push('/')}
-            className="flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+            className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" /> Về Trang Chủ LinguaFlow
           </button>
-          <div className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
-            Topic Taxonomy v1.4.0
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="text-xs font-bold px-3 py-1 rounded-full bg-gradient-to-r from-emerald-500/10 via-indigo-500/10 to-purple-500/10 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">
+              10 Major Themes • 50+ Topics
+            </span>
           </div>
         </div>
       </header>

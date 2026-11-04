@@ -75,7 +75,7 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
     nameVi: 'Khoa học & Công nghệ',
     description: 'Trí tuệ nhân tạo, an ninh mạng, khoa học máy tính, khám phá vũ trụ và công nghệ sinh học.',
     icon: 'Cpu',
-    color: '#3B82F6',
+    color: '#2563EB',
     subtopics: [
       {
         id: 'tech.ai',
@@ -125,7 +125,7 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
     nameVi: 'Kinh doanh, Sự nghiệp & Kinh tế',
     description: 'Thương mại, thị trường tài chính, tuyển dụng, tiếp thị và quản trị doanh nghiệp.',
     icon: 'Briefcase',
-    color: '#F59E0B',
+    color: '#D97706',
     subtopics: [
       {
         id: 'biz.career',
@@ -175,7 +175,7 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
     nameVi: 'Giáo dục & Học thuật',
     description: 'Hệ thống trường học, đời sống đại học, phương pháp giảng dạy, thi cử và viết học thuật.',
     icon: 'GraduationCap',
-    color: '#8B5CF6',
+    color: '#7C3AED',
     subtopics: [
       {
         id: 'edu.university',
@@ -217,7 +217,7 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
     nameVi: 'Sức khỏe & Y tế',
     description: 'Dinh dưỡng, thể lực, sức khỏe tâm thần, dịch bệnh học và chăm sóc y tế.',
     icon: 'HeartPulse',
-    color: '#EF4444',
+    color: '#E11D48',
     subtopics: [
       {
         id: 'health.diet',
@@ -259,7 +259,7 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
     nameVi: 'Xã hội, Văn hóa & Pháp luật',
     description: 'Bình đẳng xã hội, di sản văn hóa, nghệ thuật, luật pháp và tư pháp.',
     icon: 'Landmark',
-    color: '#6366F1',
+    color: '#4F46E5',
     subtopics: [
       {
         id: 'soc.equality',
@@ -301,7 +301,7 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
     nameVi: 'Đô thị hóa & Cơ sở hạ tầng',
     description: 'Quy hoạch đô thị, giao thông công cộng, nhà ở và thành phố thông minh.',
     icon: 'Building2',
-    color: '#06B6D4',
+    color: '#0891B2',
     subtopics: [
       {
         id: 'urban.planning',
@@ -335,7 +335,7 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
     nameVi: 'Du lịch & Dịch vụ khách sạn',
     description: 'Du lịch sinh thái, hàng không, lưu trú và trải nghiệm văn hóa.',
     icon: 'Compass',
-    color: '#14B8A6',
+    color: '#0D9488',
     subtopics: [
       {
         id: 'travel.eco',
@@ -369,7 +369,7 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
     nameVi: 'Đời sống, Gia đình & Mối quan hệ',
     description: 'Nuôi dạy con cái, ẩm thực, tài chính cá nhân, sở thích và lối sống thường nhật.',
     icon: 'Smile',
-    color: '#EC4899',
+    color: '#DB2777',
     subtopics: [
       {
         id: 'life.family',
@@ -411,7 +411,7 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
     nameVi: 'Chính trị toàn cầu & Nhân đạo',
     description: 'Ngoại giao, hiệp ước quốc tế, viện trợ nhân đạo và xung đột địa chính trị.',
     icon: 'Globe',
-    color: '#64748B',
+    color: '#475569',
     subtopics: [
       {
         id: 'gov.diplomacy',
