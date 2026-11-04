@@ -322,12 +322,12 @@ export async function batchClassifyWords(
     return results;
   }
 
-  // Process in chunks of 30 cards per Gemini prompt
-  const chunkSize = 30;
+  // Process in chunks of 15 cards per Gemini prompt for maximum reliability & speed
+  const chunkSize = 15;
   for (let i = 0; i < unclassified.length; i += chunkSize) {
     const chunk = unclassified.slice(i, i + chunkSize);
     const itemsText = chunk
-      .map((c) => `- ID: ${c.id} | Word: "${c.term}" | Meaning: "${c.vietnameseMeaning || ''}" | Example: "${c.exampleSentence || ''}"`)
+      .map((c) => `- ID: ${c.id} | Word: "${c.term}" | Meaning: "${(c.vietnameseMeaning || '').slice(0, 80)}"`)
       .join('\n');
 
     const prompt = `Classify each English vocabulary card into the best matching subtopicId from this taxonomy:
@@ -357,7 +357,7 @@ Return ONLY a raw JSON array with objects matching:
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { temperature: 0.1 },
         },
-        { timeout: 12000 }
+        { timeout: 7000 }
       );
       const text = res.data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (text) {
@@ -378,10 +378,13 @@ Return ONLY a raw JSON array with objects matching:
       console.warn('Batch topic classification error for chunk:', e);
     }
 
-    // Default any still missing in this chunk
+    // Fallback for any cards in this chunk that couldn't be classified by Gemini
     for (const c of chunk) {
       if (!results.has(c.id)) {
-        results.set(c.id, {
+        // Attempt secondary heuristic lookup
+        const secondary = fastLookupTopicByKeywords(c.term, c.vietnameseMeaning, c.exampleSentence);
+        const details = secondary ? findTopicDetails(secondary.subtopicId) : null;
+        results.set(c.id, details || {
           majorTopicId: 'life',
           majorTopicName: 'Daily Life, Family & Relationships',
           subtopicId: 'life.leisure',

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, fallbackToSqlite } from '@/lib/db'
 import { topics, cardTopics, cards, decks, cardSrsStates } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
@@ -9,6 +9,7 @@ import { INITIAL_TOPICS } from '@/lib/db/initial_topics'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
+  let activeDb = db
   try {
     await seedDatabase()
     const session = await getSession()
@@ -17,8 +18,14 @@ export async function GET(request: Request) {
     // 1. Fetch all topics from DB (or fallback to INITIAL_TOPICS)
     let allDbTopics: any[] = []
     try {
-      allDbTopics = await db.select().from(topics)
-    } catch {}
+      allDbTopics = await activeDb.select().from(topics)
+    } catch (dbErr) {
+      console.warn('[TopicsRoute] Primary DB failed, falling back to SQLite:', dbErr)
+      activeDb = fallbackToSqlite()
+      try {
+        allDbTopics = await activeDb.select().from(topics)
+      } catch {}
+    }
 
     // If database table is empty, seed topics on the fly
     if (allDbTopics.length === 0) {
@@ -26,7 +33,7 @@ export async function GET(request: Request) {
         let order = 0
         for (const major of INITIAL_TOPICS) {
           order++
-          await db.insert(topics).values({
+          await activeDb.insert(topics).values({
             id: major.id,
             parentId: null,
             nameEn: major.nameEn,
@@ -39,7 +46,7 @@ export async function GET(request: Request) {
 
           for (const sub of major.subtopics) {
             order++
-            await db.insert(topics).values({
+            await activeDb.insert(topics).values({
               id: sub.id,
               parentId: sub.parentId,
               nameEn: sub.nameEn,
@@ -51,12 +58,22 @@ export async function GET(request: Request) {
             }).catch(() => {})
           }
         }
-        allDbTopics = await db.select().from(topics)
+        allDbTopics = await activeDb.select().from(topics)
       } catch {}
     }
 
     // 2. Fetch user's decks and card IDs to calculate personal stats
-    const userDecks = await db.select({ id: decks.id }).from(decks).where(eq(decks.userId, userId))
+    let userDecks: any[] = []
+    try {
+      userDecks = await activeDb.select({ id: decks.id }).from(decks).where(eq(decks.userId, userId))
+    } catch {}
+
+    // Fallback: if no decks for specific userId, query all available decks
+    if (userDecks.length === 0) {
+      try {
+        userDecks = await activeDb.select({ id: decks.id }).from(decks)
+      } catch {}
+    }
     const userDeckIds = userDecks.map((d: any) => d.id)
 
     // Maps to aggregate card counts
@@ -66,7 +83,7 @@ export async function GET(request: Request) {
     let totalUnclassifiedCount = 0
 
     if (userDeckIds.length > 0) {
-      const userCards = await db
+      const userCards = await activeDb
         .select({ id: cards.id })
         .from(cards)
         .where(inArray(cards.deckId, userDeckIds))
@@ -74,13 +91,16 @@ export async function GET(request: Request) {
 
       if (userCardIds.length > 0) {
         // Query card_topics for these cards
-        const userCardTopics = await db
-          .select({
-            cardId: cardTopics.cardId,
-            topicId: cardTopics.topicId,
-          })
-          .from(cardTopics)
-          .where(inArray(cardTopics.cardId, userCardIds))
+        let userCardTopics: any[] = []
+        try {
+          userCardTopics = await activeDb
+            .select({
+              cardId: cardTopics.cardId,
+              topicId: cardTopics.topicId,
+            })
+            .from(cardTopics)
+            .where(inArray(cardTopics.cardId, userCardIds))
+        } catch {}
 
         const classifiedCardIds = new Set<string>()
         userCardTopics.forEach((ct: any) => {
@@ -92,7 +112,7 @@ export async function GET(request: Request) {
 
         // Query SRS states to compute mature and due counts
         try {
-          const srsList = await db
+          const srsList = await activeDb
             .select({
               cardId: cardSrsStates.cardId,
               interval: cardSrsStates.interval,

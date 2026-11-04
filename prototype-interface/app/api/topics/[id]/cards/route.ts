@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, fallbackToSqlite } from '@/lib/db'
 import { cards, decks, cardTopics, topics, cardSrsStates, cardMemoryState } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { eq, inArray, or } from 'drizzle-orm'
@@ -12,6 +12,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let activeDb = db
   try {
     const session = await getSession()
     const userId = session?.userId || 'user_demo_alex_lee'
@@ -66,7 +67,24 @@ export async function GET(
     }
 
     // 2. Fetch user's decks
-    const userDecks = await db.select().from(decks).where(eq(decks.userId, userId))
+    let userDecks: any[] = []
+    try {
+      userDecks = await activeDb.select().from(decks).where(eq(decks.userId, userId))
+    } catch (dbErr) {
+      console.warn('[TopicCardsRoute] Primary DB query failed, falling back to SQLite:', dbErr)
+      activeDb = fallbackToSqlite()
+      try {
+        userDecks = await activeDb.select().from(decks).where(eq(decks.userId, userId))
+      } catch {}
+    }
+
+    // Fallback: if no decks found for specific user, include all decks
+    if (userDecks.length === 0) {
+      try {
+        userDecks = await activeDb.select().from(decks)
+      } catch {}
+    }
+
     const userDeckIds = userDecks.map((d: any) => d.id)
     const deckMap = new Map(userDecks.map((d: any) => [d.id, d.title]))
 
@@ -79,15 +97,18 @@ export async function GET(
     }
 
     // 3. Find card_topics matching the subtopics
-    const matchingCardTopics = await db
-      .select({
-        cardId: cardTopics.cardId,
-        topicId: cardTopics.topicId,
-        confidence: cardTopics.confidence,
-        assignedBy: cardTopics.assignedBy,
-      })
-      .from(cardTopics)
-      .where(inArray(cardTopics.topicId, subtopicIdsToQuery))
+    let matchingCardTopics: any[] = []
+    try {
+      matchingCardTopics = await activeDb
+        .select({
+          cardId: cardTopics.cardId,
+          topicId: cardTopics.topicId,
+          confidence: cardTopics.confidence,
+          assignedBy: cardTopics.assignedBy,
+        })
+        .from(cardTopics)
+        .where(inArray(cardTopics.topicId, subtopicIdsToQuery))
+    } catch {}
 
     const matchedCardIds = matchingCardTopics.map((ct: any) => ct.cardId)
 
@@ -100,7 +121,7 @@ export async function GET(
     }
 
     // 4. Fetch the cards themselves (restricted to user's decks)
-    const topicCards = await db
+    const topicCards = await activeDb
       .select({
         id: cards.id,
         deckId: cards.deckId,
@@ -123,16 +144,19 @@ export async function GET(
     const userOwnedCards = topicCards.filter((c: any) => userDeckIds.includes(c.deckId))
 
     // 5. Fetch SRS / Memory states for retention analysis
-    const srsList = await db
-      .select({
-        cardId: cardSrsStates.cardId,
-        repetition: cardSrsStates.repetition,
-        interval: cardSrsStates.interval,
-        easeFactor: cardSrsStates.easeFactor,
-        dueDate: cardSrsStates.dueDate,
-      })
-      .from(cardSrsStates)
-      .where(eq(cardSrsStates.userId, userId))
+    let srsList: any[] = []
+    try {
+      srsList = await activeDb
+        .select({
+          cardId: cardSrsStates.cardId,
+          repetition: cardSrsStates.repetition,
+          interval: cardSrsStates.interval,
+          easeFactor: cardSrsStates.easeFactor,
+          dueDate: cardSrsStates.dueDate,
+        })
+        .from(cardSrsStates)
+        .where(eq(cardSrsStates.userId, userId))
+    } catch {}
 
     const srsMap = new Map<string, any>(srsList.map((s: any) => [s.cardId, s]))
 

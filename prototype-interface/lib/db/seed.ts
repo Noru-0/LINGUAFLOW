@@ -13,6 +13,41 @@ export const sampleSentences = initial500Sentences
 
 let isSeededInMemory = false
 
+async function ensureTopicsSeeded(targetDb: any) {
+  try {
+    const existingTopics = await targetDb.select({ id: topics.id }).from(topics).limit(1)
+    if (existingTopics.length === 0) {
+      let order = 0
+      for (const major of INITIAL_TOPICS) {
+        order++
+        await targetDb.insert(topics).values({
+          id: major.id,
+          parentId: null,
+          nameEn: major.nameEn,
+          nameVi: major.nameVi,
+          description: major.description,
+          icon: major.icon,
+          color: major.color,
+          orderIndex: order,
+        }).catch(() => {})
+        for (const sub of major.subtopics) {
+          order++
+          await targetDb.insert(topics).values({
+            id: sub.id,
+            parentId: sub.parentId,
+            nameEn: sub.nameEn,
+            nameVi: sub.nameVi,
+            description: sub.description,
+            icon: sub.icon || 'Folder',
+            color: major.color,
+            orderIndex: order,
+          }).catch(() => {})
+        }
+      }
+    }
+  } catch {}
+}
+
 export async function seedDatabase() {
   if (isSeededInMemory) return { status: 'already_seeded' }
   let activeDb = db
@@ -20,6 +55,7 @@ export async function seedDatabase() {
   try {
     const existingUsers = await activeDb.select({ id: users.id }).from(users).limit(1)
     if (existingUsers.length > 0) {
+      await ensureTopicsSeeded(activeDb)
       isSeededInMemory = true
       return { status: 'already_seeded' }
     }
@@ -36,6 +72,7 @@ export async function seedDatabase() {
     try {
       const existingUsers = await activeDb.select().from(users).limit(1)
       if (existingUsers.length > 0) {
+        await ensureTopicsSeeded(activeDb)
         try {
           const existingParas = await activeDb.select().from(translationParagraphs)
           if (existingParas.length < 50) {

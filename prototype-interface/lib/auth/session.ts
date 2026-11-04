@@ -34,12 +34,12 @@ export async function createSession(payload: UserSessionPayload): Promise<string
 }
 
 export async function getSession(): Promise<UserSessionPayload | null> {
-  const cookieStore = await cookies()
-  const token = cookieStore.get(COOKIE_NAME)?.value
-
-  if (!token) return null
-
   try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get(COOKIE_NAME)?.value
+
+    if (!token) return null
+
     const verified = await jwtVerify(token, JWT_SECRET)
     return verified.payload as unknown as UserSessionPayload
   } catch {

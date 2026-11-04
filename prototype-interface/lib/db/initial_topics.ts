@@ -133,7 +133,7 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
         nameEn: 'Employment, Careers & Workplace',
         nameVi: 'Việc làm, Tuyển dụng & Nơi làm việc',
         description: 'Thăng tiến, phỏng vấn xin việc, đàm phán lương bổng, văn hóa công sở.',
-        keywords: ['employment', 'recruitment', 'workplace', 'salary', 'resume', 'colleague', 'promotion', 'severance', 'freelance', 'pension'],
+        keywords: ['employment', 'recruitment', 'workplace', 'salary', 'resume', 'colleague', 'promotion', 'severance', 'freelance', 'pension', 'competent', 'accomplish', 'dedicate'],
       },
       {
         id: 'biz.finance',
@@ -233,7 +233,7 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
         nameEn: 'Mental Health & Psychology',
         nameVi: 'Sức khỏe tâm thần & Tâm lý học',
         description: 'Stress, kiệt sức (burnout), lo âu, trầm cảm, khả năng phục hồi tinh thần.',
-        keywords: ['psychology', 'resilience', 'burnout', 'anxiety', 'depression', 'cognitive', 'therapy', 'trauma', 'mindfulness'],
+        keywords: ['psychology', 'resilience', 'burnout', 'anxiety', 'depression', 'cognitive', 'therapy', 'trauma', 'mindfulness', 'restlessness', 'relieve', 'defuse'],
       },
       {
         id: 'health.disease',
@@ -249,7 +249,7 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
         nameEn: 'Healthcare Systems & Pharmacology',
         nameVi: 'Hệ thống y tế & Dược phẩm',
         description: 'Bệnh viện, bảo hiểm y tế, kê đơn thuốc, bác sĩ phẫu thuật và chăm sóc giảm nhẹ.',
-        keywords: ['pharmaceutical', 'prescription', 'surgery', 'hospitalization', 'palliative', 'medication', 'physician', 'dosage'],
+        keywords: ['pharmaceutical', 'prescription', 'surgery', 'hospitalization', 'palliative', 'medication', 'physician', 'dosage', 'inhalation', 'exhalation'],
       },
     ],
   },
@@ -419,7 +419,7 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
         nameEn: 'Diplomacy & International Treaties',
         nameVi: 'Ngoại giao & Hiệp ước quốc tế',
         description: 'Đàm phán ngoại giao, đại sứ, hiệp định song phương và liên minh đa phương.',
-        keywords: ['diplomacy', 'ambassador', 'treaty', 'bilateral', 'multilateral', 'alliance', 'summit', 'sovereignty', 'sanction'],
+        keywords: ['diplomacy', 'ambassador', 'treaty', 'bilateral', 'multilateral', 'alliance', 'summit', 'sovereignty', 'sanction', 'ally', 'coalition', 'mercenary', 'protectorate', 'governorate', 'expulsion', 'escalate', 'raid'],
       },
       {
         id: 'gov.aid',

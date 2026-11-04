@@ -443,7 +443,79 @@ export function getDb(): any {
             improved_version TEXT,
             created_at TEXT NOT NULL DEFAULT NOW()::text
           );
-        `).catch(() => {})
+
+          CREATE TABLE IF NOT EXISTS public.topics (
+            id VARCHAR(50) PRIMARY KEY,
+            parent_id VARCHAR(50) REFERENCES public.topics(id) ON DELETE CASCADE,
+            name_en VARCHAR(100) NOT NULL,
+            name_vi VARCHAR(100) NOT NULL,
+            description TEXT,
+            icon VARCHAR(50) DEFAULT 'Folder',
+            color VARCHAR(20) DEFAULT '#3B82F6',
+            order_index INT DEFAULT 0,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_topics_parent ON public.topics(parent_id);
+
+          CREATE TABLE IF NOT EXISTS public.card_topics (
+            id VARCHAR(100) PRIMARY KEY,
+            card_id VARCHAR(100) NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
+            topic_id VARCHAR(50) NOT NULL REFERENCES public.topics(id) ON DELETE CASCADE,
+            is_primary BOOLEAN NOT NULL DEFAULT TRUE,
+            confidence REAL DEFAULT 1.0,
+            assigned_by VARCHAR(20) DEFAULT 'ai',
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            CONSTRAINT uq_card_topic UNIQUE(card_id, topic_id)
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_card_topics_card ON public.card_topics(card_id);
+          CREATE INDEX IF NOT EXISTS idx_card_topics_topic ON public.card_topics(topic_id);
+          CREATE INDEX IF NOT EXISTS idx_card_topics_primary ON public.card_topics(card_id, is_primary);
+
+          CREATE TABLE IF NOT EXISTS public.user_topic_stats (
+            user_id VARCHAR(100) NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+            topic_id VARCHAR(50) NOT NULL REFERENCES public.topics(id) ON DELETE CASCADE,
+            total_cards INT NOT NULL DEFAULT 0,
+            learning_cards INT NOT NULL DEFAULT 0,
+            mature_cards INT NOT NULL DEFAULT 0,
+            avg_retrievability REAL NOT NULL DEFAULT 0.0,
+            last_studied_at TIMESTAMPTZ,
+            updated_at TIMESTAMPTZ DEFAULT NOW(),
+            PRIMARY KEY (user_id, topic_id)
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_user_topic_stats_user ON public.user_topic_stats(user_id);
+
+          ALTER TABLE public.topics DISABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.card_topics DISABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.user_topic_stats DISABLE ROW LEVEL SECURITY;
+        `).then(async () => {
+          try {
+            const countRes = await client`SELECT count(*) FROM public.topics`;
+            if (countRes && Number(countRes[0]?.count) === 0) {
+              let order = 0;
+              for (const major of INITIAL_TOPICS) {
+                order++;
+                await client`
+                  INSERT INTO public.topics (id, parent_id, name_en, name_vi, description, icon, color, order_index)
+                  VALUES (${major.id}, NULL, ${major.nameEn}, ${major.nameVi}, ${major.description || null}, ${major.icon || 'Folder'}, ${major.color || '#3B82F6'}, ${order})
+                  ON CONFLICT (id) DO NOTHING
+                `;
+                for (const sub of major.subtopics) {
+                  order++;
+                  await client`
+                    INSERT INTO public.topics (id, parent_id, name_en, name_vi, description, icon, color, order_index)
+                    VALUES (${sub.id}, ${sub.parentId}, ${sub.nameEn}, ${sub.nameVi}, ${sub.description || null}, ${sub.icon || 'Folder'}, ${major.color || '#3B82F6'}, ${order})
+                    ON CONFLICT (id) DO NOTHING
+                  `;
+                }
+              }
+            }
+          } catch (seedTopicsErr) {
+            console.warn('Auto-seed topics warning:', seedTopicsErr);
+          }
+        }).catch(() => {})
 
         dbInstance = drizzlePostgres(client, { schema: pgSchema })
         console.log('Connected to Supabase PostgreSQL with Postgres schema dialect.')
