@@ -2,6 +2,9 @@
 
 > **Ultra-lightweight, self-hosted, and distraction-free English learning web platform designed for small academic study cohorts.**
 
+🌐 **Live Application:** [https://linguaflow-dusky.vercel.app/](https://linguaflow-dusky.vercel.app/)
+
+[![Live App](https://img.shields.io/badge/Live_App-linguaflow--dusky.vercel.app-000000?style=flat&logo=vercel&logoColor=white)](https://linguaflow-dusky.vercel.app/)
 [![Next.js](https://img.shields.io/badge/Next.js-16_App_Router-black?logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Supabase](https://img.shields.io/badge/Database-Supabase_PostgreSQL-emerald?logo=supabase)](https://supabase.com/)
@@ -91,9 +94,17 @@ JWT_SECRET=linguaflow-secret-jwt-key-study-group-2026
    ```
 
 5. **Open LinguaFlow in Your Browser**
-   Navigate to [http://localhost:3000](http://localhost:3000).
+   - Local: Navigate to [http://localhost:3000](http://localhost:3000).
+   - Live Deployment: Visit [https://linguaflow-dusky.vercel.app/](https://linguaflow-dusky.vercel.app/).
 
 > 💡 **Local Development Fallback**: If `DATABASE_URL` is omitted, LinguaFlow automatically falls back to an embedded local SQLite database (`linguaflow.db`) with zero manual setup required.
+
+---
+
+## 🌐 Live Application
+
+The web application is live and accessible at:
+👉 **[https://linguaflow-dusky.vercel.app/](https://linguaflow-dusky.vercel.app/)**
 
 ---
 
