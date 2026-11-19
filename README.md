@@ -97,15 +97,6 @@ JWT_SECRET=linguaflow-secret-jwt-key-study-group-2026
 
 ---
 
-## 🔑 Demo Account Credentials
-
-| Attribute | Value |
-| :--- | :--- |
-| **Email** | `alex@linguaflow.internal` |
-| **Password** | `password123` |
-
----
-
 ## 📦 Building for Production
 
 To build and run the optimized production bundle:
