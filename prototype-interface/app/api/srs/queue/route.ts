@@ -19,6 +19,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const includeAll = searchParams.get('all') === 'true'
     const topicId = searchParams.get('topicId')
+    const deckId = searchParams.get('deckId')
 
     const nowIso = new Date().toISOString()
 
@@ -105,7 +106,7 @@ export async function GET(request: Request) {
             and(eq(cards.id, cardSrsStates.cardId), eq(cardSrsStates.userId, userId))
           )
           .where(inArray(cards.id, matchedCardIds))
-          .limit(100)
+          .limit(1000)
       } catch {
         topicCards = await activeDb
           .select(baseSelectFields)
@@ -116,7 +117,7 @@ export async function GET(request: Request) {
             and(eq(cards.id, cardSrsStates.cardId), eq(cardSrsStates.userId, userId))
           )
           .where(inArray(cards.id, matchedCardIds))
-          .limit(100)
+          .limit(1000)
       }
 
       // Sort cards: due cards first, then other cards in topic
@@ -141,57 +142,100 @@ export async function GET(request: Request) {
       })
     }
 
-    // 2. Default SRS Queue Flow (All Decks)
-    let dueCards: any[] = []
+    // 2. If deckId is specified, fetch cards belonging to that specific deck
+    if (deckId) {
+      let deckCards: any[] = []
+      try {
+        deckCards = await activeDb
+          .select(fullSelectFields)
+          .from(cards)
+          .innerJoin(decks, eq(cards.deckId, decks.id))
+          .leftJoin(
+            cardSrsStates,
+            and(eq(cards.id, cardSrsStates.cardId), eq(cardSrsStates.userId, userId))
+          )
+          .where(eq(cards.deckId, deckId))
+          .limit(1000)
+      } catch (dbErr) {
+        console.warn('Queue deck query failed, falling back to SQLite:', dbErr)
+        activeDb = fallbackToSqlite()
+        try {
+          deckCards = await activeDb
+            .select(baseSelectFields)
+            .from(cards)
+            .innerJoin(decks, eq(cards.deckId, decks.id))
+            .leftJoin(
+              cardSrsStates,
+              and(eq(cards.id, cardSrsStates.cardId), eq(cardSrsStates.userId, userId))
+            )
+            .where(eq(cards.deckId, deckId))
+            .limit(1000)
+        } catch {}
+      }
+
+      // Sort cards: due cards first, then other cards in deck
+      const dueCardsInDeck = deckCards.filter((c: any) => c.dueDate && c.dueDate <= nowIso)
+      const otherCardsInDeck = deckCards.filter((c: any) => !c.dueDate || c.dueDate > nowIso)
+      const sortedDeckCards = [...dueCardsInDeck, ...otherCardsInDeck]
+
+      const formattedQueue = sortedDeckCards.map((item: any) => ({
+        ...item,
+        repetition: item.repetition ?? 0,
+        interval: item.interval ?? 0,
+        easeFactor: item.easeFactor ?? 2.5,
+        dueDate: item.dueDate || nowIso,
+        collocations: safeJsonParse(item.collocationsJson, []),
+        allDefinitions: safeJsonParse(item.allDefinitionsJson, []),
+      }))
+
+      return NextResponse.json({
+        totalDue: dueCardsInDeck.length,
+        queue: formattedQueue,
+        deckId,
+      })
+    }
+
+    // 3. Default SRS Queue Flow (All Decks)
+    let allUserCards: any[] = []
 
     try {
-      dueCards = await activeDb
+      allUserCards = await activeDb
         .select(fullSelectFields)
         .from(cards)
-        .innerJoin(cardSrsStates, eq(cards.id, cardSrsStates.cardId))
         .innerJoin(decks, eq(cards.deckId, decks.id))
-        .where(and(eq(cardSrsStates.userId, userId), lte(cardSrsStates.dueDate, nowIso)))
-        .limit(30)
+        .leftJoin(
+          cardSrsStates,
+          and(eq(cards.id, cardSrsStates.cardId), eq(cardSrsStates.userId, userId))
+        )
+        .limit(1000)
     } catch (dbErr) {
       console.warn('Queue default query failed, falling back to SQLite:', dbErr)
       activeDb = fallbackToSqlite()
       try {
-        dueCards = await activeDb
+        allUserCards = await activeDb
           .select(baseSelectFields)
           .from(cards)
-          .innerJoin(cardSrsStates, eq(cards.id, cardSrsStates.cardId))
           .innerJoin(decks, eq(cards.deckId, decks.id))
-          .where(and(eq(cardSrsStates.userId, userId), lte(cardSrsStates.dueDate, nowIso)))
-          .limit(30)
+          .leftJoin(
+            cardSrsStates,
+            and(eq(cards.id, cardSrsStates.cardId), eq(cardSrsStates.userId, userId))
+          )
+          .limit(1000)
       } catch {}
     }
 
-    let result = dueCards
+    const dueCards = allUserCards.filter((c: any) => c.dueDate && c.dueDate <= nowIso)
+    const otherCards = allUserCards.filter((c: any) => !c.dueDate || c.dueDate > nowIso)
 
-    if (includeAll && result.length === 0) {
-      try {
-        result = await activeDb
-          .select(fullSelectFields)
-          .from(cards)
-          .innerJoin(cardSrsStates, eq(cards.id, cardSrsStates.cardId))
-          .innerJoin(decks, eq(cards.deckId, decks.id))
-          .where(eq(cardSrsStates.userId, userId))
-          .limit(30)
-      } catch {
-        try {
-          result = await activeDb
-            .select(baseSelectFields)
-            .from(cards)
-            .innerJoin(cardSrsStates, eq(cards.id, cardSrsStates.cardId))
-            .innerJoin(decks, eq(cards.deckId, decks.id))
-            .where(eq(cardSrsStates.userId, userId))
-            .limit(30)
-        } catch {}
-      }
-    }
+    // Sort: due cards first, then other cards
+    const targetCards = includeAll ? [...dueCards, ...otherCards] : (dueCards.length > 0 ? dueCards : [...dueCards, ...otherCards])
 
-    const formattedQueue = result.map((item: any) => ({
+    const formattedQueue = targetCards.map((item: any) => ({
       ...item,
+      repetition: item.repetition ?? 0,
+      interval: item.interval ?? 0,
+      easeFactor: item.easeFactor ?? 2.5,
+      dueDate: item.dueDate || nowIso,
       collocations: safeJsonParse(item.collocationsJson, []),
       allDefinitions: safeJsonParse(item.allDefinitionsJson, []),
     }))

@@ -6571,6 +6571,175 @@ html.pink {
   background: #ec4899 !important;
 }
 
+/* ==========================================================================
+   Review Scope Switcher (All / Topic / Deck)
+   ========================================================================== */
+.review-scope-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: var(--card, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.review-scope-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.review-scope-tab {
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.review-scope-tab:hover {
+  color: #1e293b;
+}
+
+.review-scope-tab.active {
+  background: #ffffff;
+  color: #4f46e5;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.review-scope-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 420px;
+  min-width: 240px;
+}
+
+.review-scope-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.review-scope-select {
+  flex: 1;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 550;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.review-scope-select:focus {
+  border-color: #6366f1;
+}
+
+/* Dark theme for Review Scope */
+.dark .review-scope-bar {
+  background: #111827 !important;
+  border-color: #1f2937 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+.dark .review-scope-tabs {
+  background: #0f172a !important;
+  border: 1px solid #1e293b !important;
+}
+
+.dark .review-scope-tab {
+  color: #94a3b8 !important;
+}
+
+.dark .review-scope-tab:hover {
+  color: #f8fafc !important;
+}
+
+.dark .review-scope-tab.active {
+  background: #1e293b !important;
+  color: #818cf8 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+}
+
+.dark .review-scope-label {
+  color: #94a3b8 !important;
+}
+
+.dark .review-scope-select {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+.dark .review-scope-select:focus {
+  border-color: #818cf8 !important;
+}
+
+/* Pink theme for Review Scope */
+.pink .review-scope-bar {
+  background: #ffffff !important;
+  border-color: #fbcfe8 !important;
+  box-shadow: 0 2px 8px rgba(236, 72, 153, 0.08) !important;
+}
+
+.pink .review-scope-tabs {
+  background: #fdf2f8 !important;
+  border: 1px solid #fbcfe8 !important;
+}
+
+.pink .review-scope-tab {
+  color: #9d174d !important;
+}
+
+.pink .review-scope-tab:hover {
+  color: #831843 !important;
+}
+
+.pink .review-scope-tab.active {
+  background: #ffffff !important;
+  color: #db2777 !important;
+  font-weight: 750 !important;
+  box-shadow: 0 2px 6px rgba(236, 72, 153, 0.2) !important;
+}
+
+.pink .review-scope-label {
+  color: #be185d !important;
+}
+
+.pink .review-scope-select {
+  background: #ffffff !important;
+  border-color: #f472b6 !important;
+  color: #831843 !important;
+}
+
+.pink .review-scope-select:focus {
+  border-color: #ec4899 !important;
+}
+
+
 
 
 

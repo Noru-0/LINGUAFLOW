@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { decks, cards, cardSrsStates, cardDsrStates, cardMemoryState, cardReviewHistory, reviewLogs, users } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
-import { eq, and, inArray, sql } from 'drizzle-orm'
+import { eq, and, inArray, sql, asc } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,6 +43,7 @@ export async function GET() {
       .leftJoin(cards, eq(decks.id, cards.deckId))
       .where(eq(decks.userId, userId))
       .groupBy(decks.id, decks.title, decks.description, decks.isPublic, decks.createdAt)
+      .orderBy(asc(decks.createdAt), asc(decks.id))
 
     return NextResponse.json({ decks: userDecks })
   } catch (error) {
@@ -65,11 +66,13 @@ export async function POST(request: Request) {
     }
 
     const deckId = `deck_${Date.now()}`
+    const createdAt = new Date().toISOString()
     await db.insert(decks).values({
       id: deckId,
       userId,
       title,
       description: description || '',
+      createdAt,
     })
 
     return NextResponse.json({

@@ -132,6 +132,7 @@ export async function seedDatabase() {
         title: 'Business English · Intermediate',
         description: 'Essential collocations, formal terms, and workplace vocabulary.',
         isPublic: true,
+        createdAt: '2026-01-01T00:00:01.000Z',
       },
       {
         id: deck2Id,
@@ -139,6 +140,7 @@ export async function seedDatabase() {
         title: 'Academic Word List (AWL)',
         description: 'High-yield words for academic writing, IELTS, and TOEFL.',
         isPublic: true,
+        createdAt: '2026-01-01T00:00:02.000Z',
       },
       {
         id: deck3Id,
@@ -146,6 +148,7 @@ export async function seedDatabase() {
         title: 'Everyday Conversations',
         description: 'Idiomatic expressions and common phrases.',
         isPublic: true,
+        createdAt: '2026-01-01T00:00:03.000Z',
       },
     ])
 
@@ -330,6 +333,7 @@ export async function seedStarterDecksForUser(userId: string) {
         title: 'Business English · Intermediate',
         description: 'Essential collocations, formal terms, and workplace vocabulary.',
         isPublic: true,
+        createdAt: '2026-01-01T00:00:01.000Z',
       },
       {
         id: deck2Id,
@@ -337,6 +341,7 @@ export async function seedStarterDecksForUser(userId: string) {
         title: 'Academic Word List (AWL)',
         description: 'High-yield words for academic writing, IELTS, and TOEFL.',
         isPublic: true,
+        createdAt: '2026-01-01T00:00:02.000Z',
       },
       {
         id: deck3Id,
@@ -344,6 +349,7 @@ export async function seedStarterDecksForUser(userId: string) {
         title: 'Everyday Conversations',
         description: 'Idiomatic expressions and common phrases.',
         isPublic: true,
+        createdAt: '2026-01-01T00:00:03.000Z',
       },
     ])
 

@@ -68,6 +68,7 @@ import { playSuccessChime, playErrorChime, triggerConfetti, triggerBatchComplete
 import { CollocationMatcher } from '@/components/collocation/CollocationMatcher'
 import { SpeakingPractice } from '@/components/speaking/SpeakingPractice'
 import { TopicExplorer } from '@/components/topics/TopicExplorer'
+import { INITIAL_TOPICS } from '@/lib/db/initial_topics'
 import { INITIAL_COLLOCATIONS, InitialCollocation } from '@/lib/db/initial_collocations'
 
 type View = 'Dashboard' | 'Review' | 'Translate' | 'Topics' | 'Decks' | 'Analytics' | 'Resources' | 'Collocations' | 'Speaking'
@@ -456,13 +457,27 @@ function Review({
   setView,
   topicFilter = null,
   onClearTopicFilter,
+  deckFilter = null,
+  onClearDeckFilter,
 }: {
   setView: (view: View) => void
   topicFilter?: { id: string; name: string } | null
   onClearTopicFilter?: () => void
+  deckFilter?: { id: string; title: string } | null
+  onClearDeckFilter?: () => void
 }) {
   const BATCH_SIZE = 12
   const SESSION_STORAGE_KEY = 'linguaflow_review_session_progress_v1'
+
+  // Scope state: 'all' (Tất cả SRS) | 'topic' (Theo chủ đề) | 'deck' (Theo từng deck)
+  const [reviewScope, setReviewScope] = useState<'all' | 'topic' | 'deck'>(
+    deckFilter ? 'deck' : topicFilter ? 'topic' : 'all'
+  )
+  const [selectedTopicId, setSelectedTopicId] = useState<string>(topicFilter?.id || '')
+  const [selectedTopicName, setSelectedTopicName] = useState<string>(topicFilter?.name || '')
+  const [selectedDeckId, setSelectedDeckId] = useState<string>(deckFilter?.id || '')
+  const [selectedDeckTitle, setSelectedDeckTitle] = useState<string>(deckFilter?.title || '')
+  const [availableDecks, setAvailableDecks] = useState<{ id: string; title: string; cardCount?: number }[]>([])
 
   const [modeFilter, setModeFilter] = useState<'mixed' | 'flashcard' | 'fill_in_blank'>('mixed')
   const [fullQueue, setFullQueue] = useState<any[]>([])
@@ -488,12 +503,51 @@ function Review({
   const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastSubmitTimeRef = useRef<number>(0)
 
-  const fetchQueue = (all = false, resetSavedSession = false, currentTopic = topicFilter) => {
+  // Flattened topics for the dropdown selector
+  const flatTopics = useMemo(() => {
+    const list: { id: string; name: string }[] = []
+    INITIAL_TOPICS.forEach((m) => {
+      list.push({ id: m.id, name: `📁 ${m.nameVi} (${m.nameEn})` })
+      m.subtopics.forEach((s) => {
+        list.push({ id: s.id, name: `    ↳ ${s.nameVi} (${s.nameEn})` })
+      })
+    })
+    return list
+  }, [])
+
+  // Fetch available decks on mount
+  useEffect(() => {
+    fetch('/api/decks')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.decks)) {
+          const sorted = [...data.decks].sort((a: any, b: any) => {
+            const timeA = new Date(a.createdAt || 0).getTime()
+            const timeB = new Date(b.createdAt || 0).getTime()
+            return timeA - timeB
+          })
+          setAvailableDecks(sorted)
+          if (!selectedDeckId && sorted.length > 0) {
+            setSelectedDeckId(sorted[0].id)
+            setSelectedDeckTitle(sorted[0].title)
+          }
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const fetchQueue = (
+    all = true,
+    resetSavedSession = false,
+    scope: 'all' | 'topic' | 'deck' = reviewScope,
+    topicId = selectedTopicId,
+    deckId = selectedDeckId
+  ) => {
     setLoading(true)
 
     // Restore saved session if user left in the middle of a batch
-    // Do not restore standard session when reviewing a specific topic
-    if (!all && !resetSavedSession && !currentTopic) {
+    // Do not restore standard session when reviewing a specific topic or deck
+    if (scope === 'all' && !resetSavedSession) {
       try {
         const saved = localStorage.getItem(SESSION_STORAGE_KEY)
         if (saved) {
@@ -517,16 +571,18 @@ function Review({
       }
     }
 
-    // Otherwise fetch fresh queue from server
-    if (!currentTopic) {
+    // Otherwise clear cached session if resetting
+    if (scope === 'all' && resetSavedSession) {
       try {
         localStorage.removeItem(SESSION_STORAGE_KEY)
       } catch {}
     }
 
-    let url = `/api/srs/queue${all || currentTopic ? '?all=true' : ''}`
-    if (currentTopic) {
-      url += `${url.includes('?') ? '&' : '?'}topicId=${encodeURIComponent(currentTopic.id)}`
+    let url = `/api/srs/queue?all=true`
+    if (scope === 'topic' && topicId) {
+      url += `&topicId=${encodeURIComponent(topicId)}`
+    } else if (scope === 'deck' && deckId) {
+      url += `&deckId=${encodeURIComponent(deckId)}`
     }
 
     fetch(url)
@@ -555,9 +611,63 @@ function Review({
       .catch(() => setLoading(false))
   }
 
+  // Handle external filter changes (from props)
+  useEffect(() => {
+    if (deckFilter) {
+      setReviewScope('deck')
+      setSelectedDeckId(deckFilter.id)
+      setSelectedDeckTitle(deckFilter.title)
+      fetchQueue(true, true, 'deck', undefined, deckFilter.id)
+    } else if (topicFilter) {
+      setReviewScope('topic')
+      setSelectedTopicId(topicFilter.id)
+      setSelectedTopicName(topicFilter.name)
+      fetchQueue(true, true, 'topic', topicFilter.id, undefined)
+    } else {
+      setReviewScope('all')
+      fetchQueue(true, false, 'all')
+    }
+  }, [topicFilter, deckFilter])
+
+  // Handle manual scope tab switch
+  const handleScopeChange = (newScope: 'all' | 'topic' | 'deck') => {
+    setReviewScope(newScope)
+    if (newScope === 'all') {
+      onClearTopicFilter?.()
+      onClearDeckFilter?.()
+      fetchQueue(true, true, 'all')
+    } else if (newScope === 'topic') {
+      const topicIdToUse = selectedTopicId || flatTopics[0]?.id || 'env'
+      const topicItem = flatTopics.find((t) => t.id === topicIdToUse)
+      setSelectedTopicId(topicIdToUse)
+      if (topicItem) setSelectedTopicName(topicItem.name.replace(/^[📁↳\s]+/, ''))
+      fetchQueue(true, true, 'topic', topicIdToUse, undefined)
+    } else if (newScope === 'deck') {
+      const deckIdToUse = selectedDeckId || (availableDecks[0]?.id ?? '')
+      const deckItem = availableDecks.find((d) => d.id === deckIdToUse)
+      setSelectedDeckId(deckIdToUse)
+      if (deckItem) setSelectedDeckTitle(deckItem.title)
+      fetchQueue(true, true, 'deck', undefined, deckIdToUse)
+    }
+  }
+
+  const handleTopicChange = (newTopicId: string) => {
+    setSelectedTopicId(newTopicId)
+    const item = flatTopics.find((t) => t.id === newTopicId)
+    if (item) setSelectedTopicName(item.name.replace(/^[📁↳\s]+/, ''))
+    fetchQueue(true, true, 'topic', newTopicId, undefined)
+  }
+
+  const handleDeckChange = (newDeckId: string) => {
+    setSelectedDeckId(newDeckId)
+    const item = availableDecks.find((d) => d.id === newDeckId)
+    if (item) setSelectedDeckTitle(item.title)
+    fetchQueue(true, true, 'deck', undefined, newDeckId)
+  }
+
   // Auto-save session progress on state change (debounced 500ms to avoid blocking card switching)
   useEffect(() => {
-    if (loading || activeBatchQueue.length === 0 || topicFilter) return
+    if (loading || activeBatchQueue.length === 0 || reviewScope !== 'all') return
     const timer = setTimeout(() => {
       try {
         const payload = {
@@ -575,7 +685,7 @@ function Review({
       } catch {}
     }, 500)
     return () => clearTimeout(timer)
-  }, [batchIndex, activeBatchQueue, batchCompletedCardIds, gradedCardIds, currentIndex, fullQueue, batches, hasStartedBatch, loading, topicFilter])
+  }, [batchIndex, activeBatchQueue, batchCompletedCardIds, gradedCardIds, currentIndex, fullQueue, batches, hasStartedBatch, loading, reviewScope])
 
   // Asset preloading for upcoming cards (images & audio)
   useEffect(() => {
@@ -600,19 +710,22 @@ function Review({
     }
     setRevealed(false)
     setImageError(false)
-    setFillInput('')
     setFillResult(null)
     setCardStartTime(Date.now())
+
+    // If card term starts with spaces or hyphens, pre-populate
+    const t = (currentCard?.term || '').trim()
+    let initial = ''
+    while (initial.length < t.length && (t[initial.length] === ' ' || t[initial.length] === '-')) {
+      initial += t[initial.length]
+    }
+    setFillInput(initial)
   }
 
   const handleAdvanceFromFill = () => {
     if (Date.now() - lastSubmitTimeRef.current < 250) return
     advanceToNextCard()
   }
-
-  useEffect(() => {
-    fetchQueue(!!topicFilter, !!topicFilter, topicFilter)
-  }, [topicFilter])
 
   useEffect(() => {
     resetCardState()
@@ -722,12 +835,12 @@ function Review({
 
   const executeEndReviewSession = () => {
     setShowEndConfirmModal(false)
-    if (!topicFilter) {
+    if (reviewScope === 'all') {
       try {
         localStorage.removeItem(SESSION_STORAGE_KEY)
       } catch {}
     }
-    fetchQueue(false, true, topicFilter)
+    fetchQueue(true, true, reviewScope, selectedTopicId, selectedDeckId)
   }
 
   const renderConfirmModal = () => {
@@ -990,6 +1103,68 @@ function Review({
     return () => window.removeEventListener('keydown', listener)
   }, [])
 
+  const renderScopeBar = () => (
+    <div className="review-scope-bar">
+      <div className="review-scope-tabs">
+        <button
+          type="button"
+          className={`review-scope-tab ${reviewScope === 'all' ? 'active' : ''}`}
+          onClick={() => handleScopeChange('all')}
+        >
+          🌐 Tất cả {reviewScope === 'all' && fullQueue.length > 0 ? `(${fullQueue.length} từ)` : ''}
+        </button>
+        <button
+          type="button"
+          className={`review-scope-tab ${reviewScope === 'topic' ? 'active' : ''}`}
+          onClick={() => handleScopeChange('topic')}
+        >
+          🏷️ Theo chủ đề {reviewScope === 'topic' && fullQueue.length > 0 ? `(${fullQueue.length} từ)` : ''}
+        </button>
+        <button
+          type="button"
+          className={`review-scope-tab ${reviewScope === 'deck' ? 'active' : ''}`}
+          onClick={() => handleScopeChange('deck')}
+        >
+          📚 Theo từng Deck {reviewScope === 'deck' && fullQueue.length > 0 ? `(${fullQueue.length} từ)` : ''}
+        </button>
+      </div>
+
+      {reviewScope === 'topic' && (
+        <div className="review-scope-selector">
+          <span className="review-scope-label">Chủ đề:</span>
+          <select
+            value={selectedTopicId}
+            onChange={(e) => handleTopicChange(e.target.value)}
+            className="review-scope-select"
+          >
+            {flatTopics.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {reviewScope === 'deck' && (
+        <div className="review-scope-selector">
+          <span className="review-scope-label">Bộ từ:</span>
+          <select
+            value={selectedDeckId}
+            onChange={(e) => handleDeckChange(e.target.value)}
+            className="review-scope-select"
+          >
+            {availableDecks.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.title} ({d.cardCount || 0} từ)
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  )
+
   if (loading) {
     return (
       <div className="page-content review-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
@@ -1002,7 +1177,7 @@ function Review({
     const isFinal = batchIndex >= batches.length - 1 || batches.length === 0
     const isEmptyQueue = fullQueue.length === 0
 
-    if (isFinal) {
+    if (isFinal && reviewScope === 'all') {
       try {
         localStorage.removeItem(SESSION_STORAGE_KEY)
       } catch {}
@@ -1011,6 +1186,7 @@ function Review({
     return (
       <div className="page-content review-page" style={{ maxWidth: '640px', margin: '0 auto', paddingTop: '20px' }}>
         {renderConfirmModal()}
+        {renderScopeBar()}
         <div className="batch-complete-card">
           <div
             style={{
@@ -1030,27 +1206,29 @@ function Review({
 
           <div style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '1px', color: '#6366f1', textTransform: 'uppercase' }}>
             {isEmptyQueue
-              ? (topicFilter ? `CHỦ ĐỀ: ${topicFilter.name.toUpperCase()}` : 'CHƯA CÓ TỪ CẦN ÔN HÔM NAY')
+              ? (reviewScope === 'topic' ? `CHỦ ĐỀ: ${(selectedTopicName || 'CHỦ ĐỀ').toUpperCase()}` : reviewScope === 'deck' ? `BỘ TỪ: ${(selectedDeckTitle || 'DECK').toUpperCase()}` : 'CHƯA CÓ TỪ CẦN ÔN')
               : isFinal
-              ? (topicFilter ? `HOÀN THÀNH CHỦ ĐỀ ${topicFilter.name.toUpperCase()}` : 'TẤT CẢ BÀI HỌC HOÀN THÀNH')
+              ? (reviewScope === 'topic' ? `HOÀN THÀNH CHỦ ĐỀ ${(selectedTopicName || 'CHỦ ĐỀ').toUpperCase()}` : reviewScope === 'deck' ? `HOÀN THÀNH BỘ TỪ ${(selectedDeckTitle || 'DECK').toUpperCase()}` : 'TẤT CẢ BÀI HỌC HOÀN THÀNH')
               : `ĐỢT HỌC ${batchIndex + 1} / ${batches.length} HOÀN THÀNH`}
           </div>
 
           <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
             {isEmptyQueue
-              ? (topicFilter ? `Chủ đề "${topicFilter.name}" chưa có từ vựng` : 'Tuyệt vời! Bạn đã hoàn thành toàn bộ từ vựng đến hạn')
+              ? (reviewScope === 'topic' ? `Chủ đề "${selectedTopicName || 'này'}" chưa có từ vựng` : reviewScope === 'deck' ? `Bộ từ "${selectedDeckTitle || 'này'}" chưa có từ vựng` : 'Hiện tại chưa có từ vựng nào cần ôn')
               : isFinal
-              ? `Xuất sắc! Hoàn thành toàn bộ ${fullQueue.length} từ vựng${topicFilter ? ` của chủ đề "${topicFilter.name}"` : ''}`
+              ? `Xuất sắc! Hoàn thành toàn bộ ${fullQueue.length} từ vựng${reviewScope === 'topic' ? ` của chủ đề "${selectedTopicName}"` : reviewScope === 'deck' ? ` của bộ từ "${selectedDeckTitle}"` : ''}`
               : `Hoàn thành Đợt ${batchIndex + 1} (${totalBatchUniqueCount}/${totalBatchUniqueCount} từ)!`}
           </h2>
 
           <p style={{ fontSize: '13.5px', color: '#64748b', margin: 0, maxWidth: '460px', lineHeight: 1.5 }}>
             {isEmptyQueue
-              ? (topicFilter
-                  ? `Chưa tìm thấy từ vựng nào thuộc chủ đề "${topicFilter.name}". Bạn có thể thêm từ vựng mới hoặc quay lại cây chủ đề để chọn chủ đề khác!`
-                  : 'Hiện tại không có từ vựng nào đến lịch cần ôn tập. Bạn có thể bấm "Ôn Luyện Tự Do Thêm" để ôn lại toàn bộ deck hoặc thêm từ vựng mới!')
+              ? (reviewScope === 'topic'
+                  ? `Chưa tìm thấy từ vựng nào thuộc chủ đề "${selectedTopicName}". Bạn có thể chọn chủ đề khác ở thanh chọn phía trên hoặc thêm từ vựng mới!`
+                  : reviewScope === 'deck'
+                  ? `Bộ từ "${selectedDeckTitle}" chưa có từ vựng. Bạn có thể chọn bộ từ khác ở thanh chọn phía trên hoặc thêm từ vựng mới vào deck!`
+                  : 'Hiện tại không có từ vựng nào đến lịch cần ôn tập. Bạn có thể bấm "Ôn Luyện Tự Do Thêm" để ôn lại toàn bộ hoặc chọn ôn theo chủ đề/deck!')
               : isFinal
-              ? `Bạn đã làm chủ hoàn toàn các từ vựng trong lượt ôn tập này${topicFilter ? ` của chủ đề "${topicFilter.name}"` : ''}. Hãy tiếp tục duy trì thói quen học hàng ngày!`
+              ? `Bạn đã làm chủ hoàn toàn các từ vựng trong lượt ôn tập này${reviewScope === 'topic' ? ` của chủ đề "${selectedTopicName}"` : reviewScope === 'deck' ? ` của bộ từ "${selectedDeckTitle}"` : ''}. Hãy tiếp tục duy trì thói quen học hàng ngày!`
               : `Bạn đã làm chủ ${totalBatchUniqueCount} từ vựng trong Đợt ${batchIndex + 1}. Bạn có muốn tiếp tục sang đợt tiếp theo?`}
           </p>
 
@@ -1075,7 +1253,7 @@ function Review({
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '12px', width: '100%', justifyContent: 'center', flexWrap: 'wrap' }}>
-            {topicFilter && (
+            {reviewScope === 'topic' && (
               <button
                 type="button"
                 className="secondary-button"
@@ -1093,6 +1271,27 @@ function Review({
                 }}
               >
                 Quay lại Cây chủ đề
+              </button>
+            )}
+
+            {reviewScope === 'deck' && (
+              <button
+                type="button"
+                className="secondary-button"
+                style={{
+                  padding: '10px 16px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  borderRadius: '10px',
+                  color: '#4f46e5',
+                  borderColor: '#c7d2fe',
+                }}
+                onClick={() => {
+                  onClearDeckFilter?.()
+                  setView('Decks')
+                }}
+              >
+                Quay lại Danh sách Decks
               </button>
             )}
 
@@ -1128,7 +1327,7 @@ function Review({
                 type="button"
                 className="hero-action"
                 style={{ padding: '10px 20px', fontSize: '13px', fontWeight: 700, borderRadius: '10px', margin: 0 }}
-                onClick={() => fetchQueue(true, true, topicFilter)}
+                onClick={() => fetchQueue(true, true, reviewScope, selectedTopicId, selectedDeckId)}
               >
                 <RefreshCw size={14} /> Ôn Luyện Tự Do Thêm
               </button>
@@ -1143,6 +1342,8 @@ function Review({
     const term = (currentCard?.term || '').trim()
     const targetLen = term.length || 1
 
+    const isAutoChar = (char: string) => char === '-' || char === ' '
+
     const handleSlotInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       let rawVal = e.target.value
       // If term contains no digits, filter out any browser autofilled numbers
@@ -1153,23 +1354,26 @@ function Review({
       // If user deleted (backspace)
       if (rawVal.length < fillInput.length) {
         let trimmed = rawVal
-        while (trimmed.length > 0 && term[trimmed.length] === '-') {
+        while (trimmed.length > 0 && isAutoChar(term[trimmed.length])) {
+          trimmed = trimmed.slice(0, -1)
+        }
+        while (trimmed.length > 0 && isAutoChar(trimmed[trimmed.length - 1])) {
           trimmed = trimmed.slice(0, -1)
         }
         setFillInput(trimmed)
         return
       }
 
-      // User typed forward: reconstruct string taking hyphens into account
+      // User typed forward: reconstruct string taking hyphens and spaces into account
       let result = ''
       let rawIdx = 0
 
       for (let i = 0; i < term.length && rawIdx < rawVal.length; i++) {
         const targetChar = term[i]
-        if (targetChar === '-') {
-          result += '-'
+        if (isAutoChar(targetChar)) {
+          result += targetChar
           // If the typed character at this position was a hyphen or space, consume it
-          if (rawVal[rawIdx] === '-' || rawVal[rawIdx] === ' ') {
+          while (rawIdx < rawVal.length && isAutoChar(rawVal[rawIdx])) {
             rawIdx++
           }
         } else {
@@ -1178,9 +1382,9 @@ function Review({
         }
       }
 
-      // If next char in term is a hyphen, auto-advance past it immediately
-      while (result.length < term.length && term[result.length] === '-') {
-        result += '-'
+      // If next char(s) in term is a space or hyphen, auto-advance past it immediately
+      while (result.length < term.length && isAutoChar(term[result.length])) {
+        result += term[result.length]
       }
 
       setFillInput(result)
@@ -1193,6 +1397,7 @@ function Review({
         style={{
           position: 'relative',
           display: 'inline-flex',
+          flexWrap: 'wrap',
           alignItems: 'center',
           gap: '4px',
           verticalAlign: 'baseline',
@@ -1220,14 +1425,23 @@ function Review({
           value={fillInput}
           onChange={handleSlotInputChange}
           onKeyDown={(e) => {
-            if (e.key === 'Backspace' && fillInput.endsWith('-')) {
-              e.preventDefault()
-              let trimmed = fillInput
-              while (trimmed.length > 0 && trimmed.endsWith('-')) trimmed = trimmed.slice(0, -1)
-              if (trimmed.length > 0) trimmed = trimmed.slice(0, -1)
-              while (trimmed.length > 0 && trimmed.endsWith('-')) trimmed = trimmed.slice(0, -1)
-              setFillInput(trimmed)
-              return
+            if (e.key === 'Backspace' && fillInput.length > 0) {
+              const lastChar = fillInput[fillInput.length - 1]
+              if (isAutoChar(lastChar)) {
+                e.preventDefault()
+                let trimmed = fillInput
+                while (trimmed.length > 0 && isAutoChar(trimmed[trimmed.length - 1])) {
+                  trimmed = trimmed.slice(0, -1)
+                }
+                if (trimmed.length > 0) {
+                  trimmed = trimmed.slice(0, -1)
+                }
+                while (trimmed.length > 0 && isAutoChar(trimmed[trimmed.length - 1])) {
+                  trimmed = trimmed.slice(0, -1)
+                }
+                setFillInput(trimmed)
+                return
+              }
             }
             if (e.key === 'Enter') {
               e.preventDefault()
@@ -1257,7 +1471,14 @@ function Review({
           const isHyphen = slot.char === '-'
           if (isSpace) {
             return (
-              <span key={idx} style={{ display: 'inline-block', width: '8px' }} />
+              <span
+                key={idx}
+                style={{
+                  display: 'inline-block',
+                  width: '10px',
+                  margin: '0 2px',
+                }}
+              />
             )
           }
           if (isHyphen) {
@@ -1400,67 +1621,17 @@ function Review({
   return (
     <div className="page-content review-page">
       {renderConfirmModal()}
-
-      {topicFilter && (
-        <div className="topic-review-banner">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '20px' }}>🏷️</span>
-            <div>
-              <div className="topic-review-banner-eyebrow">
-                Đang ôn theo chủ đề
-              </div>
-              <div className="topic-review-banner-name">
-                {topicFilter.name}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              type="button"
-              className="secondary-button"
-              style={{
-                padding: '6px 12px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-              }}
-              onClick={() => {
-                onClearTopicFilter?.()
-                fetchQueue(false, true, null)
-              }}
-            >
-              <X size={14} /> Thoát ôn chủ đề (Về SRS chung)
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              style={{
-                padding: '6px 12px',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-              }}
-              onClick={() => {
-                onClearTopicFilter?.()
-                setView('Topics')
-              }}
-            >
-              Quay lại Cây chủ đề
-            </button>
-          </div>
-        </div>
-      )}
+      {renderScopeBar()}
 
       <div className="review-top">
         <div>
           <p className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {topicFilter ? `CHỦ ĐỀ: ${topicFilter.name.toUpperCase()}` : 'VOCABULARY REVIEW'} · {currentCard.deckTitle}
+            {reviewScope === 'topic'
+              ? `CHỦ ĐỀ: ${(selectedTopicName || 'TOPIC').toUpperCase()}`
+              : reviewScope === 'deck'
+              ? `BỘ TỪ: ${(selectedDeckTitle || 'DECK').toUpperCase()}`
+              : 'VOCABULARY REVIEW'}
+            {currentCard?.deckTitle ? ` · ${currentCard.deckTitle}` : ''}
             {batches.length > 1 && (
               <span
                 style={{
@@ -1476,12 +1647,20 @@ function Review({
               </span>
             )}
           </p>
-          <h1>{topicFilter ? `Ôn tập: ${topicFilter.name}` : 'Daily review'}</h1>
+          <h1>
+            {reviewScope === 'topic'
+              ? `Ôn tập: ${selectedTopicName || 'Chủ đề'}`
+              : reviewScope === 'deck'
+              ? `Ôn tập: ${selectedDeckTitle || 'Bộ từ'}`
+              : 'Daily review'}
+          </h1>
           <p className="subhead">
             {batches.length > 1
               ? `Đợt ${batchIndex + 1}: Luyện tập ${totalBatchUniqueCount} từ vựng (Tổng ${fullQueue.length} từ)`
-              : topicFilter
-              ? `Luyện tập ${fullQueue.length} từ vựng thuộc chủ đề "${topicFilter.name}"`
+              : reviewScope === 'topic'
+              ? `Luyện tập ${fullQueue.length} từ vựng thuộc chủ đề "${selectedTopicName}"`
+              : reviewScope === 'deck'
+              ? `Luyện tập ${fullQueue.length} từ vựng trong bộ từ "${selectedDeckTitle}"`
               : 'Luyện tập & ghi nhớ từ vựng hàng ngày'}
           </p>
         </div>
@@ -3627,7 +3806,11 @@ function autoGenerateWordDetails(term: string, type: string) {
 // ----------------------------------------------------
 // Decks View
 // ----------------------------------------------------
-function Decks() {
+function Decks({
+  onStartDeckReview,
+}: {
+  onStartDeckReview?: (deckId: string, deckTitle: string) => void
+} = {}) {
   const [decksList, setDecksList] = useState<any[]>([])
   const [cardsList, setCardsList] = useState<any[]>([])
   const [search, setSearch] = useState('')
@@ -4334,7 +4517,11 @@ function Decks() {
     fetch('/api/decks')
       .then((res) => res.json())
       .then((data) => {
-        const list = data.decks || []
+        const list = (data.decks || []).sort((a: any, b: any) => {
+          const timeA = new Date(a.createdAt || 0).getTime()
+          const timeB = new Date(b.createdAt || 0).getTime()
+          return timeA - timeB
+        })
         setDecksList(list)
         if (list.length > 0) {
           if (!selectedDeckId || !list.some((d: any) => d.id === selectedDeckId)) {
@@ -4875,22 +5062,46 @@ function Decks() {
         </div>
         <div className="deck-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {selectedDeckId && (
-            <button
-              type="button"
-              className="secondary-button"
-              style={{
-                color: '#ef4444',
-                borderColor: '#fca5a5',
-                backgroundColor: '#fff5f5',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-              onClick={() => setShowDeleteDeckConfirmModal(true)}
-              title="Xóa bộ từ này và toàn bộ từ vựng bên trong"
-            >
-              <Trash2 size={15} /> Xóa deck
-            </button>
+            <>
+              <button
+                type="button"
+                className="secondary-button"
+                style={{
+                  color: 'var(--primary, #4f46e5)',
+                  borderColor: 'var(--primary, #4f46e5)',
+                  backgroundColor: 'var(--card, #ffffff)',
+                  fontWeight: 650,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+                onClick={() => {
+                  const deck = decksList.find((d) => d.id === selectedDeckId)
+                  if (deck) {
+                    onStartDeckReview?.(deck.id, deck.title)
+                  }
+                }}
+                title="Bắt đầu phiên ôn tập các thẻ trong bộ từ này"
+              >
+                <Zap size={15} /> Ôn tập deck
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                style={{
+                  color: '#ef4444',
+                  borderColor: '#fca5a5',
+                  backgroundColor: '#fff5f5',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+                onClick={() => setShowDeleteDeckConfirmModal(true)}
+                title="Xóa bộ từ này và toàn bộ từ vựng bên trong"
+              >
+                <Trash2 size={15} /> Xóa deck
+              </button>
+            </>
           )}
           <button className="secondary-button" onClick={() => setShowNewDeckModal(true)}>
             <Plus size={16} /> New deck
@@ -7543,6 +7754,7 @@ export default function Page() {
   const router = useRouter()
   const [view, setView] = useState<View>('Dashboard')
   const [reviewTopicFilter, setReviewTopicFilter] = useState<{ id: string; name: string } | null>(null)
+  const [reviewDeckFilter, setReviewDeckFilter] = useState<{ id: string; title: string } | null>(null)
   const [user, setUser] = useState<any>(null)
   const [authChecking, setAuthChecking] = useState(true)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -7856,6 +8068,8 @@ export default function Page() {
                 localStorage.removeItem('linguaflow_pending_topic_review')
               } catch {}
             }}
+            deckFilter={reviewDeckFilter}
+            onClearDeckFilter={() => setReviewDeckFilter(null)}
           />
         )}
         <div style={{ display: view === 'Translate' ? 'block' : 'none' }}>
@@ -7867,6 +8081,7 @@ export default function Page() {
             setView={setView}
             onStartTopicReview={(topicId, topicName) => {
               setReviewTopicFilter({ id: topicId, name: topicName })
+              setReviewDeckFilter(null)
               setView('Review')
             }}
           />
@@ -7874,7 +8089,15 @@ export default function Page() {
         {view === 'Speaking' && (
           user?.role === 'admin' ? <SpeakingPractice /> : <FeatureLockScreen featureName="Speaking AI (Luyện nói)" setView={setView} />
         )}
-        {view === 'Decks' && <Decks />}
+        {view === 'Decks' && (
+          <Decks
+            onStartDeckReview={(deckId, deckTitle) => {
+              setReviewDeckFilter({ id: deckId, title: deckTitle })
+              setReviewTopicFilter(null)
+              setView('Review')
+            }}
+          />
+        )}
         {view === 'Analytics' && <Analytics />}
         {view === 'Resources' && <Resources />}
       </section>
