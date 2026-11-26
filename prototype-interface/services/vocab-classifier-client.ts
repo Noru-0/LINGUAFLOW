@@ -38,7 +38,7 @@ export interface VocabCardInput {
   collocations?: string[]
 }
 
-const DEFAULT_API_URL = 'http://127.0.0.1:8000'
+const DEFAULT_API_URL = 'https://vocab-classifier-745665682684.asia-southeast1.run.app'
 
 /**
  * Call the standalone Python FastAPI `vocab_classifier` service for batch inference.
@@ -90,4 +90,16 @@ export async function classifyCardsWithVocabClassifier(
   } catch {
     return null
   }
+}
+
+/**
+ * Classify a single vocabulary word/sense via the batch classifier endpoint.
+ */
+export async function classifySingleWordWithVocabClassifier(
+  input: Omit<VocabCardInput, 'id'> & { id?: string },
+  options?: { apiUrl?: string; timeoutMs?: number }
+): Promise<VocabClassifierPrediction | null> {
+  const id = input.id || 'single_sense'
+  const res = await classifyCardsWithVocabClassifier([{ ...input, id }], options)
+  return res?.get(id) || null
 }
