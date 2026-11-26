@@ -53,7 +53,7 @@ export async function classifyCardsWithVocabClassifier(
   }
 
   const baseUrl = (options?.apiUrl || process.env.VOCAB_CLASSIFIER_API_URL || DEFAULT_API_URL).replace(/\/+$/, '')
-  const timeout = options?.timeoutMs ?? 5000
+  const timeout = options?.timeoutMs ?? 15000
 
   const validItems = cardsInput
     .map((c) => {
