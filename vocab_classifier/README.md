@@ -96,6 +96,12 @@ python -m src.training.train_minilm
 
 # Calibrate & run Stage 4 Top-K hierarchical inference (E6)
 python -m src.inference.hierarchical_inference
+
+# Validate Top-K metrics (E9) & Selective Prediction (E10) locally
+python -m src.evaluation.research_e7_e10 --experiments E9 E10
+
+# Run GPU-only training ablations E7 (Subtopic Head Recovery) & E8 (Loss Weight Lambda) on Vast.ai
+python -m src.evaluation.research_e7_e10 --experiments E7 E8
 ```
 
 See [`artifacts/experiments/FINAL_REPORT.md`](artifacts/experiments/FINAL_REPORT.md) for full E1–E6 empirical findings.

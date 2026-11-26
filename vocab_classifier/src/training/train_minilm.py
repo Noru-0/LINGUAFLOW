@@ -230,19 +230,33 @@ def train_finetuned_minilm(
     encoder: torch.nn.Module | None = None,
     tokenizer: Any | None = None,
     output_dir_override: Path | str | None = None,
+    config_overrides: dict[str, Any] | None = None,
+    model_config_overrides: dict[str, Any] | None = None,
+    freeze_encoder: bool = False,
 ) -> dict[str, Any]:
     """Fine-tune HierarchicalVocabClassifier with early stopping on validation Macro F1."""
     tcfg = load_json(train_config_path)
+    if config_overrides:
+        tcfg = {**tcfg, **config_overrides}
     seed = int(tcfg.get("seed", 42))
     _set_seed(seed)
 
     model_cfg = ModelConfig.from_json(_resolve_path(tcfg.get("model_config_path", DEFAULT_MODEL_CONFIG_PATH)))
+    if model_config_overrides:
+        for k, v in model_config_overrides.items():
+            if hasattr(model_cfg, k):
+                setattr(model_cfg, k, v)
     taxonomy = load_taxonomy(_resolve_path(tcfg["taxonomy_path"]))
 
     if encoder is None or tokenizer is None:
         encoder, tokenizer = load_encoder_and_tokenizer(model_cfg.model_name)
 
-    _freeze_bottom_encoder_layers(encoder, int(tcfg.get("freeze_bottom_layers", 0)))
+    if freeze_encoder:
+        for param in encoder.parameters():
+            param.requires_grad = False
+    else:
+        _freeze_bottom_encoder_layers(encoder, int(tcfg.get("freeze_bottom_layers", 0)))
+
     model = HierarchicalVocabClassifier.from_config(
         model_cfg,
         taxonomy_path=_resolve_path(tcfg["taxonomy_path"]),
@@ -286,11 +300,13 @@ def train_finetuned_minilm(
         for name, p in model.named_parameters()
         if p.requires_grad and not name.startswith("encoder.")
     ]
+    param_groups = []
+    if encoder_params:
+        param_groups.append({"params": encoder_params, "lr": float(tcfg.get("encoder_lr", 3e-5))})
+    if head_params:
+        param_groups.append({"params": head_params, "lr": float(tcfg.get("head_lr", 3e-4))})
     optimizer = torch.optim.AdamW(
-        [
-            {"params": encoder_params, "lr": float(tcfg.get("encoder_lr", 3e-5))},
-            {"params": head_params, "lr": float(tcfg.get("head_lr", 3e-4))},
-        ],
+        param_groups,
         weight_decay=float(tcfg.get("weight_decay", 0.01)),
     )
 

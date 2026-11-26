@@ -1,0 +1,52 @@
+{
+  "num_samples": 1295,
+  "invariants": {
+    "hierarchy_violations": 0,
+    "joint_prob_mismatches": 0,
+    "non_monotonic_main_candidates": 0,
+    "non_monotonic_joint_candidates": 0
+  },
+  "pure_main_recall": {
+    "top_1_main_recall": 0.6811,
+    "top_2_main_recall": 0.8625,
+    "top_3_main_recall": 0.9359
+  },
+  "expansion_comparison": {
+    "top_1_main": {
+      "main_acc": 0.6811,
+      "main_macro_f1": 0.6798,
+      "sub_e2e_acc": 0.4772,
+      "sub_e2e_macro_f1": 0.4082,
+      "joint_acc": 0.4772,
+      "top_1_sub_recall": 0.4772,
+      "top_2_sub_recall": 0.5884,
+      "top_3_sub_recall": 0.6471,
+      "k1_cascading_recovered_top1": 0,
+      "k1_cascading_recovered_top3": 0
+    },
+    "top_2_main": {
+      "main_acc": 0.6873,
+      "main_macro_f1": 0.6855,
+      "sub_e2e_acc": 0.4873,
+      "sub_e2e_macro_f1": 0.4208,
+      "joint_acc": 0.4873,
+      "top_1_sub_recall": 0.4873,
+      "top_2_sub_recall": 0.644,
+      "top_3_sub_recall": 0.7181,
+      "k1_cascading_recovered_top1": 25,
+      "k1_cascading_recovered_top3": 134
+    },
+    "top_3_main": {
+      "main_acc": 0.6873,
+      "main_macro_f1": 0.6891,
+      "sub_e2e_acc": 0.488,
+      "sub_e2e_macro_f1": 0.426,
+      "joint_acc": 0.488,
+      "top_1_sub_recall": 0.488,
+      "top_2_sub_recall": 0.6448,
+      "top_3_sub_recall": 0.7189,
+      "k1_cascading_recovered_top1": 26,
+      "k1_cascading_recovered_top3": 139
+    }
+  }
+}
