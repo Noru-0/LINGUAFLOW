@@ -34,7 +34,7 @@ import {
   Flame,
   Award,
 } from 'lucide-react'
-import { INITIAL_TOPICS, MajorTopicDefinition } from '@/lib/db/initial_topics'
+import { ALL_TAXONOMY_TOPICS, MajorTopicDefinition } from '@/lib/db/initial_topics'
 
 interface SubtopicStat {
   id: string
@@ -276,6 +276,24 @@ export const TOPIC_THEMES: Record<string, TopicThemeConfig> = {
     textColor: 'text-slate-800 dark:text-slate-200',
     tagBg: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700',
   },
+  gen: {
+    primaryHex: '#64748B',
+    accentBorder: 'border-t-slate-500',
+    headerGradient: 'from-slate-500/15 via-slate-500/5 to-transparent',
+    cardBorderHover: 'hover:border-slate-400 dark:hover:border-slate-500',
+    badgeStyle: {
+      light: 'bg-slate-100 text-slate-800 border-slate-300',
+      dark: 'dark:bg-slate-800/70 dark:text-slate-200 dark:border-slate-600',
+    },
+    progressColor: '#64748B',
+    subtopicHover: 'hover:bg-slate-100/80 dark:hover:bg-slate-800/50 hover:border-slate-300 dark:hover:border-slate-700/70 group-hover:text-slate-800 dark:group-hover:text-slate-200',
+    buttonPrimary: 'bg-slate-600 hover:bg-slate-700 text-white shadow-slate-600/25',
+    drawerGrad: 'from-slate-100/80 via-white to-gray-50/40 dark:from-slate-900/60 dark:via-gray-900 dark:to-gray-900',
+    flashcardBorder: 'border-slate-300 dark:border-slate-700 hover:border-slate-400',
+    flashcardBg: 'from-slate-100/50 via-white to-gray-100/30 dark:from-slate-900/30 dark:via-gray-900 dark:to-slate-900/30',
+    textColor: 'text-slate-700 dark:text-slate-300',
+    tagBg: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700',
+  },
 }
 
 export function getTopicTheme(majorId: string): TopicThemeConfig {
@@ -504,6 +522,7 @@ export function TopicExplorer({
       case 'Compass': return <Compass className={className} />
       case 'Smile': return <Smile className={className} />
       case 'Globe': return <Globe className={className} />
+      case 'BookOpen': return <BookOpen className={className} />
       default: return <Folder className={className} />
     }
   }
@@ -557,13 +576,13 @@ export function TopicExplorer({
               Bản Đồ Tri Thức Từ Vựng Theo Chủ Đề
             </h1>
             <p className="topic-hero-desc text-sm md:text-base leading-relaxed">
-              Tự động gom nhóm toàn bộ từ vựng từ các Decks của bạn vào 10 Chủ đề Lớn và hơn 50 Chủ đề Nhỏ chuẩn Cambridge/IELTS Academic. Khi thêm từ mới vào deck, AI sẽ tự động phân loại ngay lập tức.
+              Tự động gom nhóm toàn bộ từ vựng từ các Decks của bạn vào 11 Chủ đề Lớn (10 chuyên ngành IELTS + General Vocabulary) và 45 Chủ đề Nhỏ bằng Model ML (`vocab-classifier v1.0.0`).
             </p>
 
             {/* Spectrum mini dots preview */}
             <div className="flex items-center gap-2 pt-1 flex-wrap">
               <span className="topic-hero-label text-[11px] font-bold uppercase tracking-wider mr-1">Chủ đề:</span>
-              {INITIAL_TOPICS.map((top) => {
+              {ALL_TAXONOMY_TOPICS.map((top) => {
                 const th = getTopicTheme(top.id)
                 return (
                   <span
@@ -623,7 +642,7 @@ export function TopicExplorer({
           </div>
           <div className="topic-stat-box rounded-2xl p-3.5 text-center">
             <div className="topic-stat-label text-xs uppercase tracking-wider font-semibold">Chủ Đề Chuẩn Hóa</div>
-            <div className="topic-stat-topics text-2xl font-black mt-1">10 Lớn • 50+ Nhỏ</div>
+            <div className="topic-stat-topics text-2xl font-black mt-1">11 Lớn • 45 Nhỏ</div>
           </div>
         </div>
       </div>

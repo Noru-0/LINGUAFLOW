@@ -4,7 +4,7 @@ import { topics, cardTopics, cards, decks, cardSrsStates } from '@/lib/db/schema
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
 import { eq, inArray, isNull } from 'drizzle-orm'
-import { INITIAL_TOPICS } from '@/lib/db/initial_topics'
+import { ALL_TAXONOMY_TOPICS } from '@/lib/db/initial_topics'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     if (allDbTopics.length === 0) {
       try {
         let order = 0
-        for (const major of INITIAL_TOPICS) {
+        for (const major of ALL_TAXONOMY_TOPICS) {
           order++
           await activeDb.insert(topics).values({
             id: major.id,
@@ -143,8 +143,8 @@ export async function GET(request: Request) {
       }
     }
 
-    // 3. Assemble Hierarchical Tree Structure
-    const majors = INITIAL_TOPICS.map((major) => {
+    // 3. Assemble Hierarchical Tree Structure (10 Topical Domains + General Vocabulary)
+    const majors = ALL_TAXONOMY_TOPICS.map((major) => {
       let majorTotalCards = 0
       let majorMatureCards = 0
       let majorDueCards = 0

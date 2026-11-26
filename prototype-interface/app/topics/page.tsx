@@ -24,7 +24,7 @@ export default function TopicsPage() {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             <span className="text-xs font-bold px-3 py-1 rounded-full bg-gradient-to-r from-emerald-500/10 via-indigo-500/10 to-purple-500/10 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">
-              10 Major Themes • 50+ Topics
+              11 Major Themes • 45 Topics
             </span>
           </div>
         </div>

@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
 import { eq, lte, and, inArray } from 'drizzle-orm'
 import { safeJsonParse } from '@/lib/utils'
-import { INITIAL_TOPICS } from '@/lib/db/initial_topics'
+import { ALL_TAXONOMY_TOPICS } from '@/lib/db/initial_topics'
 
 export const dynamic = 'force-dynamic'
 
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
     // 1. If topicId is specified, fetch cards belonging to that topic/subtopic
     if (topicId) {
       let subtopicIdsToQuery: string[] = [topicId]
-      for (const major of INITIAL_TOPICS) {
+      for (const major of ALL_TAXONOMY_TOPICS) {
         if (major.id === topicId) {
           major.subtopics.forEach((s) => subtopicIdsToQuery.push(s.id))
           break
