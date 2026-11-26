@@ -6,7 +6,7 @@ import { seedDatabase } from '@/lib/db/seed'
 import { eq, inArray } from 'drizzle-orm'
 import { ALL_TAXONOMY_TOPICS } from '@/lib/db/initial_topics'
 import { batchClassifyWords } from '@/services/gemini-service'
-import { classifyCardsWithVocabClassifier } from '@/services/vocab-classifier-client'
+import { classifyCardsWithVocabClassifierDetailed } from '@/services/vocab-classifier-client'
 import { safeJsonParse } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -180,7 +180,7 @@ export async function POST(request: Request) {
     }
 
     // 4. Prefer production Python vocab_classifier service; fall back cleanly to TypeScript/Gemini engine
-    const mlPredictions = await classifyCardsWithVocabClassifier(
+    const mlResult = await classifyCardsWithVocabClassifierDetailed(
       cardsToClassify.map((c: any) => ({
         id: c.id,
         term: c.term,
@@ -191,6 +191,7 @@ export async function POST(request: Request) {
         collocations: safeJsonParse(c.collocationsJson, []),
       }))
     )
+    const mlPredictions = mlResult.predictions
 
     const fallbackCards = mlPredictions
       ? cardsToClassify.filter((c: any) => !mlPredictions.has(c.id))
@@ -299,6 +300,7 @@ export async function POST(request: Request) {
       acceptedCount,
       needsReviewCount,
       engine: mlPredictions ? 'vocab_classifier_v1' : 'fallback',
+      mlError: mlResult.error,
       summary: summaryDistribution,
     })
   } catch (error: any) {
