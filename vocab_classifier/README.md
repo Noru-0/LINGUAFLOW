@@ -87,7 +87,18 @@ python -m src.training.train_baselines
 
 # Run error analysis on primary baseline (Frozen MiniLM + Logistic Regression)
 python -m src.evaluation.error_analysis --split test
+
+# Run Stage 2 experiments (E1-E4)
+python -m src.evaluation.experiments
+
+# Fine-tune Multi-task Hierarchical MiniLM (Stage 3, E5)
+python -m src.training.train_minilm
+
+# Calibrate & run Stage 4 Top-K hierarchical inference (E6)
+python -m src.inference.hierarchical_inference
 ```
+
+See [`artifacts/experiments/FINAL_REPORT.md`](artifacts/experiments/FINAL_REPORT.md) for full E1–E6 empirical findings.
 
 ## Current Dataset Summary (Default Run)
 
