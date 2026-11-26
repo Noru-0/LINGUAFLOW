@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { cards, decks, cardSrsStates, users, cardTopics, cardTopicReviewHistory, topics, cardMemoryState, cardReviewHistory, cardDsrStates, reviewLogs } from '@/lib/db/schema'
+import { cards, decks, cardSrsStates, users, cardTopics, topics, cardMemoryState, cardReviewHistory, cardDsrStates, reviewLogs } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
 import { eq, inArray } from 'drizzle-orm'
@@ -8,9 +8,6 @@ import { safeJsonParse } from '@/lib/utils'
 import { enrichVocabulary } from '@/services/vocabulary-pipeline'
 import { fetchContextualImage } from '@/services/unsplash-service'
 import { getFallbackAudio } from '@/services/audio-fallback'
-import { fastLookupTopicByKeywords } from '@/lib/db/initial_topics'
-import { findTopicDetails } from '@/services/gemini-service'
-import { classifyCardsWithVocabClassifier } from '@/services/vocab-classifier-client'
 
 export const dynamic = 'force-dynamic'
 
@@ -325,106 +322,18 @@ export async function POST(
           cefrLevel,
           audioUrl,
           imageUrl,
-          collocations: safeJsonParse(collocationsJson, []),
-          fallbackTopic: enriched?.topicClassification || null,
-          topic: null as any,
+          topic: null,
           allDefinitions: finalDefinitions,
-        }
-      })
-    )
-
-    // Batch-classify all newly created cards using the production vocab_classifier model
-    const mlPredictions = await classifyCardsWithVocabClassifier(
-      insertedCards.map((c) => ({
-        id: c.id,
-        term: c.term,
-        partOfSpeech: c.partOfSpeech,
-        englishMeaning: c.englishMeaning,
-        vietnameseMeaning: c.vietnameseDefinition,
-        exampleSentence: c.exampleSentence,
-        collocations: Array.isArray(c.collocations) ? c.collocations : [],
-      }))
-    )
-
-    const finalizedCards = await Promise.all(
-      insertedCards.map(async (card) => {
-        const mlPred = mlPredictions?.get(card.id)
-        const fallbackLookup = !mlPred && !card.fallbackTopic
-          ? fastLookupTopicByKeywords(card.term, card.vietnameseDefinition, card.exampleSentence)
-          : null
-        const fallbackDetails = fallbackLookup ? findTopicDetails(fallbackLookup.subtopicId) : null
-        const fallbackTopic = card.fallbackTopic || fallbackDetails
-
-        const mainTopicId = mlPred ? mlPred.prediction.main_topic.id : fallbackTopic?.majorTopicId
-        const mainTopicName = mlPred ? mlPred.prediction.main_topic.name : fallbackTopic?.majorTopicName
-        const subtopicId = mlPred ? mlPred.prediction.subtopic.id : fallbackTopic?.subtopicId
-        const subtopicName = mlPred ? mlPred.prediction.subtopic.name : fallbackTopic?.subtopicName
-        const confidence = mlPred ? mlPred.joint_confidence : (fallbackTopic?.confidence || 0.9)
-        const status = mlPred
-          ? mlPred.status
-          : (fallbackTopic as any)?.predictionStatus || (confidence >= 0.3 ? 'accepted' : 'needs_review')
-        const modelVersion = mlPred
-          ? mlPred.model_version
-          : (fallbackTopic as any)?.modelVersion || 'fallback'
-
-        let assignedTopic: any = null
-        if (subtopicId && mainTopicId) {
-          try {
-            const ctId = `ct_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
-            await db.insert(cardTopics).values({
-              id: ctId,
-              cardId: card.id,
-              topicId: subtopicId,
-              isPrimary: true,
-              confidence,
-              assignedBy: mlPred ? 'ml_model' : 'ai',
-              predictedMainTopic: mainTopicId,
-              predictedSubtopic: subtopicId,
-              humanVerified: false,
-              predictionStatus: status,
-              modelVersion,
-              createdAt: nowIso,
-            }).catch(() => {})
-
-            try {
-              await db.insert(cardTopicReviewHistory).values({
-                id: `cth_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-                cardId: card.id,
-                action: 'auto_classified',
-                previousTopicId: null,
-                newTopicId: subtopicId,
-                actor: modelVersion,
-                createdAt: nowIso,
-              })
-            } catch {}
-
-            assignedTopic = {
-              id: subtopicId,
-              nameEn: subtopicName || subtopicId,
-              majorTopicId: mainTopicId,
-              majorTopicName: mainTopicName || mainTopicId,
-              status,
-              modelVersion,
-            }
-          } catch (topicErr) {
-            console.warn('Failed to assign topic to card:', topicErr)
-          }
-        }
-
-        const { fallbackTopic: _f, collocations: _c, ...rest } = card
-        return {
-          ...rest,
-          topic: assignedTopic,
         }
       })
     )
 
     return NextResponse.json({
       success: true,
-      count: finalizedCards.length,
+      count: insertedCards.length,
       skippedCount: skippedCards.length,
       skippedTerms: skippedCards.map((s) => s.term),
-      cards: finalizedCards,
+      cards: insertedCards,
     })
   } catch (error) {
     console.error('Create card error:', error)

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db, fallbackToSqlite } from '@/lib/db'
-import { cards, decks, cardTopics, cardTopicReviewHistory, topics, userTopicClusterRuns } from '@/lib/db/schema'
+import { cards, decks, cardTopics, cardTopicReviewHistory, topics } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
 import { eq, inArray } from 'drizzle-orm'
@@ -68,75 +68,12 @@ async function ensureTaxonomyTopicsExist(activeDb: any) {
   } catch {}
 }
 
-async function recordClusterRun(
-  activeDb: any,
-  userId: string,
-  engine: string,
-  processedCount: number,
-  classifiedCount: number,
-  createdAt: string
-) {
-  try {
-    await activeDb
-      .insert(userTopicClusterRuns)
-      .values({ userId, engine, processedCount, classifiedCount, createdAt })
-      .onConflictDoNothing?.()
-  } catch {
-    try {
-      await activeDb.insert(userTopicClusterRuns).values({
-        userId,
-        engine,
-        processedCount,
-        classifiedCount,
-        createdAt,
-      })
-    } catch {}
-  }
-}
-
 export async function POST(request: Request) {
   let activeDb = db
   try {
     await seedDatabase()
     const session = await getSession()
     const userId = session?.userId || 'user_demo_alex_lee'
-
-    // Ensure table exists in Postgres even before background DDL finishes
-    try {
-      if (typeof (activeDb as any).execute === 'function') {
-        await (activeDb as any).execute(
-          `CREATE TABLE IF NOT EXISTS public.user_topic_cluster_runs (
-             user_id VARCHAR(100) PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
-             engine VARCHAR(50) NOT NULL,
-             processed_count INT NOT NULL DEFAULT 0,
-             classified_count INT NOT NULL DEFAULT 0,
-             created_at TIMESTAMPTZ DEFAULT NOW()
-           );`
-        )
-      }
-    } catch {}
-
-    // 0. Enforce 1 bulk auto-cluster run per account (new words auto-classify on creation)
-    try {
-      const prevRun = await activeDb
-        .select({ userId: userTopicClusterRuns.userId })
-        .from(userTopicClusterRuns)
-        .where(eq(userTopicClusterRuns.userId, userId))
-        .limit(1)
-
-      if (prevRun.length > 0) {
-        return NextResponse.json(
-          {
-            success: false,
-            limitReached: true,
-            hasAutoClustered: true,
-            message:
-              'Mỗi tài khoản chỉ được gom chủ đề tự động 1 lần. Từ mới thêm vào deck sẽ tự động được phân loại.',
-          },
-          { status: 409 }
-        )
-      }
-    } catch {}
 
     const body = await request.json().catch(() => ({}))
     const { scope = 'all_decks', deckId = null } = body
@@ -216,44 +153,27 @@ export async function POST(request: Request) {
       })
     }
 
-    // 3. Classify any card that lacks an active ml_model or human-verified classification
+    // 3. Strictly filter to cards that do NOT yet have any entry in card_topics
     let cardsToClassify = deckCards
-    const cardIdsNeedingReplace = new Set<string>()
     try {
       const existingCardTopics = await activeDb
-        .select({
-          cardId: cardTopics.cardId,
-          assignedBy: cardTopics.assignedBy,
-          humanVerified: cardTopics.humanVerified,
-        })
+        .select({ cardId: cardTopics.cardId })
         .from(cardTopics)
         .where(inArray(cardTopics.cardId, deckCards.map((c: any) => c.id)))
 
-      const existingMap = new Map<string, any>()
-      existingCardTopics.forEach((ct: any) => existingMap.set(ct.cardId, ct))
-
-      cardsToClassify = deckCards.filter((c: any) => {
-        const prev = existingMap.get(c.id)
-        if (!prev) return true
-        if (prev.humanVerified || prev.assignedBy === 'user' || prev.assignedBy === 'ml_model') {
-          return false
-        }
-        cardIdsNeedingReplace.add(c.id)
-        return true
-      })
+      const alreadyClassifiedSet = new Set(existingCardTopics.map((ct: any) => ct.cardId))
+      cardsToClassify = deckCards.filter((c: any) => !alreadyClassifiedSet.has(c.id))
     } catch (ctErr) {
       console.warn('[AutoCluster] Could not read existing card_topics, proceeding:', ctErr)
     }
 
     if (cardsToClassify.length === 0) {
-      await recordClusterRun(activeDb, userId, 'vocab_classifier_v1', deckCards.length, 0, new Date().toISOString())
       return NextResponse.json({
         success: true,
         message: 'All cards are already classified',
         processedCount: deckCards.length,
-        classifiedCount: 0,
+        newlyClassifiedCount: 0,
         alreadyClassified: true,
-        hasAutoClustered: true,
       })
     }
 
@@ -341,15 +261,6 @@ export async function POST(request: Request) {
       summaryDistribution[subtopicId] = (summaryDistribution[subtopicId] || 0) + 1
     }
 
-    const idsToDelete = targetCardIds.filter((id) => cardIdsNeedingReplace.has(id))
-    if (idsToDelete.length > 0) {
-      for (const idChunk of chunkArray(idsToDelete, 200)) {
-        try {
-          await activeDb.delete(cardTopics).where(inArray(cardTopics.cardId, idChunk))
-        } catch {}
-      }
-    }
-
     let successfullyClassified = 0
     for (const ctChunk of chunkArray(cardTopicRows, 100)) {
       try {
@@ -373,7 +284,6 @@ export async function POST(request: Request) {
     }
 
     const usedEngine = mlPredictions ? 'vocab_classifier_v1' : 'fallback'
-    await recordClusterRun(activeDb, userId, usedEngine, deckCards.length, successfullyClassified, nowIso)
 
     return NextResponse.json({
       success: true,
@@ -382,7 +292,6 @@ export async function POST(request: Request) {
       acceptedCount,
       needsReviewCount,
       engine: usedEngine,
-      hasAutoClustered: true,
       mlError: mlResult.error,
       summary: summaryDistribution,
     })

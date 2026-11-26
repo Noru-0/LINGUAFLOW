@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db, fallbackToSqlite } from '@/lib/db'
-import { topics, cardTopics, cards, decks, cardSrsStates, userTopicClusterRuns } from '@/lib/db/schema'
+import { topics, cardTopics, cards, decks, cardSrsStates } from '@/lib/db/schema'
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
 import { eq, inArray, isNull } from 'drizzle-orm'
@@ -190,16 +190,6 @@ export async function GET(request: Request) {
       }
     })
 
-    let hasAutoClustered = false
-    try {
-      const clusterRuns = await activeDb
-        .select({ userId: userTopicClusterRuns.userId })
-        .from(userTopicClusterRuns)
-        .where(eq(userTopicClusterRuns.userId, userId))
-        .limit(1)
-      hasAutoClustered = clusterRuns.length > 0
-    } catch {}
-
     const totalUserCards = Object.values(topicCardCountMap).reduce((a, b) => a + b, 0) + totalUnclassifiedCount
 
     return NextResponse.json({
@@ -209,7 +199,6 @@ export async function GET(request: Request) {
         totalClassifiedCards: Object.values(topicCardCountMap).reduce((a, b) => a + b, 0),
         totalUnclassifiedCards: totalUnclassifiedCount,
         majorCount: majors.length,
-        hasAutoClustered,
       },
     })
   } catch (error) {
