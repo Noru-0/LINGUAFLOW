@@ -231,14 +231,6 @@ export const cardTopicReviewHistory = pgTable('card_topic_review_history', {
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 })
 
-export const userTopicClusterRuns = pgTable('user_topic_cluster_runs', {
-  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
-  engine: text('engine').notNull(),
-  processedCount: integer('processed_count').notNull().default(0),
-  classifiedCount: integer('classified_count').notNull().default(0),
-  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
-})
-
 export const userTopicStats = pgTable('user_topic_stats', {
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   topicId: text('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),

@@ -68,6 +68,12 @@ export async function seedDatabase() {
       if (err?.cause) console.warn('[Database Cause]:', err.cause)
     }
 
+    const isPostgresConfigured = Boolean(process.env.DATABASE_URL || process.env.SUPABASE_DATABASE_URL)
+    if (isPostgresConfigured) {
+      // Transient Postgres timeout: do NOT fall back to better-sqlite3 on Vercel serverless Linux
+      return { status: 'postgres_transient_skip' }
+    }
+
     activeDb = fallbackToSqlite()
     try {
       const existingUsers = await activeDb.select().from(users).limit(1)
@@ -299,6 +305,12 @@ export async function seedStarterDecksForUser(userId: string) {
     const userDecks = await activeDb.select({ id: decks.id }).from(decks).where(eq(decks.userId, userId)).limit(1)
     if (userDecks.length > 0) return
   } catch {
+    const isPostgresConfigured = Boolean(process.env.DATABASE_URL || process.env.SUPABASE_DATABASE_URL)
+    if (isPostgresConfigured) {
+      // Transient Postgres timeout: do NOT fall back to better-sqlite3 on Vercel serverless Linux
+      return { status: 'postgres_transient_skip' }
+    }
+
     activeDb = fallbackToSqlite()
     try {
       const userExist = await activeDb.select({ id: users.id }).from(users).where(eq(users.id, userId)).limit(1)

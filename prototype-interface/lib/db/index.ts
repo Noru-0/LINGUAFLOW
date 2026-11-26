@@ -304,15 +304,6 @@ function getSqliteDb() {
         FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE
       );
 
-      CREATE TABLE IF NOT EXISTS user_topic_cluster_runs (
-        user_id TEXT PRIMARY KEY,
-        engine TEXT NOT NULL,
-        processed_count INTEGER NOT NULL DEFAULT 0,
-        classified_count INTEGER NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      );
-
       CREATE TABLE IF NOT EXISTS user_topic_stats (
         user_id TEXT NOT NULL,
         topic_id TEXT NOT NULL,
@@ -407,186 +398,81 @@ export function getDb(): any {
         const client = postgres(connectionString, {
           prepare: false,
           ssl: 'require',
-          connect_timeout: 10,
-          idle_timeout: 10,
+          max: 5,
+          connect_timeout: 15,
+          idle_timeout: 20,
         })
-        client.unsafe(`
-          ALTER TABLE public.users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user';
 
-          CREATE TABLE IF NOT EXISTS public.translation_paragraphs (
-            id TEXT PRIMARY KEY,
-            theme_category TEXT NOT NULL,
-            sub_topic TEXT NOT NULL,
-            target_band TEXT NOT NULL DEFAULT 'B2',
-            vietnamese_paragraph TEXT NOT NULL,
-            target_collocations_json TEXT DEFAULT '[]',
-            model_translation TEXT NOT NULL,
-            grammar_breakdown TEXT,
-            created_at TEXT NOT NULL DEFAULT NOW()::text
-          );
+        const pgDb = drizzlePostgres(client, { schema: pgSchema })
 
-          CREATE TABLE IF NOT EXISTS public.translation_paragraph_submissions (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-            paragraph_id TEXT NOT NULL REFERENCES public.translation_paragraphs(id) ON DELETE CASCADE,
-            user_translation TEXT NOT NULL,
-            overall_feedback TEXT,
-            estimated_cefr TEXT,
-            grammar_errors_json TEXT,
-            better_alternatives_json TEXT,
-            created_at TEXT NOT NULL DEFAULT NOW()::text
-          );
-
-          CREATE TABLE IF NOT EXISTS public.collocations (
-            id TEXT PRIMARY KEY,
-            category TEXT,
-            head_word TEXT NOT NULL,
-            tail_chunk TEXT NOT NULL,
-            full_phrase TEXT NOT NULL,
-            meaning_vi TEXT NOT NULL,
-            example_sentence TEXT NOT NULL,
-            distractors_json TEXT DEFAULT '[]',
-            cefr_level TEXT DEFAULT 'C1',
-            ielts_topic TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT NOW()::text
-          );
-
-          ALTER TABLE public.collocations ADD COLUMN IF NOT EXISTS category TEXT;
-          ALTER TABLE public.collocations ADD COLUMN IF NOT EXISTS distractors_json TEXT DEFAULT '[]';
-
-          CREATE TABLE IF NOT EXISTS public.collocation_dsr_state (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            collocation_id TEXT NOT NULL REFERENCES public.collocations(id) ON DELETE CASCADE,
-            difficulty DOUBLE PRECISION NOT NULL DEFAULT 5.0,
-            stability DOUBLE PRECISION NOT NULL DEFAULT 0.0,
-            reps INTEGER NOT NULL DEFAULT 0,
-            lapses INTEGER NOT NULL DEFAULT 0,
-            due_date TEXT NOT NULL,
-            last_reviewed_at TEXT
-          );
-
-          CREATE TABLE IF NOT EXISTS public.speaking_prompts (
-            id TEXT PRIMARY KEY,
-            part INTEGER NOT NULL,
-            topic TEXT NOT NULL,
-            question_prompt TEXT NOT NULL,
-            cue_points_json TEXT DEFAULT '[]',
-            model_response TEXT,
-            suggested_vocabulary_json TEXT DEFAULT '[]',
-            created_at TEXT NOT NULL DEFAULT NOW()::text
-          );
-
-          CREATE TABLE IF NOT EXISTS public.speaking_submissions (
-            id TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            prompt_id TEXT NOT NULL REFERENCES public.speaking_prompts(id) ON DELETE CASCADE,
-            transcribed_text TEXT NOT NULL,
-            estimated_band DOUBLE PRECISION,
-            coherence_feedback TEXT,
-            lexical_feedback TEXT,
-            grammar_feedback TEXT,
-            improved_version TEXT,
-            created_at TEXT NOT NULL DEFAULT NOW()::text
-          );
-
-          CREATE TABLE IF NOT EXISTS public.topics (
-            id VARCHAR(50) PRIMARY KEY,
-            parent_id VARCHAR(50) REFERENCES public.topics(id) ON DELETE CASCADE,
-            name_en VARCHAR(100) NOT NULL,
-            name_vi VARCHAR(100) NOT NULL,
-            description TEXT,
-            icon VARCHAR(50) DEFAULT 'Folder',
-            color VARCHAR(20) DEFAULT '#3B82F6',
-            order_index INT DEFAULT 0,
-            created_at TIMESTAMPTZ DEFAULT NOW()
-          );
-
-          CREATE INDEX IF NOT EXISTS idx_topics_parent ON public.topics(parent_id);
-
-          CREATE TABLE IF NOT EXISTS public.card_topics (
-            id VARCHAR(100) PRIMARY KEY,
-            card_id VARCHAR(100) NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
-            topic_id VARCHAR(50) NOT NULL REFERENCES public.topics(id) ON DELETE CASCADE,
-            is_primary BOOLEAN NOT NULL DEFAULT TRUE,
-            confidence REAL DEFAULT 1.0,
-            assigned_by VARCHAR(20) DEFAULT 'ai',
-            created_at TIMESTAMPTZ DEFAULT NOW(),
-            CONSTRAINT uq_card_topic UNIQUE(card_id, topic_id)
-          );
-
-          CREATE INDEX IF NOT EXISTS idx_card_topics_card ON public.card_topics(card_id);
-          CREATE INDEX IF NOT EXISTS idx_card_topics_topic ON public.card_topics(topic_id);
-          CREATE INDEX IF NOT EXISTS idx_card_topics_primary ON public.card_topics(card_id, is_primary);
-
-          CREATE TABLE IF NOT EXISTS public.user_topic_stats (
-            user_id VARCHAR(100) NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-            topic_id VARCHAR(50) NOT NULL REFERENCES public.topics(id) ON DELETE CASCADE,
-            total_cards INT NOT NULL DEFAULT 0,
-            learning_cards INT NOT NULL DEFAULT 0,
-            mature_cards INT NOT NULL DEFAULT 0,
-            avg_retrievability REAL NOT NULL DEFAULT 0.0,
-            last_studied_at TIMESTAMPTZ,
-            updated_at TIMESTAMPTZ DEFAULT NOW(),
-            PRIMARY KEY (user_id, topic_id)
-          );
-
-          CREATE INDEX IF NOT EXISTS idx_user_topic_stats_user ON public.user_topic_stats(user_id);
-
-          ALTER TABLE public.topics DISABLE ROW LEVEL SECURITY;
-          ALTER TABLE public.card_topics DISABLE ROW LEVEL SECURITY;
-          ALTER TABLE public.user_topic_stats DISABLE ROW LEVEL SECURITY;
-          ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS predicted_main_topic VARCHAR(50);
-          ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS predicted_subtopic VARCHAR(50);
-          ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS human_verified BOOLEAN NOT NULL DEFAULT FALSE;
-          ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS prediction_status VARCHAR(20) DEFAULT 'accepted';
-          ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS model_version VARCHAR(30);
-          CREATE TABLE IF NOT EXISTS public.card_topic_review_history (
-            id VARCHAR(100) PRIMARY KEY,
-            card_id VARCHAR(100) NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
-            action VARCHAR(30) NOT NULL,
-            previous_topic_id VARCHAR(50),
-            new_topic_id VARCHAR(50) NOT NULL,
-            actor VARCHAR(50) NOT NULL DEFAULT 'system',
-            created_at TIMESTAMPTZ DEFAULT NOW()
-          );
-
-          CREATE TABLE IF NOT EXISTS public.user_topic_cluster_runs (
-            user_id VARCHAR(100) PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
-            engine VARCHAR(50) NOT NULL,
-            processed_count INT NOT NULL DEFAULT 0,
-            classified_count INT NOT NULL DEFAULT 0,
-            created_at TIMESTAMPTZ DEFAULT NOW()
-          );
-          ALTER TABLE public.user_topic_cluster_runs DISABLE ROW LEVEL SECURITY;
-        `).then(async () => {
+        // Fast read-only schema check (avoids ACCESS EXCLUSIVE locks on concurrent cold starts)
+        ;(async () => {
           try {
-            let order = 0;
-            for (const major of ALL_TAXONOMY_TOPICS) {
-              order++;
-              await client`
-                INSERT INTO public.topics (id, parent_id, name_en, name_vi, description, icon, color, order_index)
-                VALUES (${major.id}, NULL, ${major.nameEn}, ${major.nameVi}, ${major.description || null}, ${major.icon || 'Folder'}, ${major.color || '#3B82F6'}, ${order})
-                ON CONFLICT (id) DO NOTHING
-              `;
-              for (const sub of major.subtopics) {
-                order++;
-                await client`
-                  INSERT INTO public.topics (id, parent_id, name_en, name_vi, description, icon, color, order_index)
-                  VALUES (${sub.id}, ${sub.parentId}, ${sub.nameEn}, ${sub.nameVi}, ${sub.description || null}, ${sub.icon || 'Folder'}, ${major.color || '#3B82F6'}, ${order})
-                  ON CONFLICT (id) DO NOTHING
-                `;
-              }
+            const probe = await client`
+              SELECT
+                to_regclass('public.card_topic_review_history') AS rev_tbl,
+                to_regclass('public.topics') AS topics_tbl,
+                COALESCE((SELECT count(*)::int FROM public.topics), 0) AS topic_cnt
+            `
+            const row = probe?.[0]
+            if (row?.topics_tbl && !row?.rev_tbl) {
+              await client.unsafe(`
+                ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS predicted_main_topic VARCHAR(50);
+                ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS predicted_subtopic VARCHAR(50);
+                ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS human_verified BOOLEAN NOT NULL DEFAULT FALSE;
+                ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS prediction_status VARCHAR(20) DEFAULT 'accepted';
+                ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS model_version VARCHAR(30);
+                CREATE TABLE IF NOT EXISTS public.card_topic_review_history (
+                  id VARCHAR(100) PRIMARY KEY,
+                  card_id VARCHAR(100) NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
+                  action VARCHAR(30) NOT NULL,
+                  previous_topic_id VARCHAR(50),
+                  new_topic_id VARCHAR(50) NOT NULL,
+                  actor VARCHAR(50) NOT NULL DEFAULT 'system',
+                  created_at TIMESTAMPTZ DEFAULT NOW()
+                );
+              `)
             }
-          } catch (seedTopicsErr) {
-            console.warn('Auto-seed topics warning:', seedTopicsErr);
+            if (row?.topics_tbl && Number(row?.topic_cnt ?? 0) < 56) {
+              const topicRows: any[] = []
+              let order = 0
+              for (const major of ALL_TAXONOMY_TOPICS) {
+                order++
+                topicRows.push({
+                  id: major.id,
+                  parentId: null,
+                  nameEn: major.nameEn,
+                  nameVi: major.nameVi,
+                  description: major.description || null,
+                  icon: major.icon || 'Folder',
+                  color: major.color || '#3B82F6',
+                  orderIndex: order,
+                })
+                for (const sub of major.subtopics) {
+                  order++
+                  topicRows.push({
+                    id: sub.id,
+                    parentId: sub.parentId,
+                    nameEn: sub.nameEn,
+                    nameVi: sub.nameVi,
+                    description: sub.description || null,
+                    icon: sub.icon || 'Folder',
+                    color: major.color || '#3B82F6',
+                    orderIndex: order,
+                  })
+                }
+              }
+              await pgDb.insert(pgSchema.topics).values(topicRows).onConflictDoNothing()
+            }
+          } catch (bgErr) {
+            console.warn('Postgres lightweight schema check warning:', bgErr)
           }
-        }).catch(() => {})
+        })()
 
-        dbInstance = drizzlePostgres(client, { schema: pgSchema })
+        dbInstance = pgDb
         console.log('Connected to Supabase PostgreSQL with Postgres schema dialect.')
       } catch (err) {
-        console.warn('Failed to connect to Supabase PostgreSQL, falling back to local SQLite:', err)
+        console.warn('Failed to connect to Supabase PostgreSQL, attempting local SQLite fallback:', err)
         dbInstance = getSqliteDb()
       }
     } else {
@@ -598,8 +484,19 @@ export function getDb(): any {
 }
 
 export function fallbackToSqlite() {
-  dbInstance = getSqliteDb()
-  return dbInstance
+  const hasPg = Boolean(process.env.DATABASE_URL || process.env.SUPABASE_DATABASE_URL)
+  if (hasPg && dbInstance) {
+    // On Vercel serverless Linux, better-sqlite3 native bindings are often unavailable;
+    // do not poison the shared Postgres client after a transient timeout.
+    return dbInstance
+  }
+  try {
+    dbInstance = getSqliteDb()
+    return dbInstance
+  } catch (err) {
+    console.warn('SQLite fallback unavailable in this environment:', err)
+    return dbInstance
+  }
 }
 
 // Export lazy Proxy db client
