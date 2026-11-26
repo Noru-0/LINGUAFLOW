@@ -94,3 +94,54 @@ End-to-end empirical evaluation across the 4-stage roadmap on the corrected 11-M
 | `0.75` | `0.50` | `31.27%` | `890` | `0.8864` (`+19.91 pp`) | `0.8984` (`+21.29 pp`) | `0.5999` |
 
 **Conclusion (E6):** Top-K Main Topic expansion reduces cascading errors (`413 → 405`), increases Main Macro F1 (`+0.93 pp`), Subtopic E2E Macro F1 (`+1.78 pp`), and jumps **Top-3 Subtopic Recall by `+7.18 pp` (`0.6471 → 0.7189`)**. Calibrated confidence abstention cleanly trades coverage for reliability, raising accepted Main Macro F1 to **`0.8127`** at ~`59%` auto-accept coverage (routing ambiguous items to `needs_review`).
+
+---
+
+## E7: Subtopic Head Recovery (Isolating Encoder Drift vs Head Convergence — Vast.ai RTX 3060)
+
+| Model Variant | Test Main Acc | Test Main Macro F1 | Test Sub E2E Macro F1 | Test Sub Oracle Macro F1 | Test Joint Acc |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| Frozen MiniLM + LogReg (Stage 2 `power_0.25`) | `0.6417` | `0.6343` | **`0.4650`** | **`0.7150`** | **`0.5398`** |
+| Joint Fine-tuned MiniLM (Stage 3, 4 ep) | `0.6811` | `0.6798` | `0.4076` | `0.5760` | `0.4764` |
+| `finetuned_encoder_logreg` | `0.6927` | `0.6912` | `0.4493` (`+4.17 pp`) | `0.5992` (`+2.32 pp`) | `0.5012` (`+2.48 pp`) |
+| **`finetuned_encoder_trainable_head`** (8 ep, `lr=1e-3`) | **`0.6942`** | **`0.6954`** | `0.4535` (`+4.59 pp`) | `0.6265` (`+5.05 pp`) | `0.4981` |
+| `frozen_encoder_trainable_heads` (8 ep, `lr=1e-3`) | `0.6185` | `0.5981` | `0.3753` | `0.6166` | `0.4764` |
+
+**Conclusion (E7):** Both factors contribute, and E7 cleanly separates them:
+1. **Head under-convergence (`+4.59 pp` E2E / `+5.05 pp` Oracle recovery):** Training the linear Subtopic head further (`8 epochs, lr=1e-3`) or solving convex `LogisticRegression` on the fine-tuned encoder immediately recovers Subtopic E2E Macro F1 (`0.4076 → 0.4535`) and boosts Main Macro F1 (`0.6798 → 0.6954`).
+2. **Encoder representation shift (`-8.85 pp` to `-11.58 pp` Oracle ceiling vs Frozen):** Even after head recovery, the fine-tuned encoder's Subtopic Oracle F1 (`0.5992–0.6265`) remains lower than the frozen MiniLM (`0.7150`), showing that joint fine-tuning compresses fine-grained within-Main-Topic subtopic distances while expanding 11-way Main Topic separability (`+6.11 pp` Main Macro F1 over Frozen `power_0.25`).
+
+---
+
+## E8: Multi-Task Loss Weight Ablation ($L = L_{\text{main}} + \lambda L_{\text{sub}}$ — Vast.ai RTX 3060)
+
+| $\lambda$ | Best Epoch | Val Main F1 | Val Sub E2E F1 | Test Main Acc | Test Main Macro F1 | Test Sub E2E Macro F1 | Test Sub Oracle Macro F1 | Test Joint Acc |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `0.25` | `3` | **`0.7148`** | `0.3743` | `0.6896` | `0.6911` | `0.3697` | `0.5243` | `0.4548` |
+| `0.50` | `4` | `0.7096` | `0.4212` | **`0.6919`** | **`0.6924`** | `0.3977` | `0.5586` | `0.4749` |
+| **`1.00`** | `4` | `0.7100` | `0.4553` | `0.6857` | `0.6846` | **`0.4264`** | `0.6066` | **`0.4903`** |
+| `2.00` | `4` | `0.7089` | **`0.4764`** | `0.6749` | `0.6758` | `0.4243` | **`0.6144`** | **`0.4903`** |
+
+**Conclusion (E8):** Increasing $\lambda$ monotonically raises Subtopic Oracle Macro F1 (`0.5243 → 0.6144`, **`+9.01 pp`**) at a modest Main Topic trade-off (`0.6924 → 0.6758`, `-1.66 pp`). $\lambda = 1.00$ yields the best joint balance (`0.4903` Joint Acc, `0.4264` Sub E2E F1).
+
+---
+
+## E9: Top-K Metric Validation (`test`, `1,295` samples)
+
+- **Invariants:** `0` hierarchy violations, `0` joint-probability mismatches, `0` non-monotonic candidate lists.
+- **Pure Main Topic Top-K Recall:** Top-1 = `0.6811` | Top-2 = **`0.8625`** (`+18.14 pp`) | Top-3 = **`0.9359`** (`+25.48 pp`).
+- **Joint MAP Expansion (`K=2, 3` vs `K=1`):** `top_2_main` recovers `25` cascading errors at Top-1 and **`134 / 413`** inside Top-3 (`Top-3 Sub Recall`: `0.6471 → 0.7181`); `top_3_main` recovers `26` at Top-1 and **`139 / 413`** inside Top-3 (`Top-3 Sub Recall`: `0.7189`, `Sub E2E Macro F1`: `0.4082 → 0.4260`).
+
+---
+
+## E10: Selective Prediction & Risk–Coverage (`val`-Selected Thresholds Evaluated on `test`)
+
+- **AURC (Main / Joint):** Val `0.1728 / 0.2808` | Test `0.1746 / 0.3000`.
+
+| Target Val Cov | Threshold (`main`, `joint`) | Val Cov | Test Cov | Needs Review | Test Main Acc | Test Main Macro F1 | Test Sub Macro F1 | Test Joint Acc | Error Capture |
+| ---: | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `90%` | `(0.35, 0.25)` | `90.97%` | `86.95%` | `169` | `0.7256` | `0.7276` | `0.4477` | `0.5275` | `19.88%` |
+| `80%` | `(0.45, 0.30)` | `80.56%` | `76.53%` | `304` | `0.7508` | `0.7576` | `0.4759` | `0.5621` | `34.64%` |
+| `70%` | `(0.60, 0.30)` | `70.37%` | `64.79%` | `456` | `0.7926` | `0.8036` | `0.4939` | `0.5948` | `48.80%` |
+| `60%` | `(0.65, 0.35)` | `60.03%` | `54.21%` | `593` | `0.8234` | `0.8345` | `0.5487` | `0.6368` | `61.60%` |
+| `50%` | `(0.70, 0.40)` | `50.93%` | `43.86%` | `727` | `0.8592` | `0.8677` | `0.5520` | `0.6796` | `72.59%` |
