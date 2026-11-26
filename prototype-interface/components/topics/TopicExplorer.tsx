@@ -34,7 +34,7 @@ import {
   Flame,
   Award,
 } from 'lucide-react'
-import { INITIAL_TOPICS, MajorTopicDefinition } from '@/lib/db/initial_topics'
+import { ALL_TAXONOMY_TOPICS, MajorTopicDefinition } from '@/lib/db/initial_topics'
 
 interface SubtopicStat {
   id: string
@@ -276,6 +276,24 @@ export const TOPIC_THEMES: Record<string, TopicThemeConfig> = {
     textColor: 'text-slate-800 dark:text-slate-200',
     tagBg: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700',
   },
+  gen: {
+    primaryHex: '#64748B',
+    accentBorder: 'border-t-slate-500',
+    headerGradient: 'from-slate-500/15 via-slate-500/5 to-transparent',
+    cardBorderHover: 'hover:border-slate-400 dark:hover:border-slate-500',
+    badgeStyle: {
+      light: 'bg-slate-100 text-slate-800 border-slate-300',
+      dark: 'dark:bg-slate-800/70 dark:text-slate-200 dark:border-slate-600',
+    },
+    progressColor: '#64748B',
+    subtopicHover: 'hover:bg-slate-100/80 dark:hover:bg-slate-800/50 hover:border-slate-300 dark:hover:border-slate-700/70 group-hover:text-slate-800 dark:group-hover:text-slate-200',
+    buttonPrimary: 'bg-slate-600 hover:bg-slate-700 text-white shadow-slate-600/25',
+    drawerGrad: 'from-slate-100/80 via-white to-gray-50/40 dark:from-slate-900/60 dark:via-gray-900 dark:to-gray-900',
+    flashcardBorder: 'border-slate-300 dark:border-slate-700 hover:border-slate-400',
+    flashcardBg: 'from-slate-100/50 via-white to-gray-100/30 dark:from-slate-900/30 dark:via-gray-900 dark:to-slate-900/30',
+    textColor: 'text-slate-700 dark:text-slate-300',
+    tagBg: 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/60 dark:text-slate-300 dark:border-slate-700',
+  },
 }
 
 export function getTopicTheme(majorId: string): TopicThemeConfig {
@@ -296,11 +314,13 @@ export function TopicExplorer({
     totalClassifiedCards: number
     totalUnclassifiedCards: number
     majorCount: number
+    hasAutoClustered?: boolean
   }>({
     totalUserCards: 0,
     totalClassifiedCards: 0,
     totalUnclassifiedCards: 0,
-    majorCount: 10,
+    majorCount: 11,
+    hasAutoClustered: false,
   })
   const [loading, setLoading] = useState<boolean>(true)
   const [isClustering, setIsClustering] = useState<boolean>(false)
@@ -335,7 +355,8 @@ export function TopicExplorer({
           totalUserCards: 0,
           totalClassifiedCards: 0,
           totalUnclassifiedCards: 0,
-          majorCount: 10,
+          majorCount: 11,
+          hasAutoClustered: false,
         })
       }
     } catch (e) {
@@ -349,26 +370,43 @@ export function TopicExplorer({
     fetchTopics()
   }, [fetchTopics])
 
-  // Batch Auto-Cluster Action
+  // Single One-Time Auto-Cluster Action per Account (Model -> Fallback LLM)
   const handleAutoCluster = async () => {
+    if (stats.hasAutoClustered) return
     setIsClustering(true)
-    setClusterToast({ message: 'Đang quét và phân loại từ vựng trong các Decks bằng AI...', type: 'info' })
+    setClusterToast({
+      message: 'Đang phân loại từ vựng bằng Model ML (tự động fallback LLM nếu offline)...',
+      type: 'info',
+    })
     try {
       const res = await fetch('/api/topics/auto-cluster', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scope: 'all_decks', forceReclassify: false }),
+        body: JSON.stringify({ scope: 'all_decks' }),
       })
       const data = await res.json()
+      if (res.status === 409 || data.limitReached) {
+        setStats((prev) => ({ ...prev, hasAutoClustered: true }))
+        setClusterToast({
+          message: data.message || 'Mỗi tài khoản chỉ được gom chủ đề 1 lần. Từ mới thêm sẽ tự động phân loại.',
+          type: 'info',
+        })
+        return
+      }
       if (res.ok) {
+        setStats((prev) => ({ ...prev, hasAutoClustered: true }))
         if (data.newlyClassifiedCount > 0) {
+          const engineLabel =
+            data.engine === 'vocab_classifier_v1'
+              ? `Model v1.0.0 (${data.acceptedCount ?? 0} auto-accepted, ${data.needsReviewCount ?? 0} cần review)`
+              : 'Fallback LLM/Keyword'
           setClusterToast({
-            message: `Thành công! Đã phân loại tự động ${data.newlyClassifiedCount} từ vựng vào cây chủ đề.`,
+            message: `Thành công! Đã phân loại ${data.newlyClassifiedCount} từ bằng ${engineLabel}.`,
             type: 'success',
           })
         } else if (data.alreadyClassified) {
           setClusterToast({
-            message: 'Tất cả từ vựng trong các Decks đã được phân loại vào đúng chủ đề!',
+            message: `Tất cả ${data.processedCount} từ vựng đã được phân loại vào cây chủ đề (đã chốt lượt gom 1/1).`,
             type: 'success',
           })
         } else {
@@ -385,7 +423,7 @@ export function TopicExplorer({
       setClusterToast({ message: 'Lỗi mạng khi gom nhóm: ' + err.message, type: 'error' })
     } finally {
       setIsClustering(false)
-      setTimeout(() => setClusterToast(null), 6000)
+      setTimeout(() => setClusterToast(null), 8000)
     }
   }
 
@@ -495,6 +533,7 @@ export function TopicExplorer({
       case 'Compass': return <Compass className={className} />
       case 'Smile': return <Smile className={className} />
       case 'Globe': return <Globe className={className} />
+      case 'BookOpen': return <BookOpen className={className} />
       default: return <Folder className={className} />
     }
   }
@@ -548,13 +587,13 @@ export function TopicExplorer({
               Bản Đồ Tri Thức Từ Vựng Theo Chủ Đề
             </h1>
             <p className="topic-hero-desc text-sm md:text-base leading-relaxed">
-              Tự động gom nhóm toàn bộ từ vựng từ các Decks của bạn vào 10 Chủ đề Lớn và hơn 50 Chủ đề Nhỏ chuẩn Cambridge/IELTS Academic. Khi thêm từ mới vào deck, AI sẽ tự động phân loại ngay lập tức.
+              Tự động gom nhóm toàn bộ từ vựng từ các Decks của bạn vào 11 Chủ đề Lớn (10 chuyên ngành IELTS + General Vocabulary) và 45 Chủ đề Nhỏ bằng Model ML (`vocab-classifier v1.0.0`).
             </p>
 
             {/* Spectrum mini dots preview */}
             <div className="flex items-center gap-2 pt-1 flex-wrap">
               <span className="topic-hero-label text-[11px] font-bold uppercase tracking-wider mr-1">Chủ đề:</span>
-              {INITIAL_TOPICS.map((top) => {
+              {ALL_TAXONOMY_TOPICS.map((top) => {
                 const th = getTopicTheme(top.id)
                 return (
                   <span
@@ -570,17 +609,40 @@ export function TopicExplorer({
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+          <div className="flex flex-col items-stretch sm:items-end gap-1.5 shrink-0">
             <button
               onClick={handleAutoCluster}
-              disabled={isClustering}
+              disabled={isClustering || Boolean(stats.hasAutoClustered)}
+              title={
+                stats.hasAutoClustered
+                  ? 'Tài khoản đã thực hiện gom nhóm 1 lần. Từ mới thêm vào deck sẽ tự động phân loại.'
+                  : 'Phân loại toàn bộ thẻ bằng Model v1.0.0 (tự động fallback LLM nếu offline)'
+              }
               className={`topic-cluster-btn inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm shadow-xl transition-all duration-200 ${
-                isClustering ? 'is-clustering' : 'hover:scale-105 active:scale-95'
+                stats.hasAutoClustered
+                  ? 'opacity-65 cursor-not-allowed'
+                  : isClustering
+                  ? 'is-clustering'
+                  : 'hover:scale-105 active:scale-95'
               }`}
             >
-              <RefreshCw className={`w-4 h-4 ${isClustering ? 'animate-spin' : ''}`} />
-              {isClustering ? 'Đang gom nhóm AI...' : '⚡ Quét & Gom Toàn Bộ Decks'}
+              {stats.hasAutoClustered ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Đã Phân Loại Tài Khoản (1/1)
+                </>
+              ) : (
+                <>
+                  <RefreshCw className={`w-4 h-4 ${isClustering ? 'animate-spin' : ''}`} />
+                  {isClustering ? 'Đang phân loại...' : '⚡ Phân Loại Chủ Đề (Model)'}
+                </>
+              )}
             </button>
+            <span className="text-[11px] opacity-80 text-center sm:text-right">
+              {stats.hasAutoClustered
+                ? 'Đã dùng lượt gom duy nhất • Từ mới tự phân loại khi thêm'
+                : 'Giới hạn 1 lần/tài khoản (Model v1.0.0 → fallback LLM)'}
+            </span>
           </div>
         </div>
 
@@ -605,7 +667,7 @@ export function TopicExplorer({
           </div>
           <div className="topic-stat-box rounded-2xl p-3.5 text-center">
             <div className="topic-stat-label text-xs uppercase tracking-wider font-semibold">Chủ Đề Chuẩn Hóa</div>
-            <div className="topic-stat-topics text-2xl font-black mt-1">10 Lớn • 50+ Nhỏ</div>
+            <div className="topic-stat-topics text-2xl font-black mt-1">11 Lớn • 45 Nhỏ</div>
           </div>
         </div>
       </div>

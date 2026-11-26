@@ -6,7 +6,7 @@ import { initial100Paragraphs } from './initial_100_paragraphs'
 import { initial500Sentences } from './initial_500_sentences'
 import { INITIAL_COLLOCATIONS } from './initial_collocations'
 import { INITIAL_SPEAKING_PROMPTS } from './initial_speaking_prompts'
-import { INITIAL_TOPICS } from './initial_topics'
+import { ALL_TAXONOMY_TOPICS } from './initial_topics'
 
 export const sampleParagraphs = initial100Paragraphs
 export const sampleSentences = initial500Sentences
@@ -18,7 +18,7 @@ async function ensureTopicsSeeded(targetDb: any) {
     const existingTopics = await targetDb.select({ id: topics.id }).from(topics).limit(1)
     if (existingTopics.length === 0) {
       let order = 0
-      for (const major of INITIAL_TOPICS) {
+      for (const major of ALL_TAXONOMY_TOPICS) {
         order++
         await targetDb.insert(topics).values({
           id: major.id,
@@ -241,7 +241,7 @@ export async function seedDatabase() {
       const existingTopics = await activeDb.select({ id: topics.id }).from(topics).limit(1)
       if (existingTopics.length === 0) {
         let order = 0
-        for (const major of INITIAL_TOPICS) {
+        for (const major of ALL_TAXONOMY_TOPICS) {
           order++
           await activeDb.insert(topics).values({
             id: major.id,

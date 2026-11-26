@@ -207,7 +207,15 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
         nameEn: 'Academic Writing & Scientific Research',
         nameVi: 'Nghiên cứu khoa học & Viết học thuật',
         description: 'Luận văn tốt nghiệp, bình duyệt đồng cấp, trích dẫn tài liệu và phương pháp luận.',
-        keywords: ['dissertation', 'thesis', 'peer review', 'citation', 'methodology', 'abstract', 'empirical', 'hypothesis', 'discourse'],
+        keywords: ['dissertation', 'thesis', 'peer review', 'citation', 'methodology', 'abstract', 'empirical', 'hypothesis'],
+      },
+      {
+        id: 'edu.discourse',
+        parentId: 'edu',
+        nameEn: 'Academic Discourse & Linking',
+        nameVi: 'Ngôn ngữ lập luận & Từ nối học thuật',
+        description: 'Từ vựng lập luận học thuật trang trọng, mô hình lý thuyết, chứng minh và sắc thái học thuật.',
+        keywords: ['paradigm', 'substantiate', 'correlate', 'predominant', 'nuance', 'discourse', 'rhetoric'],
       },
     ],
   },
@@ -439,6 +447,54 @@ export const INITIAL_TOPICS: MajorTopicDefinition[] = [
       },
     ],
   },
+]
+
+export const GENERAL_VOCABULARY_TOPIC: MajorTopicDefinition = {
+  id: 'gen',
+  nameEn: 'General Vocabulary',
+  nameVi: 'Từ vựng tổng quát',
+  description: 'Từ chức năng, liên từ, trợ động từ và từ vựng trung tính không thuộc chủ đề chuyên biệt.',
+  icon: 'BookOpen',
+  color: '#64748B',
+  subtopics: [
+    {
+      id: 'gen.function',
+      parentId: 'gen',
+      nameEn: 'Function Words',
+      nameVi: 'Từ chức năng',
+      description: 'Giới từ, đại từ, mạo từ, từ hạn định.',
+      keywords: ['about', 'between', 'through', 'because', 'although', 'however', 'therefore'],
+    },
+    {
+      id: 'gen.linking',
+      parentId: 'gen',
+      nameEn: 'Linking & Discourse',
+      nameVi: 'Từ nối & Diễn ngôn',
+      description: 'Liên từ và trạng từ nối ý trong câu hoặc đoạn văn.',
+      keywords: ['moreover', 'nevertheless', 'meanwhile', 'consequently', 'furthermore'],
+    },
+    {
+      id: 'gen.auxiliary',
+      parentId: 'gen',
+      nameEn: 'Auxiliary & Modals',
+      nameVi: 'Trợ động từ & Động từ khuyết thiếu',
+      description: 'Trợ động từ, động từ tình thái và động từ liên kết.',
+      keywords: ['seem', 'become', 'remain', 'appear', 'might', 'should'],
+    },
+    {
+      id: 'gen.general',
+      parentId: 'gen',
+      nameEn: 'General-purpose Vocabulary',
+      nameVi: 'Từ vựng phổ thông',
+      description: 'Từ vựng sử dụng rộng rãi trong mọi ngữ cảnh không gắn riêng lĩnh vực nào.',
+      keywords: ['significant', 'important', 'obvious', 'increase', 'reduce', 'general'],
+    },
+  ],
+}
+
+export const ALL_TAXONOMY_TOPICS: MajorTopicDefinition[] = [
+  ...INITIAL_TOPICS,
+  GENERAL_VOCABULARY_TOPIC,
 ]
 
 /**

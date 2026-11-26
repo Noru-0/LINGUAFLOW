@@ -1,0 +1,167 @@
+{
+  "artifact_tag": "vocab-classifier-v1.0.0",
+  "model_version": "1.0.0",
+  "created_at_utc": "2026-11-26T20:05:18.463100+00:00",
+  "immutable": true,
+  "dataset_version": "1.2.0",
+  "taxonomy_version": "1.1.0",
+  "encoder": "sentence-transformers/all-MiniLM-L6-v2",
+  "classifier": "LogisticRegression",
+  "weighting": "power_0.25",
+  "calibration": {
+    "method": "temperature_scaling",
+    "main_temperature": 0.8659,
+    "subtopic_temperature": 0.4928
+  },
+  "inference": {
+    "default_mode": "top_1_main_with_hierarchical_subtopic",
+    "top_k_main": 3,
+    "top_k_subtopic": 3,
+    "main_confidence_threshold": 0.6,
+    "joint_confidence_threshold": 0.3
+  },
+  "archive": {
+    "filename": "vocab-classifier-v1.0.0.zip",
+    "size_bytes": 83697489,
+    "sha256": "388ae49c309a9bd0c70aaa89fd83537e4947477aad458050bde6b2550c25648f",
+    "download_url": "https://github.com/Noru-0/LINGUAFLOW/releases/download/vocab-classifier-v1.0.0/vocab-classifier-v1.0.0.zip",
+    "checksum_url": "https://github.com/Noru-0/LINGUAFLOW/releases/download/vocab-classifier-v1.0.0/vocab-classifier-v1.0.0.zip.sha256"
+  },
+  "files": [
+    {
+      "path": "calibration/temperatures.json",
+      "size_bytes": 270,
+      "sha256": "1d50f55a79fb2bc3b314559f18dacb721faba35631daff16578d3bb54d553d34"
+    },
+    {
+      "path": "config/inference.json",
+      "size_bytes": 498,
+      "sha256": "8e9a6952c6b62ef88c28caf667b399d79ca4b7bd6c9ce216a39fb4e2128e7d52"
+    },
+    {
+      "path": "config/preprocessing.json",
+      "size_bytes": 1415,
+      "sha256": "f1b5c694059bd272232c32e518e9423b14ac6008fc3db5679a2d74be825118fb"
+    },
+    {
+      "path": "config/taxonomy.json",
+      "size_bytes": 19627,
+      "sha256": "2eedc1cf8f196e557c08f3ae4737d3e67757964f59c0f37e28847432a9ca8043"
+    },
+    {
+      "path": "encoder/all-MiniLM-L6-v2/config.json",
+      "size_bytes": 704,
+      "sha256": "732bfb3e05c35adbee83ee42a408ec05d9bc5d3421ca7e18eff029ecfa7bfa8b"
+    },
+    {
+      "path": "encoder/all-MiniLM-L6-v2/model.safetensors",
+      "size_bytes": 90864192,
+      "sha256": "1377e9af0ca0b016a9f2aa584d6fc71ab3ea6804fae21ef9fb1416e2944057ac"
+    },
+    {
+      "path": "encoder/all-MiniLM-L6-v2/special_tokens_map.json",
+      "size_bytes": 732,
+      "sha256": "5aa43c2f985a25296d5a5ce621c2f77376ca8091a47993c492fd5460b895b140"
+    },
+    {
+      "path": "encoder/all-MiniLM-L6-v2/tokenizer.json",
+      "size_bytes": 711649,
+      "sha256": "1df3266d8f29dd3afdf73a9ee31322104ff93f8575a6bae998be07284b792e89"
+    },
+    {
+      "path": "encoder/all-MiniLM-L6-v2/tokenizer_config.json",
+      "size_bytes": 1498,
+      "sha256": "96a0148e7d709f0d96b421b23c6f29eec22a07ea83bc04b375de75f2f000bf32"
+    },
+    {
+      "path": "encoder/all-MiniLM-L6-v2/vocab.txt",
+      "size_bytes": 231508,
+      "sha256": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+    },
+    {
+      "path": "evaluation/classification_report.json",
+      "size_bytes": 14191,
+      "sha256": "2fbfd9cf46838b9c927520bf885de179cfe6595086664dbb5af885050f58eb55"
+    },
+    {
+      "path": "evaluation/confusion_matrix.json",
+      "size_bytes": 5142,
+      "sha256": "98bb1367c8a91dc23e152b2ccf6a7a8420bd0f2581ea57f9499dcc0e80e02606"
+    },
+    {
+      "path": "evaluation/test_metrics.json",
+      "size_bytes": 16918,
+      "sha256": "7fb9440050de09b93f8ad199497b499126fa8021061023204269f75e71b7d73e"
+    },
+    {
+      "path": "main_classifier/model.joblib",
+      "size_bytes": 34863,
+      "sha256": "663d411ca5ebccc006e927c6bd8db28f4a7a0cde1466826d9aca25b3385a2d03"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 2776,
+      "sha256": "7f7cf60f4f9c7759df07afab8a891bd9bd2fc8b0e332cc8daf5f41691f5730e9"
+    },
+    {
+      "path": "subtopic_classifiers/biz.joblib",
+      "size_bytes": 16287,
+      "sha256": "bf4a8508404a07d0167bbc7b49afe7696694728d11da8ad2e7964858723d7a42"
+    },
+    {
+      "path": "subtopic_classifiers/edu.joblib",
+      "size_bytes": 16287,
+      "sha256": "15f00e93ea60adfe61d96ca2bfa40ec95d9613c91e08311f7d87be88a7b335de"
+    },
+    {
+      "path": "subtopic_classifiers/env.joblib",
+      "size_bytes": 16287,
+      "sha256": "cd155d16046cf290963bf347dbbc7ec8cf0014780c4025d1cf36c3baab6e87de"
+    },
+    {
+      "path": "subtopic_classifiers/gen.joblib",
+      "size_bytes": 13191,
+      "sha256": "f37c8471c442344106292b0ef7818c100e9af577c217ddaac4335b71710c9a81"
+    },
+    {
+      "path": "subtopic_classifiers/gov.joblib",
+      "size_bytes": 10111,
+      "sha256": "f14a0db3b983b05e569d8a9e826bd3220c7f9a00ae561961086f255a776b0a20"
+    },
+    {
+      "path": "subtopic_classifiers/health.joblib",
+      "size_bytes": 13191,
+      "sha256": "26b93e10a707f12a27513fdbd17ad51e659320cc6a5ce7f90d0e6df320d1622d"
+    },
+    {
+      "path": "subtopic_classifiers/index.json",
+      "size_bytes": 646,
+      "sha256": "6924235b83bc082e36ca47da8cb67e1c80064de518da75774d897d73d90de149"
+    },
+    {
+      "path": "subtopic_classifiers/life.joblib",
+      "size_bytes": 13191,
+      "sha256": "36721798db5707966c91f5d85d60f1574bee0de4b10930ae96aae2ca50282169"
+    },
+    {
+      "path": "subtopic_classifiers/soc.joblib",
+      "size_bytes": 13191,
+      "sha256": "fb243c9830d0fcb5bb824d5f09436a5a4fdd58c1d3e8ae68d6ebe58c69314a3f"
+    },
+    {
+      "path": "subtopic_classifiers/tech.joblib",
+      "size_bytes": 16287,
+      "sha256": "e765a7435b3490238dcd0fe1c9b57133db3e5a473c9e6153c9e8ac305aabfe88"
+    },
+    {
+      "path": "subtopic_classifiers/travel.joblib",
+      "size_bytes": 10111,
+      "sha256": "337fa1d782dc158b2987c6f4653217acebf907329036892ed502c8f9c22a5df9"
+    },
+    {
+      "path": "subtopic_classifiers/urban.joblib",
+      "size_bytes": 10111,
+      "sha256": "6d62acce31e24318d3c77f6a63d311920b4562c45bb0e27869a479b879b098a4"
+    }
+  ]
+}

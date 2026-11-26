@@ -1,0 +1,49 @@
+
+[
+  {
+    "sample_id": "library_001",
+    "word_id": "library",
+    "word": "library",
+    "sense_index": 0,
+    "pos": "noun",
+    "definition": "A place where people read or borrow books and other materials.",
+    "examples": [
+      "I borrowed three books from the library after school.",
+      "Public libraries support lifelong learning by providing free access to books, digital resources, and quiet study spaces."
+    ],
+    "collocations": [
+      "public library",
+      "library card",
+      "digital library",
+      "library resources"
+    ],
+    "source_topic": "education",
+    "main_topic": "Education & Academia",
+    "subtopic": null,
+    "label_status": "main_topic_reviewed",
+    "label_source": "word_atlas_mapping"
+  },
+  {
+    "sample_id": "library_002",
+    "word_id": "library",
+    "word": "library",
+    "sense_index": 1,
+    "pos": "noun",
+    "definition": "An organised collection of books, recordings, or digital resources.",
+    "examples": [
+      "I borrowed three books from the library after school.",
+      "Public libraries support lifelong learning by providing free access to books, digital resources, and quiet study spaces."
+    ],
+    "collocations": [
+      "public library",
+      "library card",
+      "digital library",
+      "library resources"
+    ],
+    "source_topic": "education",
+    "main_topic": "Education & Academia",
+    "subtopic": null,
+    "label_status": "needs_review",
+    "label_source": "word_atlas_mapping"
+  }
+]

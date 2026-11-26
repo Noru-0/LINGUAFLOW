@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { INITIAL_TOPICS, fastLookupTopicByKeywords } from '../lib/db/initial_topics'
+import { INITIAL_TOPICS, ALL_TAXONOMY_TOPICS, fastLookupTopicByKeywords } from '../lib/db/initial_topics'
 import { findTopicDetails } from '../services/gemini-service'
 
 describe('Topic Taxonomy & Classification Engine', () => {
@@ -69,6 +69,16 @@ describe('Topic Taxonomy & Classification Engine', () => {
     expect(details?.subtopicId).toBe('env.climate')
     expect(details?.subtopicName).toBe('Climate Change & Global Warming')
     expect(details?.confidence).toBeGreaterThan(0.8)
+  })
+
+  it('should include General Vocabulary branch in ALL_TAXONOMY_TOPICS (11 domains / 45 subtopics)', () => {
+    expect(ALL_TAXONOMY_TOPICS.length).toBe(11)
+    const subtopicCount = ALL_TAXONOMY_TOPICS.reduce((acc, m) => acc + m.subtopics.length, 0)
+    expect(subtopicCount).toBe(45)
+    const genDetails = findTopicDetails('gen.function')
+    expect(genDetails).not.toBeNull()
+    expect(genDetails?.majorTopicId).toBe('gen')
+    expect(genDetails?.subtopicId).toBe('gen.function')
   })
 })
 

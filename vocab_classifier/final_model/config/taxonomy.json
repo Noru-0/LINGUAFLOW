@@ -1,0 +1,402 @@
+{
+  "version": "1.1.0",
+  "standard": "CEFR / IELTS Academic Lexical Taxonomy + General Vocabulary Branch",
+  "total_main_topics": 11,
+  "total_topical_topics": 10,
+  "total_general_topics": 1,
+  "total_subtopics": 45,
+  "taxonomy": [
+    {
+      "id": "env",
+      "topic_type": "topical",
+      "name_en": "Environment & Nature",
+      "name_vi": "Môi trường & Thiên nhiên",
+      "subtopics": [
+        {
+          "id": "env.climate",
+          "name_en": "Climate Change & Emissions",
+          "name_vi": "Biến đổi khí hậu & Khí thải",
+          "description": "Global warming, greenhouse gases, carbon footprint, emissions, climate policy, ozone depletion, temperature anomalies, atmosphere."
+        },
+        {
+          "id": "env.wildlife",
+          "name_en": "Biodiversity & Wildlife Conservation",
+          "name_vi": "Đa dạng sinh học & Bảo tồn hoang dã",
+          "description": "Wildlife, animals, plants, ecosystems, endangered species, habitat loss, poaching, deforestation, marine conservation, flora and fauna."
+        },
+        {
+          "id": "env.pollution",
+          "name_en": "Pollution, Waste & Recycling",
+          "name_vi": "Ô nhiễm, Rác thải & Tái chế",
+          "description": "Air, water, and soil pollution, toxic waste, landfills, garbage, rubbish, microplastics, recycling, sewage, smog, noise, industrial runoff."
+        },
+        {
+          "id": "env.energy",
+          "name_en": "Renewable Energy & Natural Resources",
+          "name_vi": "Năng lượng tái tạo & Tài nguyên thiên nhiên",
+          "description": "Solar, wind, hydroelectricity, fossil fuels, coal, oil, natural gas, energy grid, sustainability, resource depletion, minerals, water resources."
+        },
+        {
+          "id": "env.disaster",
+          "name_en": "Natural Disasters & Geography",
+          "name_vi": "Thiên tai & Địa lý tự nhiên",
+          "description": "Earthquakes, tsunamis, droughts, floods, hurricanes, storms, weather, volcanic eruptions, topography, mountains, rivers, oceans, valleys."
+        }
+      ]
+    },
+    {
+      "id": "tech",
+      "topic_type": "topical",
+      "name_en": "Science & Technology",
+      "name_vi": "Khoa học & Công nghệ",
+      "subtopics": [
+        {
+          "id": "tech.ai",
+          "name_en": "Artificial Intelligence & Automation",
+          "name_vi": "Trí tuệ nhân tạo & Tự động hóa",
+          "description": "Machine learning, neural networks, algorithms, robotics, automation, generative AI, natural language processing, intelligent machines."
+        },
+        {
+          "id": "tech.cyber",
+          "name_en": "Cybersecurity & Information Systems",
+          "name_vi": "An ninh mạng & Hệ thống thông tin",
+          "description": "Encryption, data breaches, malware, firewalls, cloud computing, digital privacy, phishing, authentication, databases, software systems."
+        },
+        {
+          "id": "tech.space",
+          "name_en": "Space Exploration & Astronomy",
+          "name_vi": "Thám hiểm vũ trụ & Thiên văn học",
+          "description": "Celestial bodies, planets, stars, moon, orbits, satellites, space missions, galaxies, astronauts, astrophysics, telescopes, physics."
+        },
+        {
+          "id": "tech.bio",
+          "name_en": "Biotechnology & Genetics",
+          "name_vi": "Công nghệ sinh học & Di truyền học",
+          "description": "DNA, genetics, biology, chemistry, cloning, stem cells, GMOs, bioinformatics, CRISPR, molecular biology, laboratory experiments, substances."
+        },
+        {
+          "id": "tech.digital",
+          "name_en": "Digital Transformation & Consumer Devices",
+          "name_vi": "Chuyển đổi số & Thiết bị tiêu dùng",
+          "description": "Smartphones, computers, cameras, telephones, internet, websites, wearable devices, IoT, broadband, user interface, digital literacy, tools."
+        }
+      ]
+    },
+    {
+      "id": "biz",
+      "topic_type": "topical",
+      "name_en": "Business, Work & Economy",
+      "name_vi": "Kinh doanh, Việc làm & Kinh tế",
+      "subtopics": [
+        {
+          "id": "biz.career",
+          "name_en": "Employment, Recruitment & Workplace",
+          "name_vi": "Việc làm, Tuyển dụng & Môi trường công sở",
+          "description": "Jobs, workers, recruitment, resume, salary, severance pay, work-life balance, promotion, remote work, unemployment, office, colleagues, human resources."
+        },
+        {
+          "id": "biz.finance",
+          "name_en": "Corporate Finance, Investment & Banking",
+          "name_vi": "Tài chính doanh nghiệp, Đầu tư & Ngân hàng",
+          "description": "Banks, money, liquidity, equity, dividends, venture capital, interest rates, mergers, bankruptcy, auditing, inflation, profit, investment."
+        },
+        {
+          "id": "biz.marketing",
+          "name_en": "Marketing, Branding & Consumers",
+          "name_vi": "Tiếp thị, Thương hiệu & Người tiêu dùng",
+          "description": "Brand loyalty, market penetration, target audience, advertising campaigns, consumer behavior, endorsements, retail, products, prices, selling."
+        },
+        {
+          "id": "biz.trade",
+          "name_en": "International Trade & Macroeconomics",
+          "name_vi": "Thương mại quốc tế & Kinh tế vĩ mô",
+          "description": "Tariffs, exports, imports, GDP, recession, fiscal policy, protectionism, trade deficit, currency exchange, global commerce, economic growth."
+        },
+        {
+          "id": "biz.leadership",
+          "name_en": "Corporate Leadership & Operations",
+          "name_vi": "Lãnh đạo doanh nghiệp & Vận hành",
+          "description": "Management, bosses, stakeholders, consensus, delegation, corporate governance, restructuring, KPIs, negotiation, entrepreneurship, strategy, meetings."
+        }
+      ]
+    },
+    {
+      "id": "edu",
+      "topic_type": "topical",
+      "name_en": "Education & Academia",
+      "name_vi": "Giáo dục & Học thuật",
+      "subtopics": [
+        {
+          "id": "edu.university",
+          "name_en": "Higher Education & Campus Life",
+          "name_vi": "Giáo dục đại học & Đời sống sinh viên",
+          "description": "Universities, colleges, libraries, tuition fees, scholarships, undergraduates, campus, faculty, lectures, dormitories, student loans."
+        },
+        {
+          "id": "edu.pedagogy",
+          "name_en": "Teaching Methodologies & E-Learning",
+          "name_vi": "Phương pháp giảng dạy & Học trực tuyến",
+          "description": "Schools, teachers, classrooms, curriculum, pedagogical methods, vocational training, e-learning, interactive learning, literacy, studying, courses."
+        },
+        {
+          "id": "edu.exams",
+          "name_en": "Assessments, Grading & Credentials",
+          "name_vi": "Thi cử, Đánh giá & Bằng cấp",
+          "description": "Exams, tests, plagiarism, GPA, grades, diplomas, certificates, standardized tests, evaluations, accreditation, transcripts, homework."
+        },
+        {
+          "id": "edu.research",
+          "name_en": "Academic Writing & Scientific Research",
+          "name_vi": "Viết học thuật & Nghiên cứu khoa học",
+          "description": "Dissertation, thesis, peer review, hypothesis, methodology, empirical data, citations, bibliography, qualitative and quantitative research, essays."
+        },
+        {
+          "id": "edu.discourse",
+          "name_en": "Academic Discourse & Linking",
+          "name_vi": "Ngôn ngữ lập luận & Từ nối học thuật",
+          "description": "Formal academic argumentation vocabulary, paradigm, substantiate, correlate, predominant, nuance, scholarly register, academic rhetoric."
+        }
+      ]
+    },
+    {
+      "id": "health",
+      "topic_type": "topical",
+      "name_en": "Health, Medicine & Wellness",
+      "name_vi": "Sức khỏe, Y học & Đời sống lành mạnh",
+      "subtopics": [
+        {
+          "id": "health.diet",
+          "name_en": "Nutrition, Diet & Physical Fitness",
+          "name_vi": "Dinh dưỡng, Chế độ ăn & Thể chất",
+          "description": "Sedentary lifestyle, malnutrition, obesity, metabolism, nutrients, vitamins, gym, exercise, cardio, hydration, dietary supplements, healthy body."
+        },
+        {
+          "id": "health.mental",
+          "name_en": "Mental Health & Psychology",
+          "name_vi": "Sức khỏe tinh thần & Tâm lý học",
+          "description": "Burnout, stress, sleep, tiredness, relaxation, resilience, anxiety, depression, cognitive therapy, trauma, mindfulness, psychological well-being."
+        },
+        {
+          "id": "health.disease",
+          "name_en": "Diseases, Pandemics & Pathology",
+          "name_vi": "Bệnh lý, Dịch bệnh & Miễn dịch",
+          "description": "Epidemiology, contagious, chronic illness, fever, pain, injury, immunity, symptoms, diagnosis, pathogens, viruses, vaccination, anatomy."
+        },
+        {
+          "id": "health.care",
+          "name_en": "Healthcare Systems & Pharmacology",
+          "name_vi": "Hệ thống y tế & Dược phẩm",
+          "description": "Doctors, nurses, hospitals, clinics, prescriptions, pharmaceuticals, medicine, surgery, clinical trials, public healthcare, palliative care, treatment."
+        }
+      ]
+    },
+    {
+      "id": "soc",
+      "topic_type": "topical",
+      "name_en": "Society, Culture & Law",
+      "name_vi": "Xã hội, Văn hóa & Pháp luật",
+      "subtopics": [
+        {
+          "id": "soc.equality",
+          "name_en": "Diversity, Gender & Social Mobility",
+          "name_vi": "Đa dạng, Bình đẳng giới & Dịch chuyển xã hội",
+          "description": "Marginalized, social mobility, gender gap, discrimination, inclusion, demographics, civil rights, inequality, poverty, community, social classes."
+        },
+        {
+          "id": "soc.arts",
+          "name_en": "Visual Arts, Literature & Music",
+          "name_vi": "Nghệ thuật thị giác, Văn học & Âm nhạc",
+          "description": "Painting, pictures, music, guitar, piano, literature, poetry, theatre, cinema, actors, aesthetics, choreography, masterpiece, sculptures, museums."
+        },
+        {
+          "id": "soc.heritage",
+          "name_en": "History, Traditions & Customs",
+          "name_vi": "Lịch sử, Truyền thống & Phong tục",
+          "description": "History, ancient civilizations, castles, temples, folklore, heritage, rituals, archaeology, indigenous, cultural preservation, ancestry, traditions."
+        },
+        {
+          "id": "soc.law",
+          "name_en": "Crime, Law Enforcement & Justice",
+          "name_vi": "Tội phạm, Thực thi pháp luật & Tư pháp",
+          "description": "Police, crime, delinquency, jurisprudence, litigation, verdict, courts, judges, prison, incarceration, rehabilitation, felony, legislation, rules."
+        }
+      ]
+    },
+    {
+      "id": "urban",
+      "topic_type": "topical",
+      "name_en": "Urbanization & Infrastructure",
+      "name_vi": "Đô thị hóa & Cơ sở hạ tầng",
+      "subtopics": [
+        {
+          "id": "urban.planning",
+          "name_en": "Smart Cities & Urban Density",
+          "name_vi": "Đô thị thông minh & Mật độ đô thị",
+          "description": "Towns, cities, districts, gentrification, urban sprawl, zoning laws, metropolitan, overpopulation, public amenities, parks, green belts."
+        },
+        {
+          "id": "urban.transit",
+          "name_en": "Public Transportation & Infrastructure",
+          "name_vi": "Giao thông công cộng & Hạ tầng",
+          "description": "Streets, roads, bridges, congestion charge, commuters, mass transit, subways, buses, trains, pedestrians, gridlock, viaducts, railway networks."
+        },
+        {
+          "id": "urban.housing",
+          "name_en": "Real Estate, Architecture & Interior",
+          "name_vi": "Bất động sản, Kiến trúc & Nội thất",
+          "description": "Houses, apartments, flats, buildings, skyscrapers, residential, architecture, construction, renovation, tenants, landlords, sustainable buildings."
+        }
+      ]
+    },
+    {
+      "id": "travel",
+      "topic_type": "topical",
+      "name_en": "Travel & Hospitality",
+      "name_vi": "Du lịch & Dịch vụ lưu trú",
+      "subtopics": [
+        {
+          "id": "travel.eco",
+          "name_en": "Sightseeing & Sustainable Tourism",
+          "name_vi": "Tham quan & Du lịch bền vững",
+          "description": "Holidays, vacations, tourism, itinerary, eco-lodge, mass tourism, landmarks, excursions, sightseeing, maps, destinations, exploration."
+        },
+        {
+          "id": "travel.aviation",
+          "name_en": "Aviation, Hotels & Accommodations",
+          "name_vi": "Hàng không, Khách sạn & Lưu trú",
+          "description": "Airplanes, flights, airports, hotels, resorts, layover, hospitality, boarding pass, luggage, concierge, all-inclusive, customs clearance, reservations."
+        },
+        {
+          "id": "travel.customs",
+          "name_en": "Cultural Etiquette & Expatriate Life",
+          "name_vi": "Nghi thức văn hóa & Cuộc sống xa xứ",
+          "description": "Countries, nationalities, passports, visas, culture shock, etiquette, expatriate, language barrier, cosmopolitan, hospitality customs, souvenirs."
+        }
+      ]
+    },
+    {
+      "id": "life",
+      "topic_type": "topical",
+      "name_en": "Daily Life & Personal Finance",
+      "name_vi": "Đời sống cá nhân & Tài chính hộ gia đình",
+      "subtopics": [
+        {
+          "id": "life.family",
+          "name_en": "Family Dynamics, Parenting & Friendship",
+          "name_vi": "Gia đình, Nuôi dạy con & Tình bạn",
+          "description": "Parents, children, siblings, marriage, home life, upbringing, adolescence, kinship, camaraderie, nuclear family, generational gap, friendship."
+        },
+        {
+          "id": "life.food",
+          "name_en": "Culinary Arts, Cooking & Dining",
+          "name_vi": "Ẩm thực, Nấu nướng & Ăn uống",
+          "description": "Food, meals, breakfast, lunch, dinner, cooking, kitchen, restaurants, gourmet, cuisine, ingredients, culinary, seasoning, flavor, appetite, drinks."
+        },
+        {
+          "id": "life.finance",
+          "name_en": "Personal Budgeting, Saving & Taxes",
+          "name_vi": "Ngân sách cá nhân, Tiết kiệm & Thuế",
+          "description": "Household spending, shopping, bills, frugality, mortgage, disposable income, installments, pension, expenditure, personal debt, saving money, taxes."
+        },
+        {
+          "id": "life.leisure",
+          "name_en": "Hobbies, Entertainment & Sports",
+          "name_vi": "Sở thích, Giải trí & Thể thao",
+          "description": "Sports, football, tennis, swimming, games, hobbies, amateur, pastimes, recreation, spectator, entertainment, DIY, board games, weekend activities."
+        }
+      ]
+    },
+    {
+      "id": "gov",
+      "topic_type": "topical",
+      "name_en": "Global Politics & Humanitarian",
+      "name_vi": "Chính trị toàn cầu & Nhân đạo",
+      "subtopics": [
+        {
+          "id": "gov.diplomacy",
+          "name_en": "Diplomacy, Treaties & Alliances",
+          "name_vi": "Ngoại giao, Hiệp ước & Liên minh",
+          "description": "Governments, presidents, elections, politics, war, military, army, sanctions, bilateral, treaty, sovereignty, ambassador, geopolitical, summit."
+        },
+        {
+          "id": "gov.aid",
+          "name_en": "Humanitarian Aid & Poverty Alleviation",
+          "name_vi": "Cứu trợ nhân đạo & Xóa đói giảm nghèo",
+          "description": "Refugees, asylum, humanitarian aid, famine, charity, philanthropy, NGOs, poverty alleviation, relief funds, welfare, crisis support."
+        },
+        {
+          "id": "gov.globalization",
+          "name_en": "Global Supply Chain & Geopolitics",
+          "name_vi": "Chuỗi cung ứng toàn cầu & Địa chính trị",
+          "description": "International borders, outsourcing, cross-border, supply chain, multinational corporations, cultural homogenization, interdependence, global order."
+        }
+      ]
+    },
+    {
+      "id": "gen",
+      "topic_type": "general",
+      "name_en": "General Vocabulary",
+      "name_vi": "Từ vựng tổng quát (Phi chủ đề)",
+      "subtopics": [
+        {
+          "id": "gen.function",
+          "name_en": "Function Words",
+          "name_vi": "Từ chức năng ngữ pháp",
+          "description": "Grammatical function words such as prepositions, pronouns, determiners, and quantifiers expressing syntactic position, direction, time, or reference rather than lexical content (about, above, under, through, during, between, among, despite)."
+        },
+        {
+          "id": "gen.linking",
+          "name_en": "Linking & Discourse",
+          "name_vi": "Từ nối & Đánh dấu diễn ngôn",
+          "description": "Conjunctions, transition adverbs, and general discourse markers connecting clauses, contrasting ideas, or expressing cause and effect such as despite the fact that, however, therefore, as a result (although, however, therefore, moreover, nevertheless, whereas, because)."
+        },
+        {
+          "id": "gen.auxiliary",
+          "name_en": "Auxiliary & Linking Verbs",
+          "name_vi": "Trợ động từ & Động từ nối",
+          "description": "Auxiliary verbs, modal verbs, and copular linking verbs expressing state, existence, becoming, seeming, remaining, possibility, or obligation such as to start to be, to appear to be, to continue in the same state (be, become, seem, remain, appear, might, should)."
+        },
+        {
+          "id": "gen.general",
+          "name_en": "General-purpose Vocabulary",
+          "name_vi": "Từ vựng tổng quát đa lĩnh vực",
+          "description": "Domain-neutral general nouns, verbs, adjectives, and adverbs of degree or approximation applicable across all subjects such as an unspecified situation, various kinds, approximately close to, significant or important, make better, allow to happen (thing, aspect, various, certain, significant, approximately, improve, increase)."
+        }
+      ]
+    }
+  ],
+  "source_topic_to_main_topic": {
+    "environment": "Environment & Nature",
+    "nature": "Environment & Nature",
+    "science": "Science & Technology",
+    "technology": "Science & Technology",
+    "economy": "Business, Work & Economy",
+    "work": "Business, Work & Economy",
+    "education": "Education & Academia",
+    "health": "Health, Medicine & Wellness",
+    "arts": "Society, Culture & Law",
+    "history": "Society, Culture & Law",
+    "society": "Society, Culture & Law",
+    "city": "Urbanization & Infrastructure",
+    "travel": "Travel & Hospitality",
+    "daily": "Daily Life & Personal Finance",
+    "sport": "Daily Life & Personal Finance",
+    "government": "Global Politics & Humanitarian",
+    "emotion": null,
+    "thinking": null,
+    "media": null
+  },
+  "pos_mapping": {
+    "n.": "noun",
+    "v.": "verb",
+    "adj.": "adjective",
+    "adv.": "adverb",
+    "prep.": "preposition",
+    "pron.": "pronoun",
+    "conj.": "conjunction",
+    "det.": "determiner",
+    "num.": "number",
+    "int.": "interjection",
+    "phr.": "phrase"
+  }
+}

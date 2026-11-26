@@ -1,0 +1,3812 @@
+{
+  "finetuned_encoder_logreg": {
+    "val": {
+      "num_samples": 1296,
+      "main_topic": {
+        "accuracy": 0.7215,
+        "macro_f1": 0.7191,
+        "weighted_f1": 0.7205,
+        "per_class": {
+          "Environment & Nature": {
+            "precision": 0.7766,
+            "recall": 0.7449,
+            "f1": 0.7604,
+            "support": 98
+          },
+          "Science & Technology": {
+            "precision": 0.7907,
+            "recall": 0.8,
+            "f1": 0.7953,
+            "support": 85
+          },
+          "Business, Work & Economy": {
+            "precision": 0.7241,
+            "recall": 0.672,
+            "f1": 0.6971,
+            "support": 125
+          },
+          "Education & Academia": {
+            "precision": 0.7805,
+            "recall": 0.5333,
+            "f1": 0.6337,
+            "support": 60
+          },
+          "Health, Medicine & Wellness": {
+            "precision": 0.8696,
+            "recall": 0.8,
+            "f1": 0.8333,
+            "support": 75
+          },
+          "Society, Culture & Law": {
+            "precision": 0.759,
+            "recall": 0.7437,
+            "f1": 0.7513,
+            "support": 199
+          },
+          "Urbanization & Infrastructure": {
+            "precision": 0.6774,
+            "recall": 0.875,
+            "f1": 0.7636,
+            "support": 24
+          },
+          "Travel & Hospitality": {
+            "precision": 0.6667,
+            "recall": 0.8525,
+            "f1": 0.7482,
+            "support": 61
+          },
+          "Daily Life & Personal Finance": {
+            "precision": 0.6667,
+            "recall": 0.6802,
+            "f1": 0.6733,
+            "support": 247
+          },
+          "Global Politics & Humanitarian": {
+            "precision": 0.5806,
+            "recall": 0.5,
+            "f1": 0.5373,
+            "support": 36
+          },
+          "General Vocabulary": {
+            "precision": 0.6964,
+            "recall": 0.7378,
+            "f1": 0.7165,
+            "support": 286
+          }
+        }
+      },
+      "general_vs_topical": {
+        "general_precision": 0.6964,
+        "general_recall": 0.7378,
+        "general_f1": 0.7165
+      },
+      "subtopic_end_to_end": {
+        "accuracy": 0.5424,
+        "macro_f1": 0.483,
+        "weighted_f1": 0.5338,
+        "per_class": {
+          "env.climate": {
+            "precision": 0.3333,
+            "recall": 0.3333,
+            "f1": 0.3333,
+            "support": 6
+          },
+          "env.wildlife": {
+            "precision": 0.775,
+            "recall": 0.7561,
+            "f1": 0.7654,
+            "support": 41
+          },
+          "env.pollution": {
+            "precision": 0.4,
+            "recall": 0.3333,
+            "f1": 0.3636,
+            "support": 12
+          },
+          "env.energy": {
+            "precision": 0.6316,
+            "recall": 0.8571,
+            "f1": 0.7273,
+            "support": 14
+          },
+          "env.disaster": {
+            "precision": 0.7895,
+            "recall": 0.6,
+            "f1": 0.6818,
+            "support": 25
+          },
+          "tech.ai": {
+            "precision": 0.4545,
+            "recall": 0.2941,
+            "f1": 0.3571,
+            "support": 17
+          },
+          "tech.cyber": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 6
+          },
+          "tech.space": {
+            "precision": 0.6923,
+            "recall": 0.4286,
+            "f1": 0.5294,
+            "support": 21
+          },
+          "tech.bio": {
+            "precision": 0.5,
+            "recall": 0.6667,
+            "f1": 0.5714,
+            "support": 12
+          },
+          "tech.digital": {
+            "precision": 0.4,
+            "recall": 0.6207,
+            "f1": 0.4865,
+            "support": 29
+          },
+          "biz.career": {
+            "precision": 0.3077,
+            "recall": 0.4615,
+            "f1": 0.3692,
+            "support": 26
+          },
+          "biz.finance": {
+            "precision": 0.6316,
+            "recall": 0.4286,
+            "f1": 0.5106,
+            "support": 28
+          },
+          "biz.marketing": {
+            "precision": 0.5,
+            "recall": 0.4839,
+            "f1": 0.4918,
+            "support": 31
+          },
+          "biz.trade": {
+            "precision": 0.4,
+            "recall": 0.2353,
+            "f1": 0.2963,
+            "support": 17
+          },
+          "biz.leadership": {
+            "precision": 0.6667,
+            "recall": 0.5217,
+            "f1": 0.5854,
+            "support": 23
+          },
+          "edu.university": {
+            "precision": 1.0,
+            "recall": 0.5714,
+            "f1": 0.7273,
+            "support": 7
+          },
+          "edu.pedagogy": {
+            "precision": 0.6667,
+            "recall": 0.2105,
+            "f1": 0.32,
+            "support": 19
+          },
+          "edu.exams": {
+            "precision": 0.75,
+            "recall": 0.2308,
+            "f1": 0.3529,
+            "support": 13
+          },
+          "edu.research": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "edu.discourse": {
+            "precision": 0.4167,
+            "recall": 0.4762,
+            "f1": 0.4444,
+            "support": 21
+          },
+          "health.diet": {
+            "precision": 0.7222,
+            "recall": 0.52,
+            "f1": 0.6047,
+            "support": 25
+          },
+          "health.mental": {
+            "precision": 0.75,
+            "recall": 0.6,
+            "f1": 0.6667,
+            "support": 10
+          },
+          "health.disease": {
+            "precision": 0.6296,
+            "recall": 0.7391,
+            "f1": 0.68,
+            "support": 23
+          },
+          "health.care": {
+            "precision": 0.875,
+            "recall": 0.8235,
+            "f1": 0.8485,
+            "support": 17
+          },
+          "soc.equality": {
+            "precision": 0.6452,
+            "recall": 0.5263,
+            "f1": 0.5797,
+            "support": 38
+          },
+          "soc.arts": {
+            "precision": 0.6667,
+            "recall": 0.5778,
+            "f1": 0.619,
+            "support": 45
+          },
+          "soc.heritage": {
+            "precision": 0.6667,
+            "recall": 0.7059,
+            "f1": 0.6857,
+            "support": 34
+          },
+          "soc.law": {
+            "precision": 0.5618,
+            "recall": 0.6098,
+            "f1": 0.5848,
+            "support": 82
+          },
+          "urban.planning": {
+            "precision": 1.0,
+            "recall": 0.2,
+            "f1": 0.3333,
+            "support": 5
+          },
+          "urban.transit": {
+            "precision": 0.5,
+            "recall": 0.8333,
+            "f1": 0.625,
+            "support": 6
+          },
+          "urban.housing": {
+            "precision": 0.55,
+            "recall": 0.8462,
+            "f1": 0.6667,
+            "support": 13
+          },
+          "travel.eco": {
+            "precision": 0.5625,
+            "recall": 0.871,
+            "f1": 0.6835,
+            "support": 31
+          },
+          "travel.aviation": {
+            "precision": 0.6087,
+            "recall": 0.5833,
+            "f1": 0.5957,
+            "support": 24
+          },
+          "travel.customs": {
+            "precision": 0.4286,
+            "recall": 0.5,
+            "f1": 0.4615,
+            "support": 6
+          },
+          "life.family": {
+            "precision": 0.35,
+            "recall": 0.1944,
+            "f1": 0.25,
+            "support": 36
+          },
+          "life.food": {
+            "precision": 0.5732,
+            "recall": 0.5663,
+            "f1": 0.5697,
+            "support": 83
+          },
+          "life.finance": {
+            "precision": 0.3947,
+            "recall": 0.3571,
+            "f1": 0.375,
+            "support": 42
+          },
+          "life.leisure": {
+            "precision": 0.3929,
+            "recall": 0.5116,
+            "f1": 0.4444,
+            "support": 86
+          },
+          "gov.diplomacy": {
+            "precision": 0.5769,
+            "recall": 0.5172,
+            "f1": 0.5455,
+            "support": 29
+          },
+          "gov.aid": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 4
+          },
+          "gov.globalization": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 3
+          },
+          "gen.function": {
+            "precision": 0.6364,
+            "recall": 0.2745,
+            "f1": 0.3836,
+            "support": 51
+          },
+          "gen.linking": {
+            "precision": 0.4828,
+            "recall": 0.6667,
+            "f1": 0.56,
+            "support": 21
+          },
+          "gen.auxiliary": {
+            "precision": 0.5294,
+            "recall": 0.383,
+            "f1": 0.4444,
+            "support": 47
+          },
+          "gen.general": {
+            "precision": 0.5413,
+            "recall": 0.7066,
+            "f1": 0.613,
+            "support": 167
+          }
+        }
+      },
+      "subtopic_oracle_main": {
+        "accuracy": 0.713,
+        "macro_f1": 0.6538,
+        "weighted_f1": 0.7059,
+        "per_class": {
+          "env.climate": {
+            "precision": 0.5,
+            "recall": 0.3333,
+            "f1": 0.4,
+            "support": 6
+          },
+          "env.wildlife": {
+            "precision": 0.8605,
+            "recall": 0.9024,
+            "f1": 0.881,
+            "support": 41
+          },
+          "env.pollution": {
+            "precision": 0.5333,
+            "recall": 0.6667,
+            "f1": 0.5926,
+            "support": 12
+          },
+          "env.energy": {
+            "precision": 0.8667,
+            "recall": 0.9286,
+            "f1": 0.8966,
+            "support": 14
+          },
+          "env.disaster": {
+            "precision": 0.8095,
+            "recall": 0.68,
+            "f1": 0.7391,
+            "support": 25
+          },
+          "tech.ai": {
+            "precision": 0.5556,
+            "recall": 0.2941,
+            "f1": 0.3846,
+            "support": 17
+          },
+          "tech.cyber": {
+            "precision": 0.75,
+            "recall": 0.5,
+            "f1": 0.6,
+            "support": 6
+          },
+          "tech.space": {
+            "precision": 0.7333,
+            "recall": 0.5238,
+            "f1": 0.6111,
+            "support": 21
+          },
+          "tech.bio": {
+            "precision": 0.5333,
+            "recall": 0.6667,
+            "f1": 0.5926,
+            "support": 12
+          },
+          "tech.digital": {
+            "precision": 0.5238,
+            "recall": 0.7586,
+            "f1": 0.6197,
+            "support": 29
+          },
+          "biz.career": {
+            "precision": 0.6667,
+            "recall": 0.6923,
+            "f1": 0.6792,
+            "support": 26
+          },
+          "biz.finance": {
+            "precision": 0.7222,
+            "recall": 0.4643,
+            "f1": 0.5652,
+            "support": 28
+          },
+          "biz.marketing": {
+            "precision": 0.4783,
+            "recall": 0.7097,
+            "f1": 0.5714,
+            "support": 31
+          },
+          "biz.trade": {
+            "precision": 0.5625,
+            "recall": 0.5294,
+            "f1": 0.5455,
+            "support": 17
+          },
+          "biz.leadership": {
+            "precision": 0.7778,
+            "recall": 0.6087,
+            "f1": 0.6829,
+            "support": 23
+          },
+          "edu.university": {
+            "precision": 1.0,
+            "recall": 0.7143,
+            "f1": 0.8333,
+            "support": 7
+          },
+          "edu.pedagogy": {
+            "precision": 1.0,
+            "recall": 0.3684,
+            "f1": 0.5385,
+            "support": 19
+          },
+          "edu.exams": {
+            "precision": 0.75,
+            "recall": 0.4615,
+            "f1": 0.5714,
+            "support": 13
+          },
+          "edu.research": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "edu.discourse": {
+            "precision": 0.5,
+            "recall": 0.9048,
+            "f1": 0.6441,
+            "support": 21
+          },
+          "health.diet": {
+            "precision": 0.8261,
+            "recall": 0.76,
+            "f1": 0.7917,
+            "support": 25
+          },
+          "health.mental": {
+            "precision": 0.6923,
+            "recall": 0.9,
+            "f1": 0.7826,
+            "support": 10
+          },
+          "health.disease": {
+            "precision": 0.8261,
+            "recall": 0.8261,
+            "f1": 0.8261,
+            "support": 23
+          },
+          "health.care": {
+            "precision": 1.0,
+            "recall": 0.9412,
+            "f1": 0.9697,
+            "support": 17
+          },
+          "soc.equality": {
+            "precision": 0.8276,
+            "recall": 0.6316,
+            "f1": 0.7164,
+            "support": 38
+          },
+          "soc.arts": {
+            "precision": 0.8636,
+            "recall": 0.8444,
+            "f1": 0.8539,
+            "support": 45
+          },
+          "soc.heritage": {
+            "precision": 0.8286,
+            "recall": 0.8529,
+            "f1": 0.8406,
+            "support": 34
+          },
+          "soc.law": {
+            "precision": 0.7692,
+            "recall": 0.8537,
+            "f1": 0.8092,
+            "support": 82
+          },
+          "urban.planning": {
+            "precision": 1.0,
+            "recall": 0.2,
+            "f1": 0.3333,
+            "support": 5
+          },
+          "urban.transit": {
+            "precision": 0.625,
+            "recall": 0.8333,
+            "f1": 0.7143,
+            "support": 6
+          },
+          "urban.housing": {
+            "precision": 0.8667,
+            "recall": 1.0,
+            "f1": 0.9286,
+            "support": 13
+          },
+          "travel.eco": {
+            "precision": 0.7143,
+            "recall": 0.9677,
+            "f1": 0.8219,
+            "support": 31
+          },
+          "travel.aviation": {
+            "precision": 0.9333,
+            "recall": 0.5833,
+            "f1": 0.7179,
+            "support": 24
+          },
+          "travel.customs": {
+            "precision": 0.75,
+            "recall": 0.5,
+            "f1": 0.6,
+            "support": 6
+          },
+          "life.family": {
+            "precision": 0.5,
+            "recall": 0.3056,
+            "f1": 0.3793,
+            "support": 36
+          },
+          "life.food": {
+            "precision": 0.775,
+            "recall": 0.747,
+            "f1": 0.7607,
+            "support": 83
+          },
+          "life.finance": {
+            "precision": 0.5,
+            "recall": 0.5238,
+            "f1": 0.5116,
+            "support": 42
+          },
+          "life.leisure": {
+            "precision": 0.6436,
+            "recall": 0.7558,
+            "f1": 0.6952,
+            "support": 86
+          },
+          "gov.diplomacy": {
+            "precision": 0.9524,
+            "recall": 0.6897,
+            "f1": 0.8,
+            "support": 29
+          },
+          "gov.aid": {
+            "precision": 0.3636,
+            "recall": 1.0,
+            "f1": 0.5333,
+            "support": 4
+          },
+          "gov.globalization": {
+            "precision": 0.5,
+            "recall": 0.6667,
+            "f1": 0.5714,
+            "support": 3
+          },
+          "gen.function": {
+            "precision": 0.8333,
+            "recall": 0.2941,
+            "f1": 0.4348,
+            "support": 51
+          },
+          "gen.linking": {
+            "precision": 0.5172,
+            "recall": 0.7143,
+            "f1": 0.6,
+            "support": 21
+          },
+          "gen.auxiliary": {
+            "precision": 0.6275,
+            "recall": 0.6809,
+            "f1": 0.6531,
+            "support": 47
+          },
+          "gen.general": {
+            "precision": 0.7819,
+            "recall": 0.8802,
+            "f1": 0.8282,
+            "support": 167
+          }
+        }
+      },
+      "joint_exact_match": 0.5424
+    },
+    "test": {
+      "num_samples": 1295,
+      "main_topic": {
+        "accuracy": 0.6927,
+        "macro_f1": 0.6912,
+        "weighted_f1": 0.6935,
+        "per_class": {
+          "Environment & Nature": {
+            "precision": 0.7119,
+            "recall": 0.7568,
+            "f1": 0.7336,
+            "support": 111
+          },
+          "Science & Technology": {
+            "precision": 0.6512,
+            "recall": 0.6364,
+            "f1": 0.6437,
+            "support": 88
+          },
+          "Business, Work & Economy": {
+            "precision": 0.6532,
+            "recall": 0.6807,
+            "f1": 0.6667,
+            "support": 119
+          },
+          "Education & Academia": {
+            "precision": 0.6786,
+            "recall": 0.7037,
+            "f1": 0.6909,
+            "support": 54
+          },
+          "Health, Medicine & Wellness": {
+            "precision": 0.8276,
+            "recall": 0.7164,
+            "f1": 0.768,
+            "support": 67
+          },
+          "Society, Culture & Law": {
+            "precision": 0.7766,
+            "recall": 0.7157,
+            "f1": 0.7449,
+            "support": 204
+          },
+          "Urbanization & Infrastructure": {
+            "precision": 0.8125,
+            "recall": 0.5652,
+            "f1": 0.6667,
+            "support": 23
+          },
+          "Travel & Hospitality": {
+            "precision": 0.7143,
+            "recall": 0.6731,
+            "f1": 0.6931,
+            "support": 52
+          },
+          "Daily Life & Personal Finance": {
+            "precision": 0.625,
+            "recall": 0.7085,
+            "f1": 0.6641,
+            "support": 247
+          },
+          "Global Politics & Humanitarian": {
+            "precision": 0.6053,
+            "recall": 0.697,
+            "f1": 0.6479,
+            "support": 33
+          },
+          "General Vocabulary": {
+            "precision": 0.7021,
+            "recall": 0.6667,
+            "f1": 0.6839,
+            "support": 297
+          }
+        }
+      },
+      "general_vs_topical": {
+        "general_precision": 0.7021,
+        "general_recall": 0.6667,
+        "general_f1": 0.6839
+      },
+      "subtopic_end_to_end": {
+        "accuracy": 0.5012,
+        "macro_f1": 0.4493,
+        "weighted_f1": 0.4929,
+        "per_class": {
+          "env.climate": {
+            "precision": 0.1667,
+            "recall": 0.125,
+            "f1": 0.1429,
+            "support": 8
+          },
+          "env.wildlife": {
+            "precision": 0.5833,
+            "recall": 0.7143,
+            "f1": 0.6422,
+            "support": 49
+          },
+          "env.pollution": {
+            "precision": 0.2857,
+            "recall": 0.2353,
+            "f1": 0.2581,
+            "support": 17
+          },
+          "env.energy": {
+            "precision": 0.3333,
+            "recall": 0.3571,
+            "f1": 0.3448,
+            "support": 14
+          },
+          "env.disaster": {
+            "precision": 0.5652,
+            "recall": 0.5652,
+            "f1": 0.5652,
+            "support": 23
+          },
+          "tech.ai": {
+            "precision": 0.2143,
+            "recall": 0.3333,
+            "f1": 0.2609,
+            "support": 9
+          },
+          "tech.cyber": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2
+          },
+          "tech.space": {
+            "precision": 0.6667,
+            "recall": 0.4211,
+            "f1": 0.5161,
+            "support": 19
+          },
+          "tech.bio": {
+            "precision": 0.6154,
+            "recall": 0.4211,
+            "f1": 0.5,
+            "support": 19
+          },
+          "tech.digital": {
+            "precision": 0.4419,
+            "recall": 0.4872,
+            "f1": 0.4634,
+            "support": 39
+          },
+          "biz.career": {
+            "precision": 0.5,
+            "recall": 0.525,
+            "f1": 0.5122,
+            "support": 40
+          },
+          "biz.finance": {
+            "precision": 0.7037,
+            "recall": 0.7308,
+            "f1": 0.717,
+            "support": 26
+          },
+          "biz.marketing": {
+            "precision": 0.4667,
+            "recall": 0.56,
+            "f1": 0.5091,
+            "support": 25
+          },
+          "biz.trade": {
+            "precision": 0.75,
+            "recall": 0.375,
+            "f1": 0.5,
+            "support": 8
+          },
+          "biz.leadership": {
+            "precision": 0.4762,
+            "recall": 0.5,
+            "f1": 0.4878,
+            "support": 20
+          },
+          "edu.university": {
+            "precision": 0.6,
+            "recall": 0.5,
+            "f1": 0.5455,
+            "support": 6
+          },
+          "edu.pedagogy": {
+            "precision": 0.4667,
+            "recall": 0.7778,
+            "f1": 0.5833,
+            "support": 9
+          },
+          "edu.exams": {
+            "precision": 0.5238,
+            "recall": 0.6111,
+            "f1": 0.5641,
+            "support": 18
+          },
+          "edu.research": {
+            "precision": 0.2,
+            "recall": 0.4,
+            "f1": 0.2667,
+            "support": 5
+          },
+          "edu.discourse": {
+            "precision": 0.6,
+            "recall": 0.1875,
+            "f1": 0.2857,
+            "support": 16
+          },
+          "health.diet": {
+            "precision": 0.7143,
+            "recall": 0.6667,
+            "f1": 0.6897,
+            "support": 15
+          },
+          "health.mental": {
+            "precision": 0.4167,
+            "recall": 0.5556,
+            "f1": 0.4762,
+            "support": 9
+          },
+          "health.disease": {
+            "precision": 0.5294,
+            "recall": 0.5,
+            "f1": 0.5143,
+            "support": 18
+          },
+          "health.care": {
+            "precision": 0.8667,
+            "recall": 0.52,
+            "f1": 0.65,
+            "support": 25
+          },
+          "soc.equality": {
+            "precision": 0.561,
+            "recall": 0.5897,
+            "f1": 0.575,
+            "support": 39
+          },
+          "soc.arts": {
+            "precision": 0.8125,
+            "recall": 0.6341,
+            "f1": 0.7123,
+            "support": 41
+          },
+          "soc.heritage": {
+            "precision": 0.7812,
+            "recall": 0.641,
+            "f1": 0.7042,
+            "support": 39
+          },
+          "soc.law": {
+            "precision": 0.6024,
+            "recall": 0.5882,
+            "f1": 0.5952,
+            "support": 85
+          },
+          "urban.planning": {
+            "precision": 0.25,
+            "recall": 0.1429,
+            "f1": 0.1818,
+            "support": 7
+          },
+          "urban.transit": {
+            "precision": 0.75,
+            "recall": 0.75,
+            "f1": 0.75,
+            "support": 4
+          },
+          "urban.housing": {
+            "precision": 0.875,
+            "recall": 0.5833,
+            "f1": 0.7,
+            "support": 12
+          },
+          "travel.eco": {
+            "precision": 0.359,
+            "recall": 0.5385,
+            "f1": 0.4308,
+            "support": 26
+          },
+          "travel.aviation": {
+            "precision": 0.7778,
+            "recall": 0.3333,
+            "f1": 0.4667,
+            "support": 21
+          },
+          "travel.customs": {
+            "precision": 1.0,
+            "recall": 0.2,
+            "f1": 0.3333,
+            "support": 5
+          },
+          "life.family": {
+            "precision": 0.2692,
+            "recall": 0.2692,
+            "f1": 0.2692,
+            "support": 26
+          },
+          "life.food": {
+            "precision": 0.4301,
+            "recall": 0.5556,
+            "f1": 0.4848,
+            "support": 72
+          },
+          "life.finance": {
+            "precision": 0.2885,
+            "recall": 0.2459,
+            "f1": 0.2655,
+            "support": 61
+          },
+          "life.leisure": {
+            "precision": 0.4312,
+            "recall": 0.5341,
+            "f1": 0.4772,
+            "support": 88
+          },
+          "gov.diplomacy": {
+            "precision": 0.6053,
+            "recall": 0.7667,
+            "f1": 0.6765,
+            "support": 30
+          },
+          "gov.aid": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2
+          },
+          "gov.globalization": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1
+          },
+          "gen.function": {
+            "precision": 0.5294,
+            "recall": 0.1184,
+            "f1": 0.1935,
+            "support": 76
+          },
+          "gen.linking": {
+            "precision": 0.6129,
+            "recall": 0.5758,
+            "f1": 0.5938,
+            "support": 33
+          },
+          "gen.auxiliary": {
+            "precision": 0.2381,
+            "recall": 0.2632,
+            "f1": 0.25,
+            "support": 38
+          },
+          "gen.general": {
+            "precision": 0.5,
+            "recall": 0.64,
+            "f1": 0.5614,
+            "support": 150
+          }
+        }
+      },
+      "subtopic_oracle_main": {
+        "accuracy": 0.6788,
+        "macro_f1": 0.5992,
+        "weighted_f1": 0.6649,
+        "per_class": {
+          "env.climate": {
+            "precision": 0.4,
+            "recall": 0.25,
+            "f1": 0.3077,
+            "support": 8
+          },
+          "env.wildlife": {
+            "precision": 0.7368,
+            "recall": 0.8571,
+            "f1": 0.7925,
+            "support": 49
+          },
+          "env.pollution": {
+            "precision": 0.3889,
+            "recall": 0.4118,
+            "f1": 0.4,
+            "support": 17
+          },
+          "env.energy": {
+            "precision": 0.5833,
+            "recall": 0.5,
+            "f1": 0.5385,
+            "support": 14
+          },
+          "env.disaster": {
+            "precision": 0.8421,
+            "recall": 0.6957,
+            "f1": 0.7619,
+            "support": 23
+          },
+          "tech.ai": {
+            "precision": 0.4,
+            "recall": 0.4444,
+            "f1": 0.4211,
+            "support": 9
+          },
+          "tech.cyber": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2
+          },
+          "tech.space": {
+            "precision": 0.8,
+            "recall": 0.4211,
+            "f1": 0.5517,
+            "support": 19
+          },
+          "tech.bio": {
+            "precision": 0.6667,
+            "recall": 0.5263,
+            "f1": 0.5882,
+            "support": 19
+          },
+          "tech.digital": {
+            "precision": 0.5833,
+            "recall": 0.7179,
+            "f1": 0.6437,
+            "support": 39
+          },
+          "biz.career": {
+            "precision": 0.8108,
+            "recall": 0.75,
+            "f1": 0.7792,
+            "support": 40
+          },
+          "biz.finance": {
+            "precision": 0.8261,
+            "recall": 0.7308,
+            "f1": 0.7755,
+            "support": 26
+          },
+          "biz.marketing": {
+            "precision": 0.6364,
+            "recall": 0.84,
+            "f1": 0.7241,
+            "support": 25
+          },
+          "biz.trade": {
+            "precision": 0.75,
+            "recall": 0.375,
+            "f1": 0.5,
+            "support": 8
+          },
+          "biz.leadership": {
+            "precision": 0.5455,
+            "recall": 0.6,
+            "f1": 0.5714,
+            "support": 20
+          },
+          "edu.university": {
+            "precision": 1.0,
+            "recall": 0.6667,
+            "f1": 0.8,
+            "support": 6
+          },
+          "edu.pedagogy": {
+            "precision": 0.5714,
+            "recall": 0.8889,
+            "f1": 0.6957,
+            "support": 9
+          },
+          "edu.exams": {
+            "precision": 0.6364,
+            "recall": 0.7778,
+            "f1": 0.7,
+            "support": 18
+          },
+          "edu.research": {
+            "precision": 0.2857,
+            "recall": 0.4,
+            "f1": 0.3333,
+            "support": 5
+          },
+          "edu.discourse": {
+            "precision": 0.7143,
+            "recall": 0.3125,
+            "f1": 0.4348,
+            "support": 16
+          },
+          "health.diet": {
+            "precision": 0.7059,
+            "recall": 0.8,
+            "f1": 0.75,
+            "support": 15
+          },
+          "health.mental": {
+            "precision": 0.7778,
+            "recall": 0.7778,
+            "f1": 0.7778,
+            "support": 9
+          },
+          "health.disease": {
+            "precision": 0.7143,
+            "recall": 0.8333,
+            "f1": 0.7692,
+            "support": 18
+          },
+          "health.care": {
+            "precision": 0.9,
+            "recall": 0.72,
+            "f1": 0.8,
+            "support": 25
+          },
+          "soc.equality": {
+            "precision": 0.7778,
+            "recall": 0.7179,
+            "f1": 0.7467,
+            "support": 39
+          },
+          "soc.arts": {
+            "precision": 0.8718,
+            "recall": 0.8293,
+            "f1": 0.85,
+            "support": 41
+          },
+          "soc.heritage": {
+            "precision": 0.8529,
+            "recall": 0.7436,
+            "f1": 0.7945,
+            "support": 39
+          },
+          "soc.law": {
+            "precision": 0.8,
+            "recall": 0.8941,
+            "f1": 0.8444,
+            "support": 85
+          },
+          "urban.planning": {
+            "precision": 0.6667,
+            "recall": 0.2857,
+            "f1": 0.4,
+            "support": 7
+          },
+          "urban.transit": {
+            "precision": 0.5,
+            "recall": 0.75,
+            "f1": 0.6,
+            "support": 4
+          },
+          "urban.housing": {
+            "precision": 0.7857,
+            "recall": 0.9167,
+            "f1": 0.8462,
+            "support": 12
+          },
+          "travel.eco": {
+            "precision": 0.6176,
+            "recall": 0.8077,
+            "f1": 0.7,
+            "support": 26
+          },
+          "travel.aviation": {
+            "precision": 0.8182,
+            "recall": 0.4286,
+            "f1": 0.5625,
+            "support": 21
+          },
+          "travel.customs": {
+            "precision": 0.4286,
+            "recall": 0.6,
+            "f1": 0.5,
+            "support": 5
+          },
+          "life.family": {
+            "precision": 0.4571,
+            "recall": 0.6154,
+            "f1": 0.5246,
+            "support": 26
+          },
+          "life.food": {
+            "precision": 0.64,
+            "recall": 0.6667,
+            "f1": 0.6531,
+            "support": 72
+          },
+          "life.finance": {
+            "precision": 0.66,
+            "recall": 0.541,
+            "f1": 0.5946,
+            "support": 61
+          },
+          "life.leisure": {
+            "precision": 0.6437,
+            "recall": 0.6364,
+            "f1": 0.64,
+            "support": 88
+          },
+          "gov.diplomacy": {
+            "precision": 0.9286,
+            "recall": 0.8667,
+            "f1": 0.8966,
+            "support": 30
+          },
+          "gov.aid": {
+            "precision": 0.2,
+            "recall": 0.5,
+            "f1": 0.2857,
+            "support": 2
+          },
+          "gov.globalization": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1
+          },
+          "gen.function": {
+            "precision": 0.7143,
+            "recall": 0.1316,
+            "f1": 0.2222,
+            "support": 76
+          },
+          "gen.linking": {
+            "precision": 0.6129,
+            "recall": 0.5758,
+            "f1": 0.5938,
+            "support": 33
+          },
+          "gen.auxiliary": {
+            "precision": 0.4681,
+            "recall": 0.5789,
+            "f1": 0.5176,
+            "support": 38
+          },
+          "gen.general": {
+            "precision": 0.6732,
+            "recall": 0.92,
+            "f1": 0.7775,
+            "support": 150
+          }
+        }
+      },
+      "joint_exact_match": 0.5012
+    }
+  },
+  "finetuned_encoder_trainable_head": {
+    "val": {
+      "num_samples": 1296,
+      "main_topic": {
+        "accuracy": 0.7145,
+        "macro_f1": 0.7094,
+        "weighted_f1": 0.7134,
+        "per_class": {
+          "Environment & Nature": {
+            "precision": 0.7551,
+            "recall": 0.7551,
+            "f1": 0.7551,
+            "support": 98
+          },
+          "Science & Technology": {
+            "precision": 0.75,
+            "recall": 0.8118,
+            "f1": 0.7797,
+            "support": 85
+          },
+          "Business, Work & Economy": {
+            "precision": 0.7059,
+            "recall": 0.672,
+            "f1": 0.6885,
+            "support": 125
+          },
+          "Education & Academia": {
+            "precision": 0.7805,
+            "recall": 0.5333,
+            "f1": 0.6337,
+            "support": 60
+          },
+          "Health, Medicine & Wellness": {
+            "precision": 0.8611,
+            "recall": 0.8267,
+            "f1": 0.8435,
+            "support": 75
+          },
+          "Society, Culture & Law": {
+            "precision": 0.7474,
+            "recall": 0.7286,
+            "f1": 0.7379,
+            "support": 199
+          },
+          "Urbanization & Infrastructure": {
+            "precision": 0.6176,
+            "recall": 0.875,
+            "f1": 0.7241,
+            "support": 24
+          },
+          "Travel & Hospitality": {
+            "precision": 0.6543,
+            "recall": 0.8689,
+            "f1": 0.7465,
+            "support": 61
+          },
+          "Daily Life & Personal Finance": {
+            "precision": 0.6777,
+            "recall": 0.664,
+            "f1": 0.6708,
+            "support": 247
+          },
+          "Global Politics & Humanitarian": {
+            "precision": 0.5294,
+            "recall": 0.5,
+            "f1": 0.5143,
+            "support": 36
+          },
+          "General Vocabulary": {
+            "precision": 0.7059,
+            "recall": 0.7133,
+            "f1": 0.7096,
+            "support": 286
+          }
+        }
+      },
+      "general_vs_topical": {
+        "general_precision": 0.7059,
+        "general_recall": 0.7133,
+        "general_f1": 0.7096
+      },
+      "subtopic_end_to_end": {
+        "accuracy": 0.5386,
+        "macro_f1": 0.4867,
+        "weighted_f1": 0.5339,
+        "per_class": {
+          "env.climate": {
+            "precision": 0.3333,
+            "recall": 0.3333,
+            "f1": 0.3333,
+            "support": 6
+          },
+          "env.wildlife": {
+            "precision": 0.7619,
+            "recall": 0.7805,
+            "f1": 0.7711,
+            "support": 41
+          },
+          "env.pollution": {
+            "precision": 0.3333,
+            "recall": 0.3333,
+            "f1": 0.3333,
+            "support": 12
+          },
+          "env.energy": {
+            "precision": 0.5789,
+            "recall": 0.7857,
+            "f1": 0.6667,
+            "support": 14
+          },
+          "env.disaster": {
+            "precision": 0.7895,
+            "recall": 0.6,
+            "f1": 0.6818,
+            "support": 25
+          },
+          "tech.ai": {
+            "precision": 0.3846,
+            "recall": 0.2941,
+            "f1": 0.3333,
+            "support": 17
+          },
+          "tech.cyber": {
+            "precision": 0.5,
+            "recall": 0.1667,
+            "f1": 0.25,
+            "support": 6
+          },
+          "tech.space": {
+            "precision": 0.6667,
+            "recall": 0.4762,
+            "f1": 0.5556,
+            "support": 21
+          },
+          "tech.bio": {
+            "precision": 0.5,
+            "recall": 0.6667,
+            "f1": 0.5714,
+            "support": 12
+          },
+          "tech.digital": {
+            "precision": 0.413,
+            "recall": 0.6552,
+            "f1": 0.5067,
+            "support": 29
+          },
+          "biz.career": {
+            "precision": 0.3077,
+            "recall": 0.4615,
+            "f1": 0.3692,
+            "support": 26
+          },
+          "biz.finance": {
+            "precision": 0.5,
+            "recall": 0.4643,
+            "f1": 0.4815,
+            "support": 28
+          },
+          "biz.marketing": {
+            "precision": 0.4444,
+            "recall": 0.3871,
+            "f1": 0.4138,
+            "support": 31
+          },
+          "biz.trade": {
+            "precision": 0.4,
+            "recall": 0.2353,
+            "f1": 0.2963,
+            "support": 17
+          },
+          "biz.leadership": {
+            "precision": 0.7059,
+            "recall": 0.5217,
+            "f1": 0.6,
+            "support": 23
+          },
+          "edu.university": {
+            "precision": 1.0,
+            "recall": 0.5714,
+            "f1": 0.7273,
+            "support": 7
+          },
+          "edu.pedagogy": {
+            "precision": 0.5714,
+            "recall": 0.2105,
+            "f1": 0.3077,
+            "support": 19
+          },
+          "edu.exams": {
+            "precision": 0.8,
+            "recall": 0.3077,
+            "f1": 0.4444,
+            "support": 13
+          },
+          "edu.research": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "edu.discourse": {
+            "precision": 0.4545,
+            "recall": 0.4762,
+            "f1": 0.4651,
+            "support": 21
+          },
+          "health.diet": {
+            "precision": 0.7222,
+            "recall": 0.52,
+            "f1": 0.6047,
+            "support": 25
+          },
+          "health.mental": {
+            "precision": 0.7,
+            "recall": 0.7,
+            "f1": 0.7,
+            "support": 10
+          },
+          "health.disease": {
+            "precision": 0.6071,
+            "recall": 0.7391,
+            "f1": 0.6667,
+            "support": 23
+          },
+          "health.care": {
+            "precision": 0.875,
+            "recall": 0.8235,
+            "f1": 0.8485,
+            "support": 17
+          },
+          "soc.equality": {
+            "precision": 0.5625,
+            "recall": 0.4737,
+            "f1": 0.5143,
+            "support": 38
+          },
+          "soc.arts": {
+            "precision": 0.675,
+            "recall": 0.6,
+            "f1": 0.6353,
+            "support": 45
+          },
+          "soc.heritage": {
+            "precision": 0.6486,
+            "recall": 0.7059,
+            "f1": 0.6761,
+            "support": 34
+          },
+          "soc.law": {
+            "precision": 0.5765,
+            "recall": 0.5976,
+            "f1": 0.5868,
+            "support": 82
+          },
+          "urban.planning": {
+            "precision": 0.6667,
+            "recall": 0.4,
+            "f1": 0.5,
+            "support": 5
+          },
+          "urban.transit": {
+            "precision": 0.4167,
+            "recall": 0.8333,
+            "f1": 0.5556,
+            "support": 6
+          },
+          "urban.housing": {
+            "precision": 0.5263,
+            "recall": 0.7692,
+            "f1": 0.625,
+            "support": 13
+          },
+          "travel.eco": {
+            "precision": 0.5102,
+            "recall": 0.8065,
+            "f1": 0.625,
+            "support": 31
+          },
+          "travel.aviation": {
+            "precision": 0.56,
+            "recall": 0.5833,
+            "f1": 0.5714,
+            "support": 24
+          },
+          "travel.customs": {
+            "precision": 0.4286,
+            "recall": 0.5,
+            "f1": 0.4615,
+            "support": 6
+          },
+          "life.family": {
+            "precision": 0.5,
+            "recall": 0.25,
+            "f1": 0.3333,
+            "support": 36
+          },
+          "life.food": {
+            "precision": 0.5529,
+            "recall": 0.5663,
+            "f1": 0.5595,
+            "support": 83
+          },
+          "life.finance": {
+            "precision": 0.3784,
+            "recall": 0.3333,
+            "f1": 0.3544,
+            "support": 42
+          },
+          "life.leisure": {
+            "precision": 0.4412,
+            "recall": 0.5233,
+            "f1": 0.4787,
+            "support": 86
+          },
+          "gov.diplomacy": {
+            "precision": 0.5,
+            "recall": 0.4828,
+            "f1": 0.4912,
+            "support": 29
+          },
+          "gov.aid": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 4
+          },
+          "gov.globalization": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 3
+          },
+          "gen.function": {
+            "precision": 0.6333,
+            "recall": 0.3725,
+            "f1": 0.4691,
+            "support": 51
+          },
+          "gen.linking": {
+            "precision": 0.3684,
+            "recall": 0.6667,
+            "f1": 0.4746,
+            "support": 21
+          },
+          "gen.auxiliary": {
+            "precision": 0.5625,
+            "recall": 0.383,
+            "f1": 0.4557,
+            "support": 47
+          },
+          "gen.general": {
+            "precision": 0.5714,
+            "recall": 0.6467,
+            "f1": 0.6067,
+            "support": 167
+          }
+        }
+      },
+      "subtopic_oracle_main": {
+        "accuracy": 0.7137,
+        "macro_f1": 0.6594,
+        "weighted_f1": 0.7097,
+        "per_class": {
+          "env.climate": {
+            "precision": 0.4,
+            "recall": 0.3333,
+            "f1": 0.3636,
+            "support": 6
+          },
+          "env.wildlife": {
+            "precision": 0.8636,
+            "recall": 0.9268,
+            "f1": 0.8941,
+            "support": 41
+          },
+          "env.pollution": {
+            "precision": 0.5882,
+            "recall": 0.8333,
+            "f1": 0.6897,
+            "support": 12
+          },
+          "env.energy": {
+            "precision": 0.8462,
+            "recall": 0.7857,
+            "f1": 0.8148,
+            "support": 14
+          },
+          "env.disaster": {
+            "precision": 0.8947,
+            "recall": 0.68,
+            "f1": 0.7727,
+            "support": 25
+          },
+          "tech.ai": {
+            "precision": 0.5556,
+            "recall": 0.2941,
+            "f1": 0.3846,
+            "support": 17
+          },
+          "tech.cyber": {
+            "precision": 0.8,
+            "recall": 0.6667,
+            "f1": 0.7273,
+            "support": 6
+          },
+          "tech.space": {
+            "precision": 0.75,
+            "recall": 0.5714,
+            "f1": 0.6486,
+            "support": 21
+          },
+          "tech.bio": {
+            "precision": 0.5333,
+            "recall": 0.6667,
+            "f1": 0.5926,
+            "support": 12
+          },
+          "tech.digital": {
+            "precision": 0.55,
+            "recall": 0.7586,
+            "f1": 0.6377,
+            "support": 29
+          },
+          "biz.career": {
+            "precision": 0.6667,
+            "recall": 0.6923,
+            "f1": 0.6792,
+            "support": 26
+          },
+          "biz.finance": {
+            "precision": 0.6,
+            "recall": 0.5357,
+            "f1": 0.566,
+            "support": 28
+          },
+          "biz.marketing": {
+            "precision": 0.5588,
+            "recall": 0.6129,
+            "f1": 0.5846,
+            "support": 31
+          },
+          "biz.trade": {
+            "precision": 0.5556,
+            "recall": 0.5882,
+            "f1": 0.5714,
+            "support": 17
+          },
+          "biz.leadership": {
+            "precision": 0.8095,
+            "recall": 0.7391,
+            "f1": 0.7727,
+            "support": 23
+          },
+          "edu.university": {
+            "precision": 0.4545,
+            "recall": 0.7143,
+            "f1": 0.5556,
+            "support": 7
+          },
+          "edu.pedagogy": {
+            "precision": 0.8,
+            "recall": 0.2105,
+            "f1": 0.3333,
+            "support": 19
+          },
+          "edu.exams": {
+            "precision": 1.0,
+            "recall": 0.5385,
+            "f1": 0.7,
+            "support": 13
+          },
+          "edu.research": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "edu.discourse": {
+            "precision": 0.5429,
+            "recall": 0.9048,
+            "f1": 0.6786,
+            "support": 21
+          },
+          "health.diet": {
+            "precision": 0.8261,
+            "recall": 0.76,
+            "f1": 0.7917,
+            "support": 25
+          },
+          "health.mental": {
+            "precision": 0.6923,
+            "recall": 0.9,
+            "f1": 0.7826,
+            "support": 10
+          },
+          "health.disease": {
+            "precision": 0.8261,
+            "recall": 0.8261,
+            "f1": 0.8261,
+            "support": 23
+          },
+          "health.care": {
+            "precision": 1.0,
+            "recall": 0.9412,
+            "f1": 0.9697,
+            "support": 17
+          },
+          "soc.equality": {
+            "precision": 0.7931,
+            "recall": 0.6053,
+            "f1": 0.6866,
+            "support": 38
+          },
+          "soc.arts": {
+            "precision": 0.8605,
+            "recall": 0.8222,
+            "f1": 0.8409,
+            "support": 45
+          },
+          "soc.heritage": {
+            "precision": 0.7838,
+            "recall": 0.8529,
+            "f1": 0.8169,
+            "support": 34
+          },
+          "soc.law": {
+            "precision": 0.7667,
+            "recall": 0.8415,
+            "f1": 0.8023,
+            "support": 82
+          },
+          "urban.planning": {
+            "precision": 1.0,
+            "recall": 0.4,
+            "f1": 0.5714,
+            "support": 5
+          },
+          "urban.transit": {
+            "precision": 0.5556,
+            "recall": 0.8333,
+            "f1": 0.6667,
+            "support": 6
+          },
+          "urban.housing": {
+            "precision": 0.9231,
+            "recall": 0.9231,
+            "f1": 0.9231,
+            "support": 13
+          },
+          "travel.eco": {
+            "precision": 0.7,
+            "recall": 0.9032,
+            "f1": 0.7887,
+            "support": 31
+          },
+          "travel.aviation": {
+            "precision": 0.8235,
+            "recall": 0.5833,
+            "f1": 0.6829,
+            "support": 24
+          },
+          "travel.customs": {
+            "precision": 0.75,
+            "recall": 0.5,
+            "f1": 0.6,
+            "support": 6
+          },
+          "life.family": {
+            "precision": 0.5217,
+            "recall": 0.3333,
+            "f1": 0.4068,
+            "support": 36
+          },
+          "life.food": {
+            "precision": 0.7209,
+            "recall": 0.747,
+            "f1": 0.7337,
+            "support": 83
+          },
+          "life.finance": {
+            "precision": 0.5227,
+            "recall": 0.5476,
+            "f1": 0.5349,
+            "support": 42
+          },
+          "life.leisure": {
+            "precision": 0.6702,
+            "recall": 0.7326,
+            "f1": 0.7,
+            "support": 86
+          },
+          "gov.diplomacy": {
+            "precision": 0.9565,
+            "recall": 0.7586,
+            "f1": 0.8462,
+            "support": 29
+          },
+          "gov.aid": {
+            "precision": 0.5714,
+            "recall": 1.0,
+            "f1": 0.7273,
+            "support": 4
+          },
+          "gov.globalization": {
+            "precision": 0.3333,
+            "recall": 0.6667,
+            "f1": 0.4444,
+            "support": 3
+          },
+          "gen.function": {
+            "precision": 0.7778,
+            "recall": 0.4118,
+            "f1": 0.5385,
+            "support": 51
+          },
+          "gen.linking": {
+            "precision": 0.4054,
+            "recall": 0.7143,
+            "f1": 0.5172,
+            "support": 21
+          },
+          "gen.auxiliary": {
+            "precision": 0.66,
+            "recall": 0.7021,
+            "f1": 0.6804,
+            "support": 47
+          },
+          "gen.general": {
+            "precision": 0.814,
+            "recall": 0.8383,
+            "f1": 0.826,
+            "support": 167
+          }
+        }
+      },
+      "joint_exact_match": 0.5386
+    },
+    "test": {
+      "num_samples": 1295,
+      "main_topic": {
+        "accuracy": 0.6942,
+        "macro_f1": 0.6954,
+        "weighted_f1": 0.6943,
+        "per_class": {
+          "Environment & Nature": {
+            "precision": 0.7049,
+            "recall": 0.7748,
+            "f1": 0.7382,
+            "support": 111
+          },
+          "Science & Technology": {
+            "precision": 0.6392,
+            "recall": 0.7045,
+            "f1": 0.6703,
+            "support": 88
+          },
+          "Business, Work & Economy": {
+            "precision": 0.6587,
+            "recall": 0.6975,
+            "f1": 0.6776,
+            "support": 119
+          },
+          "Education & Academia": {
+            "precision": 0.6552,
+            "recall": 0.7037,
+            "f1": 0.6786,
+            "support": 54
+          },
+          "Health, Medicine & Wellness": {
+            "precision": 0.7681,
+            "recall": 0.791,
+            "f1": 0.7794,
+            "support": 67
+          },
+          "Society, Culture & Law": {
+            "precision": 0.7802,
+            "recall": 0.6961,
+            "f1": 0.7358,
+            "support": 204
+          },
+          "Urbanization & Infrastructure": {
+            "precision": 0.7647,
+            "recall": 0.5652,
+            "f1": 0.65,
+            "support": 23
+          },
+          "Travel & Hospitality": {
+            "precision": 0.68,
+            "recall": 0.6538,
+            "f1": 0.6667,
+            "support": 52
+          },
+          "Daily Life & Personal Finance": {
+            "precision": 0.6347,
+            "recall": 0.6964,
+            "f1": 0.6641,
+            "support": 247
+          },
+          "Global Politics & Humanitarian": {
+            "precision": 0.6279,
+            "recall": 0.8182,
+            "f1": 0.7105,
+            "support": 33
+          },
+          "General Vocabulary": {
+            "precision": 0.7269,
+            "recall": 0.6364,
+            "f1": 0.6786,
+            "support": 297
+          }
+        }
+      },
+      "general_vs_topical": {
+        "general_precision": 0.7269,
+        "general_recall": 0.6364,
+        "general_f1": 0.6786
+      },
+      "subtopic_end_to_end": {
+        "accuracy": 0.4981,
+        "macro_f1": 0.4535,
+        "weighted_f1": 0.4926,
+        "per_class": {
+          "env.climate": {
+            "precision": 0.2857,
+            "recall": 0.25,
+            "f1": 0.2667,
+            "support": 8
+          },
+          "env.wildlife": {
+            "precision": 0.614,
+            "recall": 0.7143,
+            "f1": 0.6604,
+            "support": 49
+          },
+          "env.pollution": {
+            "precision": 0.2381,
+            "recall": 0.2941,
+            "f1": 0.2632,
+            "support": 17
+          },
+          "env.energy": {
+            "precision": 0.3333,
+            "recall": 0.3571,
+            "f1": 0.3448,
+            "support": 14
+          },
+          "env.disaster": {
+            "precision": 0.5909,
+            "recall": 0.5652,
+            "f1": 0.5778,
+            "support": 23
+          },
+          "tech.ai": {
+            "precision": 0.2,
+            "recall": 0.3333,
+            "f1": 0.25,
+            "support": 9
+          },
+          "tech.cyber": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2
+          },
+          "tech.space": {
+            "precision": 0.6667,
+            "recall": 0.4211,
+            "f1": 0.5161,
+            "support": 19
+          },
+          "tech.bio": {
+            "precision": 0.6154,
+            "recall": 0.4211,
+            "f1": 0.5,
+            "support": 19
+          },
+          "tech.digital": {
+            "precision": 0.4468,
+            "recall": 0.5385,
+            "f1": 0.4884,
+            "support": 39
+          },
+          "biz.career": {
+            "precision": 0.4651,
+            "recall": 0.5,
+            "f1": 0.4819,
+            "support": 40
+          },
+          "biz.finance": {
+            "precision": 0.5758,
+            "recall": 0.7308,
+            "f1": 0.6441,
+            "support": 26
+          },
+          "biz.marketing": {
+            "precision": 0.4783,
+            "recall": 0.44,
+            "f1": 0.4583,
+            "support": 25
+          },
+          "biz.trade": {
+            "precision": 0.4286,
+            "recall": 0.375,
+            "f1": 0.4,
+            "support": 8
+          },
+          "biz.leadership": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "support": 20
+          },
+          "edu.university": {
+            "precision": 0.6667,
+            "recall": 0.6667,
+            "f1": 0.6667,
+            "support": 6
+          },
+          "edu.pedagogy": {
+            "precision": 0.4667,
+            "recall": 0.7778,
+            "f1": 0.5833,
+            "support": 9
+          },
+          "edu.exams": {
+            "precision": 0.5238,
+            "recall": 0.6111,
+            "f1": 0.5641,
+            "support": 18
+          },
+          "edu.research": {
+            "precision": 0.2,
+            "recall": 0.4,
+            "f1": 0.2667,
+            "support": 5
+          },
+          "edu.discourse": {
+            "precision": 0.5,
+            "recall": 0.1875,
+            "f1": 0.2727,
+            "support": 16
+          },
+          "health.diet": {
+            "precision": 0.6842,
+            "recall": 0.8667,
+            "f1": 0.7647,
+            "support": 15
+          },
+          "health.mental": {
+            "precision": 0.3636,
+            "recall": 0.4444,
+            "f1": 0.4,
+            "support": 9
+          },
+          "health.disease": {
+            "precision": 0.5,
+            "recall": 0.6111,
+            "f1": 0.55,
+            "support": 18
+          },
+          "health.care": {
+            "precision": 0.9412,
+            "recall": 0.64,
+            "f1": 0.7619,
+            "support": 25
+          },
+          "soc.equality": {
+            "precision": 0.6389,
+            "recall": 0.5897,
+            "f1": 0.6133,
+            "support": 39
+          },
+          "soc.arts": {
+            "precision": 0.7714,
+            "recall": 0.6585,
+            "f1": 0.7105,
+            "support": 41
+          },
+          "soc.heritage": {
+            "precision": 0.7667,
+            "recall": 0.5897,
+            "f1": 0.6667,
+            "support": 39
+          },
+          "soc.law": {
+            "precision": 0.5926,
+            "recall": 0.5647,
+            "f1": 0.5783,
+            "support": 85
+          },
+          "urban.planning": {
+            "precision": 0.4,
+            "recall": 0.2857,
+            "f1": 0.3333,
+            "support": 7
+          },
+          "urban.transit": {
+            "precision": 0.75,
+            "recall": 0.75,
+            "f1": 0.75,
+            "support": 4
+          },
+          "urban.housing": {
+            "precision": 0.875,
+            "recall": 0.5833,
+            "f1": 0.7,
+            "support": 12
+          },
+          "travel.eco": {
+            "precision": 0.3333,
+            "recall": 0.4615,
+            "f1": 0.3871,
+            "support": 26
+          },
+          "travel.aviation": {
+            "precision": 0.6364,
+            "recall": 0.3333,
+            "f1": 0.4375,
+            "support": 21
+          },
+          "travel.customs": {
+            "precision": 0.3333,
+            "recall": 0.2,
+            "f1": 0.25,
+            "support": 5
+          },
+          "life.family": {
+            "precision": 0.3438,
+            "recall": 0.4231,
+            "f1": 0.3793,
+            "support": 26
+          },
+          "life.food": {
+            "precision": 0.4255,
+            "recall": 0.5556,
+            "f1": 0.4819,
+            "support": 72
+          },
+          "life.finance": {
+            "precision": 0.2885,
+            "recall": 0.2459,
+            "f1": 0.2655,
+            "support": 61
+          },
+          "life.leisure": {
+            "precision": 0.4516,
+            "recall": 0.4773,
+            "f1": 0.4641,
+            "support": 88
+          },
+          "gov.diplomacy": {
+            "precision": 0.6579,
+            "recall": 0.8333,
+            "f1": 0.7353,
+            "support": 30
+          },
+          "gov.aid": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2
+          },
+          "gov.globalization": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1
+          },
+          "gen.function": {
+            "precision": 0.4091,
+            "recall": 0.1184,
+            "f1": 0.1837,
+            "support": 76
+          },
+          "gen.linking": {
+            "precision": 0.5,
+            "recall": 0.6061,
+            "f1": 0.5479,
+            "support": 33
+          },
+          "gen.auxiliary": {
+            "precision": 0.1765,
+            "recall": 0.1579,
+            "f1": 0.1667,
+            "support": 38
+          },
+          "gen.general": {
+            "precision": 0.5488,
+            "recall": 0.6,
+            "f1": 0.5732,
+            "support": 150
+          }
+        }
+      },
+      "subtopic_oracle_main": {
+        "accuracy": 0.678,
+        "macro_f1": 0.6265,
+        "weighted_f1": 0.6684,
+        "per_class": {
+          "env.climate": {
+            "precision": 0.5714,
+            "recall": 0.5,
+            "f1": 0.5333,
+            "support": 8
+          },
+          "env.wildlife": {
+            "precision": 0.8077,
+            "recall": 0.8571,
+            "f1": 0.8317,
+            "support": 49
+          },
+          "env.pollution": {
+            "precision": 0.3913,
+            "recall": 0.5294,
+            "f1": 0.45,
+            "support": 17
+          },
+          "env.energy": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "support": 14
+          },
+          "env.disaster": {
+            "precision": 0.8667,
+            "recall": 0.5652,
+            "f1": 0.6842,
+            "support": 23
+          },
+          "tech.ai": {
+            "precision": 0.4444,
+            "recall": 0.4444,
+            "f1": 0.4444,
+            "support": 9
+          },
+          "tech.cyber": {
+            "precision": 0.125,
+            "recall": 0.5,
+            "f1": 0.2,
+            "support": 2
+          },
+          "tech.space": {
+            "precision": 0.8182,
+            "recall": 0.4737,
+            "f1": 0.6,
+            "support": 19
+          },
+          "tech.bio": {
+            "precision": 0.6316,
+            "recall": 0.6316,
+            "f1": 0.6316,
+            "support": 19
+          },
+          "tech.digital": {
+            "precision": 0.6341,
+            "recall": 0.6667,
+            "f1": 0.65,
+            "support": 39
+          },
+          "biz.career": {
+            "precision": 0.8056,
+            "recall": 0.725,
+            "f1": 0.7632,
+            "support": 40
+          },
+          "biz.finance": {
+            "precision": 0.7308,
+            "recall": 0.7308,
+            "f1": 0.7308,
+            "support": 26
+          },
+          "biz.marketing": {
+            "precision": 0.6667,
+            "recall": 0.72,
+            "f1": 0.6923,
+            "support": 25
+          },
+          "biz.trade": {
+            "precision": 0.4286,
+            "recall": 0.375,
+            "f1": 0.4,
+            "support": 8
+          },
+          "biz.leadership": {
+            "precision": 0.5217,
+            "recall": 0.6,
+            "f1": 0.5581,
+            "support": 20
+          },
+          "edu.university": {
+            "precision": 0.8333,
+            "recall": 0.8333,
+            "f1": 0.8333,
+            "support": 6
+          },
+          "edu.pedagogy": {
+            "precision": 0.6154,
+            "recall": 0.8889,
+            "f1": 0.7273,
+            "support": 9
+          },
+          "edu.exams": {
+            "precision": 0.6364,
+            "recall": 0.7778,
+            "f1": 0.7,
+            "support": 18
+          },
+          "edu.research": {
+            "precision": 0.2857,
+            "recall": 0.4,
+            "f1": 0.3333,
+            "support": 5
+          },
+          "edu.discourse": {
+            "precision": 0.6667,
+            "recall": 0.25,
+            "f1": 0.3636,
+            "support": 16
+          },
+          "health.diet": {
+            "precision": 0.8125,
+            "recall": 0.8667,
+            "f1": 0.8387,
+            "support": 15
+          },
+          "health.mental": {
+            "precision": 0.8571,
+            "recall": 0.6667,
+            "f1": 0.75,
+            "support": 9
+          },
+          "health.disease": {
+            "precision": 0.7143,
+            "recall": 0.8333,
+            "f1": 0.7692,
+            "support": 18
+          },
+          "health.care": {
+            "precision": 0.913,
+            "recall": 0.84,
+            "f1": 0.875,
+            "support": 25
+          },
+          "soc.equality": {
+            "precision": 0.8485,
+            "recall": 0.7179,
+            "f1": 0.7778,
+            "support": 39
+          },
+          "soc.arts": {
+            "precision": 0.875,
+            "recall": 0.8537,
+            "f1": 0.8642,
+            "support": 41
+          },
+          "soc.heritage": {
+            "precision": 0.8056,
+            "recall": 0.7436,
+            "f1": 0.7733,
+            "support": 39
+          },
+          "soc.law": {
+            "precision": 0.7895,
+            "recall": 0.8824,
+            "f1": 0.8333,
+            "support": 85
+          },
+          "urban.planning": {
+            "precision": 0.8333,
+            "recall": 0.7143,
+            "f1": 0.7692,
+            "support": 7
+          },
+          "urban.transit": {
+            "precision": 1.0,
+            "recall": 0.75,
+            "f1": 0.8571,
+            "support": 4
+          },
+          "urban.housing": {
+            "precision": 0.7857,
+            "recall": 0.9167,
+            "f1": 0.8462,
+            "support": 12
+          },
+          "travel.eco": {
+            "precision": 0.5806,
+            "recall": 0.6923,
+            "f1": 0.6316,
+            "support": 26
+          },
+          "travel.aviation": {
+            "precision": 0.5625,
+            "recall": 0.4286,
+            "f1": 0.4865,
+            "support": 21
+          },
+          "travel.customs": {
+            "precision": 0.6,
+            "recall": 0.6,
+            "f1": 0.6,
+            "support": 5
+          },
+          "life.family": {
+            "precision": 0.4167,
+            "recall": 0.5769,
+            "f1": 0.4839,
+            "support": 26
+          },
+          "life.food": {
+            "precision": 0.6203,
+            "recall": 0.6806,
+            "f1": 0.649,
+            "support": 72
+          },
+          "life.finance": {
+            "precision": 0.6346,
+            "recall": 0.541,
+            "f1": 0.5841,
+            "support": 61
+          },
+          "life.leisure": {
+            "precision": 0.6375,
+            "recall": 0.5795,
+            "f1": 0.6071,
+            "support": 88
+          },
+          "gov.diplomacy": {
+            "precision": 0.9333,
+            "recall": 0.9333,
+            "f1": 0.9333,
+            "support": 30
+          },
+          "gov.aid": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1": 0.5,
+            "support": 2
+          },
+          "gov.globalization": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1
+          },
+          "gen.function": {
+            "precision": 0.7222,
+            "recall": 0.1711,
+            "f1": 0.2766,
+            "support": 76
+          },
+          "gen.linking": {
+            "precision": 0.5556,
+            "recall": 0.6061,
+            "f1": 0.5797,
+            "support": 33
+          },
+          "gen.auxiliary": {
+            "precision": 0.44,
+            "recall": 0.5789,
+            "f1": 0.5,
+            "support": 38
+          },
+          "gen.general": {
+            "precision": 0.6943,
+            "recall": 0.8933,
+            "f1": 0.7813,
+            "support": 150
+          }
+        }
+      },
+      "joint_exact_match": 0.4981
+    }
+  },
+  "frozen_encoder_trainable_heads": {
+    "val": {
+      "num_samples": 1296,
+      "main_topic": {
+        "accuracy": 0.6227,
+        "macro_f1": 0.5881,
+        "weighted_f1": 0.6175,
+        "per_class": {
+          "Environment & Nature": {
+            "precision": 0.5556,
+            "recall": 0.6122,
+            "f1": 0.5825,
+            "support": 98
+          },
+          "Science & Technology": {
+            "precision": 0.6364,
+            "recall": 0.5765,
+            "f1": 0.6049,
+            "support": 85
+          },
+          "Business, Work & Economy": {
+            "precision": 0.6981,
+            "recall": 0.592,
+            "f1": 0.6407,
+            "support": 125
+          },
+          "Education & Academia": {
+            "precision": 0.7037,
+            "recall": 0.3167,
+            "f1": 0.4368,
+            "support": 60
+          },
+          "Health, Medicine & Wellness": {
+            "precision": 0.8077,
+            "recall": 0.56,
+            "f1": 0.6614,
+            "support": 75
+          },
+          "Society, Culture & Law": {
+            "precision": 0.615,
+            "recall": 0.6583,
+            "f1": 0.6359,
+            "support": 199
+          },
+          "Urbanization & Infrastructure": {
+            "precision": 0.6667,
+            "recall": 0.5833,
+            "f1": 0.6222,
+            "support": 24
+          },
+          "Travel & Hospitality": {
+            "precision": 0.6111,
+            "recall": 0.7213,
+            "f1": 0.6617,
+            "support": 61
+          },
+          "Daily Life & Personal Finance": {
+            "precision": 0.554,
+            "recall": 0.6437,
+            "f1": 0.5955,
+            "support": 247
+          },
+          "Global Politics & Humanitarian": {
+            "precision": 0.8,
+            "recall": 0.2222,
+            "f1": 0.3478,
+            "support": 36
+          },
+          "General Vocabulary": {
+            "precision": 0.6409,
+            "recall": 0.7238,
+            "f1": 0.6798,
+            "support": 286
+          }
+        }
+      },
+      "general_vs_topical": {
+        "general_precision": 0.6409,
+        "general_recall": 0.7238,
+        "general_f1": 0.6798
+      },
+      "subtopic_end_to_end": {
+        "accuracy": 0.4938,
+        "macro_f1": 0.4025,
+        "weighted_f1": 0.4671,
+        "per_class": {
+          "env.climate": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 6
+          },
+          "env.wildlife": {
+            "precision": 0.5294,
+            "recall": 0.6585,
+            "f1": 0.587,
+            "support": 41
+          },
+          "env.pollution": {
+            "precision": 0.2727,
+            "recall": 0.25,
+            "f1": 0.2609,
+            "support": 12
+          },
+          "env.energy": {
+            "precision": 0.5789,
+            "recall": 0.7857,
+            "f1": 0.6667,
+            "support": 14
+          },
+          "env.disaster": {
+            "precision": 0.5417,
+            "recall": 0.52,
+            "f1": 0.5306,
+            "support": 25
+          },
+          "tech.ai": {
+            "precision": 0.6667,
+            "recall": 0.3529,
+            "f1": 0.4615,
+            "support": 17
+          },
+          "tech.cyber": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 6
+          },
+          "tech.space": {
+            "precision": 0.5455,
+            "recall": 0.2857,
+            "f1": 0.375,
+            "support": 21
+          },
+          "tech.bio": {
+            "precision": 0.4375,
+            "recall": 0.5833,
+            "f1": 0.5,
+            "support": 12
+          },
+          "tech.digital": {
+            "precision": 0.4146,
+            "recall": 0.5862,
+            "f1": 0.4857,
+            "support": 29
+          },
+          "biz.career": {
+            "precision": 0.3333,
+            "recall": 0.5385,
+            "f1": 0.4118,
+            "support": 26
+          },
+          "biz.finance": {
+            "precision": 0.3636,
+            "recall": 0.2857,
+            "f1": 0.32,
+            "support": 28
+          },
+          "biz.marketing": {
+            "precision": 0.5484,
+            "recall": 0.5484,
+            "f1": 0.5484,
+            "support": 31
+          },
+          "biz.trade": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 17
+          },
+          "biz.leadership": {
+            "precision": 0.8182,
+            "recall": 0.3913,
+            "f1": 0.5294,
+            "support": 23
+          },
+          "edu.university": {
+            "precision": 1.0,
+            "recall": 0.4286,
+            "f1": 0.6,
+            "support": 7
+          },
+          "edu.pedagogy": {
+            "precision": 0.3636,
+            "recall": 0.2105,
+            "f1": 0.2667,
+            "support": 19
+          },
+          "edu.exams": {
+            "precision": 0.6667,
+            "recall": 0.1538,
+            "f1": 0.25,
+            "support": 13
+          },
+          "edu.discourse": {
+            "precision": 0.4,
+            "recall": 0.1905,
+            "f1": 0.2581,
+            "support": 21
+          },
+          "health.diet": {
+            "precision": 1.0,
+            "recall": 0.32,
+            "f1": 0.4848,
+            "support": 25
+          },
+          "health.mental": {
+            "precision": 0.8571,
+            "recall": 0.6,
+            "f1": 0.7059,
+            "support": 10
+          },
+          "health.disease": {
+            "precision": 0.64,
+            "recall": 0.6957,
+            "f1": 0.6667,
+            "support": 23
+          },
+          "health.care": {
+            "precision": 0.75,
+            "recall": 0.5294,
+            "f1": 0.6207,
+            "support": 17
+          },
+          "soc.equality": {
+            "precision": 0.6071,
+            "recall": 0.4474,
+            "f1": 0.5152,
+            "support": 38
+          },
+          "soc.arts": {
+            "precision": 0.6944,
+            "recall": 0.5556,
+            "f1": 0.6173,
+            "support": 45
+          },
+          "soc.heritage": {
+            "precision": 0.6061,
+            "recall": 0.5882,
+            "f1": 0.597,
+            "support": 34
+          },
+          "soc.law": {
+            "precision": 0.4569,
+            "recall": 0.6463,
+            "f1": 0.5354,
+            "support": 82
+          },
+          "urban.planning": {
+            "precision": 1.0,
+            "recall": 0.2,
+            "f1": 0.3333,
+            "support": 5
+          },
+          "urban.transit": {
+            "precision": 0.3333,
+            "recall": 0.1667,
+            "f1": 0.2222,
+            "support": 6
+          },
+          "urban.housing": {
+            "precision": 0.3529,
+            "recall": 0.4615,
+            "f1": 0.4,
+            "support": 13
+          },
+          "travel.eco": {
+            "precision": 0.4717,
+            "recall": 0.8065,
+            "f1": 0.5952,
+            "support": 31
+          },
+          "travel.aviation": {
+            "precision": 0.5556,
+            "recall": 0.4167,
+            "f1": 0.4762,
+            "support": 24
+          },
+          "travel.customs": {
+            "precision": 1.0,
+            "recall": 0.1667,
+            "f1": 0.2857,
+            "support": 6
+          },
+          "life.family": {
+            "precision": 0.3333,
+            "recall": 0.0833,
+            "f1": 0.1333,
+            "support": 36
+          },
+          "life.food": {
+            "precision": 0.4874,
+            "recall": 0.6988,
+            "f1": 0.5743,
+            "support": 83
+          },
+          "life.finance": {
+            "precision": 0.4545,
+            "recall": 0.3571,
+            "f1": 0.4,
+            "support": 42
+          },
+          "life.leisure": {
+            "precision": 0.381,
+            "recall": 0.5581,
+            "f1": 0.4528,
+            "support": 86
+          },
+          "gov.diplomacy": {
+            "precision": 0.8,
+            "recall": 0.2759,
+            "f1": 0.4103,
+            "support": 29
+          },
+          "gov.aid": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 4
+          },
+          "gov.globalization": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 3
+          },
+          "gen.function": {
+            "precision": 0.8333,
+            "recall": 0.098,
+            "f1": 0.1754,
+            "support": 51
+          },
+          "gen.linking": {
+            "precision": 0.4545,
+            "recall": 0.4762,
+            "f1": 0.4651,
+            "support": 21
+          },
+          "gen.auxiliary": {
+            "precision": 0.6087,
+            "recall": 0.2979,
+            "f1": 0.4,
+            "support": 47
+          },
+          "gen.general": {
+            "precision": 0.4779,
+            "recall": 0.7784,
+            "f1": 0.5923,
+            "support": 167
+          }
+        }
+      },
+      "subtopic_oracle_main": {
+        "accuracy": 0.7469,
+        "macro_f1": 0.652,
+        "weighted_f1": 0.7226,
+        "per_class": {
+          "env.climate": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6667,
+            "support": 6
+          },
+          "env.wildlife": {
+            "precision": 0.8039,
+            "recall": 1.0,
+            "f1": 0.8913,
+            "support": 41
+          },
+          "env.pollution": {
+            "precision": 1.0,
+            "recall": 0.6667,
+            "f1": 0.8,
+            "support": 12
+          },
+          "env.energy": {
+            "precision": 0.8462,
+            "recall": 0.7857,
+            "f1": 0.8148,
+            "support": 14
+          },
+          "env.disaster": {
+            "precision": 0.8696,
+            "recall": 0.8,
+            "f1": 0.8333,
+            "support": 25
+          },
+          "tech.ai": {
+            "precision": 0.8571,
+            "recall": 0.3529,
+            "f1": 0.5,
+            "support": 17
+          },
+          "tech.cyber": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 6
+          },
+          "tech.space": {
+            "precision": 0.9375,
+            "recall": 0.7143,
+            "f1": 0.8108,
+            "support": 21
+          },
+          "tech.bio": {
+            "precision": 0.6154,
+            "recall": 0.6667,
+            "f1": 0.64,
+            "support": 12
+          },
+          "tech.digital": {
+            "precision": 0.5714,
+            "recall": 0.9655,
+            "f1": 0.7179,
+            "support": 29
+          },
+          "biz.career": {
+            "precision": 0.575,
+            "recall": 0.8846,
+            "f1": 0.697,
+            "support": 26
+          },
+          "biz.finance": {
+            "precision": 0.6129,
+            "recall": 0.6786,
+            "f1": 0.6441,
+            "support": 28
+          },
+          "biz.marketing": {
+            "precision": 0.6389,
+            "recall": 0.7419,
+            "f1": 0.6866,
+            "support": 31
+          },
+          "biz.trade": {
+            "precision": 1.0,
+            "recall": 0.1765,
+            "f1": 0.3,
+            "support": 17
+          },
+          "biz.leadership": {
+            "precision": 0.9333,
+            "recall": 0.6087,
+            "f1": 0.7368,
+            "support": 23
+          },
+          "edu.university": {
+            "precision": 1.0,
+            "recall": 0.4286,
+            "f1": 0.6,
+            "support": 7
+          },
+          "edu.pedagogy": {
+            "precision": 0.7143,
+            "recall": 0.7895,
+            "f1": 0.75,
+            "support": 19
+          },
+          "edu.exams": {
+            "precision": 0.7778,
+            "recall": 0.5385,
+            "f1": 0.6364,
+            "support": 13
+          },
+          "edu.discourse": {
+            "precision": 0.7037,
+            "recall": 0.9048,
+            "f1": 0.7917,
+            "support": 21
+          },
+          "health.diet": {
+            "precision": 0.9412,
+            "recall": 0.64,
+            "f1": 0.7619,
+            "support": 25
+          },
+          "health.mental": {
+            "precision": 0.6154,
+            "recall": 0.8,
+            "f1": 0.6957,
+            "support": 10
+          },
+          "health.disease": {
+            "precision": 0.7692,
+            "recall": 0.8696,
+            "f1": 0.8163,
+            "support": 23
+          },
+          "health.care": {
+            "precision": 0.7368,
+            "recall": 0.8235,
+            "f1": 0.7778,
+            "support": 17
+          },
+          "soc.equality": {
+            "precision": 0.8621,
+            "recall": 0.6579,
+            "f1": 0.7463,
+            "support": 38
+          },
+          "soc.arts": {
+            "precision": 0.9211,
+            "recall": 0.7778,
+            "f1": 0.8434,
+            "support": 45
+          },
+          "soc.heritage": {
+            "precision": 0.8667,
+            "recall": 0.7647,
+            "f1": 0.8125,
+            "support": 34
+          },
+          "soc.law": {
+            "precision": 0.7255,
+            "recall": 0.9024,
+            "f1": 0.8043,
+            "support": 82
+          },
+          "urban.planning": {
+            "precision": 1.0,
+            "recall": 0.2,
+            "f1": 0.3333,
+            "support": 5
+          },
+          "urban.transit": {
+            "precision": 0.7143,
+            "recall": 0.8333,
+            "f1": 0.7692,
+            "support": 6
+          },
+          "urban.housing": {
+            "precision": 0.6875,
+            "recall": 0.8462,
+            "f1": 0.7586,
+            "support": 13
+          },
+          "travel.eco": {
+            "precision": 0.6596,
+            "recall": 1.0,
+            "f1": 0.7949,
+            "support": 31
+          },
+          "travel.aviation": {
+            "precision": 1.0,
+            "recall": 0.5417,
+            "f1": 0.7027,
+            "support": 24
+          },
+          "travel.customs": {
+            "precision": 1.0,
+            "recall": 0.1667,
+            "f1": 0.2857,
+            "support": 6
+          },
+          "life.family": {
+            "precision": 0.6,
+            "recall": 0.3333,
+            "f1": 0.4286,
+            "support": 36
+          },
+          "life.food": {
+            "precision": 0.7802,
+            "recall": 0.8554,
+            "f1": 0.8161,
+            "support": 83
+          },
+          "life.finance": {
+            "precision": 0.9167,
+            "recall": 0.5238,
+            "f1": 0.6667,
+            "support": 42
+          },
+          "life.leisure": {
+            "precision": 0.7232,
+            "recall": 0.9419,
+            "f1": 0.8182,
+            "support": 86
+          },
+          "gov.diplomacy": {
+            "precision": 0.8286,
+            "recall": 1.0,
+            "f1": 0.9062,
+            "support": 29
+          },
+          "gov.aid": {
+            "precision": 1.0,
+            "recall": 0.25,
+            "f1": 0.4,
+            "support": 4
+          },
+          "gov.globalization": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 3
+          },
+          "gen.function": {
+            "precision": 1.0,
+            "recall": 0.1373,
+            "f1": 0.2414,
+            "support": 51
+          },
+          "gen.linking": {
+            "precision": 0.6429,
+            "recall": 0.4286,
+            "f1": 0.5143,
+            "support": 21
+          },
+          "gen.auxiliary": {
+            "precision": 0.9231,
+            "recall": 0.5106,
+            "f1": 0.6575,
+            "support": 47
+          },
+          "gen.general": {
+            "precision": 0.6946,
+            "recall": 0.994,
+            "f1": 0.8177,
+            "support": 167
+          }
+        }
+      },
+      "joint_exact_match": 0.4938
+    },
+    "test": {
+      "num_samples": 1295,
+      "main_topic": {
+        "accuracy": 0.6185,
+        "macro_f1": 0.5981,
+        "weighted_f1": 0.6167,
+        "per_class": {
+          "Environment & Nature": {
+            "precision": 0.6441,
+            "recall": 0.6847,
+            "f1": 0.6638,
+            "support": 111
+          },
+          "Science & Technology": {
+            "precision": 0.4595,
+            "recall": 0.3864,
+            "f1": 0.4198,
+            "support": 88
+          },
+          "Business, Work & Economy": {
+            "precision": 0.5952,
+            "recall": 0.6303,
+            "f1": 0.6122,
+            "support": 119
+          },
+          "Education & Academia": {
+            "precision": 0.7317,
+            "recall": 0.5556,
+            "f1": 0.6316,
+            "support": 54
+          },
+          "Health, Medicine & Wellness": {
+            "precision": 0.7647,
+            "recall": 0.5821,
+            "f1": 0.661,
+            "support": 67
+          },
+          "Society, Culture & Law": {
+            "precision": 0.6415,
+            "recall": 0.6667,
+            "f1": 0.6538,
+            "support": 204
+          },
+          "Urbanization & Infrastructure": {
+            "precision": 0.5556,
+            "recall": 0.2174,
+            "f1": 0.3125,
+            "support": 23
+          },
+          "Travel & Hospitality": {
+            "precision": 0.7442,
+            "recall": 0.6154,
+            "f1": 0.6737,
+            "support": 52
+          },
+          "Daily Life & Personal Finance": {
+            "precision": 0.55,
+            "recall": 0.668,
+            "f1": 0.6033,
+            "support": 247
+          },
+          "Global Politics & Humanitarian": {
+            "precision": 0.8077,
+            "recall": 0.6364,
+            "f1": 0.7119,
+            "support": 33
+          },
+          "General Vocabulary": {
+            "precision": 0.6373,
+            "recall": 0.633,
+            "f1": 0.6351,
+            "support": 297
+          }
+        }
+      },
+      "general_vs_topical": {
+        "general_precision": 0.6373,
+        "general_recall": 0.633,
+        "general_f1": 0.6351
+      },
+      "subtopic_end_to_end": {
+        "accuracy": 0.4764,
+        "macro_f1": 0.3753,
+        "weighted_f1": 0.4484,
+        "per_class": {
+          "env.climate": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 8
+          },
+          "env.wildlife": {
+            "precision": 0.5538,
+            "recall": 0.7347,
+            "f1": 0.6316,
+            "support": 49
+          },
+          "env.pollution": {
+            "precision": 0.3846,
+            "recall": 0.2941,
+            "f1": 0.3333,
+            "support": 17
+          },
+          "env.energy": {
+            "precision": 0.2857,
+            "recall": 0.1429,
+            "f1": 0.1905,
+            "support": 14
+          },
+          "env.disaster": {
+            "precision": 0.4333,
+            "recall": 0.5652,
+            "f1": 0.4906,
+            "support": 23
+          },
+          "tech.ai": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 9
+          },
+          "tech.cyber": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2
+          },
+          "tech.space": {
+            "precision": 0.5714,
+            "recall": 0.2105,
+            "f1": 0.3077,
+            "support": 19
+          },
+          "tech.bio": {
+            "precision": 0.2143,
+            "recall": 0.1579,
+            "f1": 0.1818,
+            "support": 19
+          },
+          "tech.digital": {
+            "precision": 0.4048,
+            "recall": 0.4359,
+            "f1": 0.4198,
+            "support": 39
+          },
+          "biz.career": {
+            "precision": 0.48,
+            "recall": 0.6,
+            "f1": 0.5333,
+            "support": 40
+          },
+          "biz.finance": {
+            "precision": 0.5,
+            "recall": 0.6538,
+            "f1": 0.5667,
+            "support": 26
+          },
+          "biz.marketing": {
+            "precision": 0.4062,
+            "recall": 0.52,
+            "f1": 0.4561,
+            "support": 25
+          },
+          "biz.trade": {
+            "precision": 1.0,
+            "recall": 0.125,
+            "f1": 0.2222,
+            "support": 8
+          },
+          "biz.leadership": {
+            "precision": 0.6667,
+            "recall": 0.3,
+            "f1": 0.4138,
+            "support": 20
+          },
+          "edu.university": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6667,
+            "support": 6
+          },
+          "edu.pedagogy": {
+            "precision": 0.3889,
+            "recall": 0.7778,
+            "f1": 0.5185,
+            "support": 9
+          },
+          "edu.exams": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6667,
+            "support": 18
+          },
+          "edu.research": {
+            "precision": 0.75,
+            "recall": 0.6,
+            "f1": 0.6667,
+            "support": 5
+          },
+          "edu.discourse": {
+            "precision": 0.2857,
+            "recall": 0.125,
+            "f1": 0.1739,
+            "support": 16
+          },
+          "health.diet": {
+            "precision": 0.625,
+            "recall": 0.3333,
+            "f1": 0.4348,
+            "support": 15
+          },
+          "health.mental": {
+            "precision": 0.4,
+            "recall": 0.4444,
+            "f1": 0.4211,
+            "support": 9
+          },
+          "health.disease": {
+            "precision": 0.4667,
+            "recall": 0.3889,
+            "f1": 0.4242,
+            "support": 18
+          },
+          "health.care": {
+            "precision": 0.6111,
+            "recall": 0.44,
+            "f1": 0.5116,
+            "support": 25
+          },
+          "soc.equality": {
+            "precision": 0.4706,
+            "recall": 0.4103,
+            "f1": 0.4384,
+            "support": 39
+          },
+          "soc.arts": {
+            "precision": 0.5366,
+            "recall": 0.5366,
+            "f1": 0.5366,
+            "support": 41
+          },
+          "soc.heritage": {
+            "precision": 0.6897,
+            "recall": 0.5128,
+            "f1": 0.5882,
+            "support": 39
+          },
+          "soc.law": {
+            "precision": 0.5,
+            "recall": 0.6353,
+            "f1": 0.5596,
+            "support": 85
+          },
+          "urban.planning": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 7
+          },
+          "urban.transit": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 4
+          },
+          "urban.housing": {
+            "precision": 0.4444,
+            "recall": 0.3333,
+            "f1": 0.381,
+            "support": 12
+          },
+          "travel.eco": {
+            "precision": 0.5185,
+            "recall": 0.5385,
+            "f1": 0.5283,
+            "support": 26
+          },
+          "travel.aviation": {
+            "precision": 0.6429,
+            "recall": 0.4286,
+            "f1": 0.5143,
+            "support": 21
+          },
+          "travel.customs": {
+            "precision": 0.5,
+            "recall": 0.2,
+            "f1": 0.2857,
+            "support": 5
+          },
+          "life.family": {
+            "precision": 0.3529,
+            "recall": 0.2308,
+            "f1": 0.2791,
+            "support": 26
+          },
+          "life.food": {
+            "precision": 0.3969,
+            "recall": 0.7222,
+            "f1": 0.5123,
+            "support": 72
+          },
+          "life.finance": {
+            "precision": 0.36,
+            "recall": 0.1475,
+            "f1": 0.2093,
+            "support": 61
+          },
+          "life.leisure": {
+            "precision": 0.4488,
+            "recall": 0.6477,
+            "f1": 0.5302,
+            "support": 88
+          },
+          "gov.diplomacy": {
+            "precision": 0.8077,
+            "recall": 0.7,
+            "f1": 0.75,
+            "support": 30
+          },
+          "gov.aid": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2
+          },
+          "gov.globalization": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1
+          },
+          "gen.function": {
+            "precision": 0.7778,
+            "recall": 0.0921,
+            "f1": 0.1647,
+            "support": 76
+          },
+          "gen.linking": {
+            "precision": 0.8571,
+            "recall": 0.5455,
+            "f1": 0.6667,
+            "support": 33
+          },
+          "gen.auxiliary": {
+            "precision": 0.3636,
+            "recall": 0.1053,
+            "f1": 0.1633,
+            "support": 38
+          },
+          "gen.general": {
+            "precision": 0.437,
+            "recall": 0.74,
+            "f1": 0.5495,
+            "support": 150
+          }
+        }
+      },
+      "subtopic_oracle_main": {
+        "accuracy": 0.732,
+        "macro_f1": 0.6166,
+        "weighted_f1": 0.6989,
+        "per_class": {
+          "env.climate": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 8
+          },
+          "env.wildlife": {
+            "precision": 0.7344,
+            "recall": 0.9592,
+            "f1": 0.8319,
+            "support": 49
+          },
+          "env.pollution": {
+            "precision": 0.9167,
+            "recall": 0.6471,
+            "f1": 0.7586,
+            "support": 17
+          },
+          "env.energy": {
+            "precision": 0.875,
+            "recall": 0.5,
+            "f1": 0.6364,
+            "support": 14
+          },
+          "env.disaster": {
+            "precision": 0.7407,
+            "recall": 0.8696,
+            "f1": 0.8,
+            "support": 23
+          },
+          "tech.ai": {
+            "precision": 0.2,
+            "recall": 0.1111,
+            "f1": 0.1429,
+            "support": 9
+          },
+          "tech.cyber": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2
+          },
+          "tech.space": {
+            "precision": 0.8333,
+            "recall": 0.5263,
+            "f1": 0.6452,
+            "support": 19
+          },
+          "tech.bio": {
+            "precision": 0.6111,
+            "recall": 0.5789,
+            "f1": 0.5946,
+            "support": 19
+          },
+          "tech.digital": {
+            "precision": 0.6604,
+            "recall": 0.8974,
+            "f1": 0.7609,
+            "support": 39
+          },
+          "biz.career": {
+            "precision": 0.7843,
+            "recall": 1.0,
+            "f1": 0.8791,
+            "support": 40
+          },
+          "biz.finance": {
+            "precision": 0.7333,
+            "recall": 0.8462,
+            "f1": 0.7857,
+            "support": 26
+          },
+          "biz.marketing": {
+            "precision": 0.7308,
+            "recall": 0.76,
+            "f1": 0.7451,
+            "support": 25
+          },
+          "biz.trade": {
+            "precision": 1.0,
+            "recall": 0.125,
+            "f1": 0.2222,
+            "support": 8
+          },
+          "biz.leadership": {
+            "precision": 0.7273,
+            "recall": 0.4,
+            "f1": 0.5161,
+            "support": 20
+          },
+          "edu.university": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6667,
+            "support": 6
+          },
+          "edu.pedagogy": {
+            "precision": 0.5294,
+            "recall": 1.0,
+            "f1": 0.6923,
+            "support": 9
+          },
+          "edu.exams": {
+            "precision": 0.9375,
+            "recall": 0.8333,
+            "f1": 0.8824,
+            "support": 18
+          },
+          "edu.research": {
+            "precision": 1.0,
+            "recall": 0.6,
+            "f1": 0.75,
+            "support": 5
+          },
+          "edu.discourse": {
+            "precision": 0.7333,
+            "recall": 0.6875,
+            "f1": 0.7097,
+            "support": 16
+          },
+          "health.diet": {
+            "precision": 1.0,
+            "recall": 0.7333,
+            "f1": 0.8462,
+            "support": 15
+          },
+          "health.mental": {
+            "precision": 0.5385,
+            "recall": 0.7778,
+            "f1": 0.6364,
+            "support": 9
+          },
+          "health.disease": {
+            "precision": 0.72,
+            "recall": 1.0,
+            "f1": 0.8372,
+            "support": 18
+          },
+          "health.care": {
+            "precision": 1.0,
+            "recall": 0.72,
+            "f1": 0.8372,
+            "support": 25
+          },
+          "soc.equality": {
+            "precision": 0.7073,
+            "recall": 0.7436,
+            "f1": 0.725,
+            "support": 39
+          },
+          "soc.arts": {
+            "precision": 0.9714,
+            "recall": 0.8293,
+            "f1": 0.8947,
+            "support": 41
+          },
+          "soc.heritage": {
+            "precision": 0.8333,
+            "recall": 0.641,
+            "f1": 0.7246,
+            "support": 39
+          },
+          "soc.law": {
+            "precision": 0.7857,
+            "recall": 0.9059,
+            "f1": 0.8415,
+            "support": 85
+          },
+          "urban.planning": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 7
+          },
+          "urban.transit": {
+            "precision": 0.6667,
+            "recall": 1.0,
+            "f1": 0.8,
+            "support": 4
+          },
+          "urban.housing": {
+            "precision": 0.7059,
+            "recall": 1.0,
+            "f1": 0.8276,
+            "support": 12
+          },
+          "travel.eco": {
+            "precision": 0.7143,
+            "recall": 0.9615,
+            "f1": 0.8197,
+            "support": 26
+          },
+          "travel.aviation": {
+            "precision": 0.8667,
+            "recall": 0.619,
+            "f1": 0.7222,
+            "support": 21
+          },
+          "travel.customs": {
+            "precision": 1.0,
+            "recall": 0.4,
+            "f1": 0.5714,
+            "support": 5
+          },
+          "life.family": {
+            "precision": 0.6667,
+            "recall": 0.3077,
+            "f1": 0.4211,
+            "support": 26
+          },
+          "life.food": {
+            "precision": 0.7303,
+            "recall": 0.9028,
+            "f1": 0.8075,
+            "support": 72
+          },
+          "life.finance": {
+            "precision": 0.8276,
+            "recall": 0.3934,
+            "f1": 0.5333,
+            "support": 61
+          },
+          "life.leisure": {
+            "precision": 0.6923,
+            "recall": 0.9205,
+            "f1": 0.7902,
+            "support": 88
+          },
+          "gov.diplomacy": {
+            "precision": 0.9091,
+            "recall": 1.0,
+            "f1": 0.9524,
+            "support": 30
+          },
+          "gov.aid": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2
+          },
+          "gov.globalization": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1
+          },
+          "gen.function": {
+            "precision": 1.0,
+            "recall": 0.1184,
+            "f1": 0.2118,
+            "support": 76
+          },
+          "gen.linking": {
+            "precision": 0.8696,
+            "recall": 0.6061,
+            "f1": 0.7143,
+            "support": 33
+          },
+          "gen.auxiliary": {
+            "precision": 0.6842,
+            "recall": 0.3421,
+            "f1": 0.4561,
+            "support": 38
+          },
+          "gen.general": {
+            "precision": 0.6098,
+            "recall": 1.0,
+            "f1": 0.7576,
+            "support": 150
+          }
+        }
+      },
+      "joint_exact_match": 0.4764
+    }
+  }
+}

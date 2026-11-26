@@ -4,7 +4,7 @@ import { cards, decks, cardTopics, topics, cardSrsStates, cardMemoryState } from
 import { getSession } from '@/lib/auth/session'
 import { eq, inArray, or } from 'drizzle-orm'
 import { safeJsonParse } from '@/lib/utils'
-import { INITIAL_TOPICS } from '@/lib/db/initial_topics'
+import { ALL_TAXONOMY_TOPICS } from '@/lib/db/initial_topics'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +22,7 @@ export async function GET(
     let targetTopicInfo: any = null
     const subtopicIdsToQuery: string[] = [topicId]
 
-    for (const major of INITIAL_TOPICS) {
+    for (const major of ALL_TAXONOMY_TOPICS) {
       if (major.id === topicId) {
         targetTopicInfo = {
           id: major.id,

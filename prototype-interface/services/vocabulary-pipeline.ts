@@ -3,6 +3,7 @@ import { fetchContextualImage } from './unsplash-service';
 import { getFallbackAudio } from './audio-fallback';
 import { fetchGeminiEnrichment } from './gemini-service';
 import { fetchFullDictionaryData } from './dictionary-api-service';
+import { classifySingleWordWithVocabClassifier } from './vocab-classifier-client';
 import { VocabularyMetadata } from '../types/vocabulary';
 
 // In-memory cache for fast lookup (TTL: 2 hours, max 1000 items)
@@ -181,10 +182,17 @@ export async function enrichVocabulary(word: string, targetPos?: string): Promis
   let audioUk = cambridgeData?.audioUkUrl || fullDict.audioUrl || null;
   let audioUs = cambridgeData?.audioUsUrl || fullDict.audioUrl || null;
 
-  // Run image and fallback audio concurrently in the background if needed
-  const [audioFallbackResult, imageResult] = await Promise.allSettled([
+  // Run image, fallback audio, and ML topic classification concurrently in the background
+  const [audioFallbackResult, imageResult, mlTopicResult] = await Promise.allSettled([
     (!audioUk && !audioUs) ? getFallbackAudio(effectiveWord) : Promise.resolve(null),
     fetchContextualImage(effectiveWord, bestEnglish || effectiveWord),
+    classifySingleWordWithVocabClassifier({
+      term: cambridgeData?.term || effectiveWord,
+      partOfSpeech,
+      englishMeaning: bestEnglish,
+      vietnameseMeaning: bestVietnamese,
+      exampleSentence: bestExamples[0] || '',
+    }),
   ]);
 
   if (!audioUk && !audioUs && audioFallbackResult.status === 'fulfilled' && audioFallbackResult.value) {
@@ -193,6 +201,19 @@ export async function enrichVocabulary(word: string, targetPos?: string): Promis
   }
 
   const imageData = imageResult.status === 'fulfilled' ? imageResult.value : null;
+  const mlPred = mlTopicResult.status === 'fulfilled' ? mlTopicResult.value : null;
+  const resolvedTopicClassification = mlPred
+    ? {
+        majorTopicId: mlPred.prediction.main_topic.id,
+        majorTopicName: mlPred.prediction.main_topic.name,
+        subtopicId: mlPred.prediction.subtopic.id,
+        subtopicName: mlPred.prediction.subtopic.name,
+        confidence: mlPred.joint_confidence,
+        source: 'ml_model',
+        predictionStatus: mlPred.status,
+        modelVersion: mlPred.model_version,
+      }
+    : geminiData?.topicClassification || null;
 
   const resultData: VocabularyMetadata = {
     term: cambridgeData?.term || effectiveWord,
@@ -205,7 +226,7 @@ export async function enrichVocabulary(word: string, targetPos?: string): Promis
     definitions: finalDefinitions,
     imageUrl: imageData?.imageUrl || null,
     imagePhotographer: imageData?.photographer || null,
-    topicClassification: geminiData?.topicClassification || null,
+    topicClassification: resolvedTopicClassification,
   };
 
   if (pipelineCache.size >= 1000) {

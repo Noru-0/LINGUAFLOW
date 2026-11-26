@@ -68,7 +68,7 @@ import { playSuccessChime, playErrorChime, triggerConfetti, triggerBatchComplete
 import { CollocationMatcher } from '@/components/collocation/CollocationMatcher'
 import { SpeakingPractice } from '@/components/speaking/SpeakingPractice'
 import { TopicExplorer } from '@/components/topics/TopicExplorer'
-import { INITIAL_TOPICS } from '@/lib/db/initial_topics'
+import { ALL_TAXONOMY_TOPICS } from '@/lib/db/initial_topics'
 import { INITIAL_COLLOCATIONS, InitialCollocation } from '@/lib/db/initial_collocations'
 
 type View = 'Dashboard' | 'Review' | 'Translate' | 'Topics' | 'Decks' | 'Analytics' | 'Resources' | 'Collocations' | 'Speaking'
@@ -506,7 +506,7 @@ function Review({
   // Flattened topics for the dropdown selector
   const flatTopics = useMemo(() => {
     const list: { id: string; name: string }[] = []
-    INITIAL_TOPICS.forEach((m) => {
+    ALL_TAXONOMY_TOPICS.forEach((m) => {
       list.push({ id: m.id, name: `📁 ${m.nameVi} (${m.nameEn})` })
       m.subtopics.forEach((s) => {
         list.push({ id: s.id, name: `    ↳ ${s.nameVi} (${s.nameEn})` })

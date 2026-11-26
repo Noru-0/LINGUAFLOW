@@ -29,3 +29,24 @@ Thumbs.db
 .snowflake/
 .v0-trash/
 .vercel/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+
+# Trained binary model weights & serialized artifacts
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.joblib
+*.pkl
+vocab_classifier/artifacts/minilm_finetuned/best_model/tokenizer*
+vocab_classifier/artifacts/minilm_finetuned/best_model/special_tokens_map.json
+vocab_classifier/artifacts/minilm_finetuned/best_model/vocab.txt
+vocab_classifier/final_model/encoder/
+vocab_classifier/releases/*.zip

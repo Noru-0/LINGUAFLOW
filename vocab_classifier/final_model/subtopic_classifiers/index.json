@@ -1,0 +1,28 @@
+{
+  "by_main_label_id": {
+    "0": "env.joblib",
+    "1": "tech.joblib",
+    "2": "biz.joblib",
+    "3": "edu.joblib",
+    "4": "health.joblib",
+    "5": "soc.joblib",
+    "6": "urban.joblib",
+    "7": "travel.joblib",
+    "8": "life.joblib",
+    "9": "gov.joblib",
+    "10": "gen.joblib"
+  },
+  "by_main_topic_id": {
+    "env": "env.joblib",
+    "tech": "tech.joblib",
+    "biz": "biz.joblib",
+    "edu": "edu.joblib",
+    "health": "health.joblib",
+    "soc": "soc.joblib",
+    "urban": "urban.joblib",
+    "travel": "travel.joblib",
+    "life": "life.joblib",
+    "gov": "gov.joblib",
+    "gen": "gen.joblib"
+  }
+}

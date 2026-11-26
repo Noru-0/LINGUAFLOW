@@ -266,6 +266,11 @@ CREATE TABLE IF NOT EXISTS card_topics (
     is_primary BOOLEAN NOT NULL DEFAULT TRUE,
     confidence REAL DEFAULT 1.0,
     assigned_by VARCHAR(20) DEFAULT 'ai',
+    predicted_main_topic VARCHAR(50),
+    predicted_subtopic VARCHAR(50),
+    human_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    prediction_status VARCHAR(20) DEFAULT 'accepted',
+    model_version VARCHAR(30),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT uq_card_topic UNIQUE(card_id, topic_id)
 );
@@ -273,6 +278,24 @@ CREATE TABLE IF NOT EXISTS card_topics (
 CREATE INDEX IF NOT EXISTS idx_card_topics_card ON card_topics(card_id);
 CREATE INDEX IF NOT EXISTS idx_card_topics_topic ON card_topics(topic_id);
 CREATE INDEX IF NOT EXISTS idx_card_topics_primary ON card_topics(card_id, is_primary);
+
+CREATE TABLE IF NOT EXISTS card_topic_review_history (
+    id VARCHAR(100) PRIMARY KEY,
+    card_id VARCHAR(100) NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    action VARCHAR(30) NOT NULL,
+    previous_topic_id VARCHAR(50),
+    new_topic_id VARCHAR(50) NOT NULL,
+    actor VARCHAR(50) NOT NULL DEFAULT 'system',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS user_topic_cluster_runs (
+    user_id VARCHAR(100) PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    engine VARCHAR(50) NOT NULL,
+    processed_count INT NOT NULL DEFAULT 0,
+    classified_count INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 CREATE TABLE IF NOT EXISTS user_topic_stats (
     user_id VARCHAR(100) NOT NULL REFERENCES users(id) ON DELETE CASCADE,

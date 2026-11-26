@@ -1,0 +1,86 @@
+{
+  "calibration": {
+    "main_temperature": 1.1509,
+    "subtopic_temperature": 1.0572,
+    "val_main_nll_before": 0.8143,
+    "val_main_nll_after": 0.8031,
+    "val_main_ece_before": 0.0562,
+    "val_main_ece_after": 0.0267,
+    "val_sub_ece_before": 0.0373,
+    "val_sub_ece_after": 0.0332
+  },
+  "E6_single_vs_topk": {
+    "top_1_main": {
+      "main_acc": 0.6811,
+      "main_macro_f1": 0.6798,
+      "sub_e2e_acc": 0.4772,
+      "sub_e2e_macro_f1": 0.4082,
+      "joint_acc": 0.4772,
+      "top3_subtopic_recall": 0.6471,
+      "cascading_errors": 413,
+      "total_subtopic_errors": 677
+    },
+    "top_2_main": {
+      "main_acc": 0.6873,
+      "main_macro_f1": 0.6855,
+      "sub_e2e_acc": 0.4873,
+      "sub_e2e_macro_f1": 0.4208,
+      "joint_acc": 0.4873,
+      "top3_subtopic_recall": 0.7181,
+      "cascading_errors": 405,
+      "total_subtopic_errors": 664
+    },
+    "top_3_main": {
+      "main_acc": 0.6873,
+      "main_macro_f1": 0.6891,
+      "sub_e2e_acc": 0.488,
+      "sub_e2e_macro_f1": 0.426,
+      "joint_acc": 0.488,
+      "top3_subtopic_recall": 0.7189,
+      "cascading_errors": 405,
+      "total_subtopic_errors": 663
+    }
+  },
+  "abstention_tradeoff": [
+    {
+      "min_main_conf": 0.0,
+      "min_joint_conf": 0.0,
+      "accepted_samples": 1295,
+      "needs_review_samples": 0,
+      "coverage": 1.0,
+      "accepted_main_acc": 0.6873,
+      "accepted_main_macro_f1": 0.6855,
+      "accepted_sub_macro_f1": 0.4208
+    },
+    {
+      "min_main_conf": 0.45,
+      "min_joint_conf": 0.25,
+      "accepted_samples": 1063,
+      "needs_review_samples": 232,
+      "coverage": 0.8208,
+      "accepted_main_acc": 0.7413,
+      "accepted_main_macro_f1": 0.7462,
+      "accepted_sub_macro_f1": 0.4584
+    },
+    {
+      "min_main_conf": 0.6,
+      "min_joint_conf": 0.35,
+      "accepted_samples": 769,
+      "needs_review_samples": 526,
+      "coverage": 0.5938,
+      "accepted_main_acc": 0.8023,
+      "accepted_main_macro_f1": 0.8127,
+      "accepted_sub_macro_f1": 0.5432
+    },
+    {
+      "min_main_conf": 0.75,
+      "min_joint_conf": 0.5,
+      "accepted_samples": 405,
+      "needs_review_samples": 890,
+      "coverage": 0.3127,
+      "accepted_main_acc": 0.8864,
+      "accepted_main_macro_f1": 0.8984,
+      "accepted_sub_macro_f1": 0.5999
+    }
+  ]
+}
