@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from functools import partial
 from typing import Any, Callable
 
@@ -113,6 +113,21 @@ def build_tfidf_vectorizer(tfidf_cfg: dict[str, Any]) -> TfidfVectorizer:
     )
 
 
+def compute_power_class_weights(
+    y: list[int] | np.ndarray,
+    alpha: float = 0.5,
+) -> dict[int, float]:
+    """Compute power-smoothed inverse-frequency class weights: w_c ~ (N / n_c)^alpha."""
+    counts = Counter(int(v) for v in y)
+    if not counts:
+        return {}
+    total = sum(counts.values())
+    num_classes = len(counts)
+    raw = {c: (total / (num_classes * n)) ** alpha for c, n in counts.items()}
+    mean_w = sum(raw.values()) / len(raw)
+    return {c: round(w / mean_w, 6) for c, w in raw.items()}
+
+
 def make_logreg_factory(params: dict[str, Any], seed: int = 42) -> Callable[[], LogisticRegression]:
     """Create a picklable LogisticRegression factory for linear baselines."""
     return partial(
@@ -144,13 +159,16 @@ def encode_frozen_minilm(
     pooling: str = "mean",
     normalize: bool = True,
     device: str | None = None,
+    encoder: Any | None = None,
+    tokenizer: Any | None = None,
 ) -> np.ndarray:
     """Extract frozen 384-d MiniLM embeddings as a NumPy array [N, 384]."""
     import torch
     from src.models.hierarchical_classifier import load_encoder_and_tokenizer, pool_encoder_outputs
 
     resolved_device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-    encoder, tokenizer = load_encoder_and_tokenizer(model_name)
+    if encoder is None or tokenizer is None:
+        encoder, tokenizer = load_encoder_and_tokenizer(model_name)
     encoder.to(resolved_device)
     encoder.eval()
 

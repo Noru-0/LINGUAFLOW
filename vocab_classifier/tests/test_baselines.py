@@ -15,8 +15,13 @@ if str(PACKAGE_ROOT) not in sys.path:
     sys.path.insert(0, str(PACKAGE_ROOT))
 
 from src.data.common import DEFAULT_TAXONOMY_PATH, load_taxonomy
+from src.evaluation.experiments import run_stage2_experiments
 from src.evaluation.metrics import evaluate_hierarchical_predictions, format_benchmark_markdown
-from src.models.baselines import HierarchicalLinearBaseline, make_logreg_factory
+from src.models.baselines import (
+    HierarchicalLinearBaseline,
+    compute_power_class_weights,
+    make_logreg_factory,
+)
 from src.training.train_baselines import run_baseline_benchmark
 
 
@@ -153,6 +158,80 @@ class TestBaselines(unittest.TestCase):
             self.assertIn("TF-IDF + Logistic Regression", md)
             self.assertIn("TF-IDF + Linear SVM", md)
             self.assertIn("Frozen MiniLM + Logistic Regression", md)
+
+    def test_power_class_weights_and_stage2_experiments(self) -> None:
+        weights = compute_power_class_weights([0] * 100 + [1] * 10, alpha=0.5)
+        self.assertGreater(weights[1], weights[0])
+        self.assertLess(weights[1] / weights[0], 10.0)
+
+        samples = [
+            {
+                "sample_id": f"env_c_{i}",
+                "word": f"emission{i}",
+                "pos": "noun",
+                "sense_index": 0,
+                "definition": "Greenhouse gas carbon emissions climate warming.",
+                "collocations": ["carbon emissions"],
+                "examples": ["Carbon emissions are rising."],
+                "main_topic": "Environment & Nature",
+                "subtopic_id": "env.climate",
+            }
+            for i in range(6)
+        ] + [
+            {
+                "sample_id": f"gen_f_{i}",
+                "word": f"about{i}",
+                "pos": "preposition",
+                "sense_index": 1,
+                "definition": "Concerning a subject.",
+                "collocations": ["talk about"],
+                "examples": ["They talked about policy."],
+                "main_topic": "General Vocabulary",
+                "subtopic_id": "gen.function",
+            }
+            for i in range(6)
+        ]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            for name in ("train.jsonl", "val.jsonl", "test.jsonl"):
+                (tmp / name).write_text("\n".join(json.dumps(r) for r in samples) + "\n", encoding="utf-8")
+
+            cfg_path = tmp / "baseline_config.json"
+            cfg_path.write_text(
+                json.dumps(
+                    {
+                        "seed": 42,
+                        "train_path": str(tmp / "train.jsonl"),
+                        "val_path": str(tmp / "val.jsonl"),
+                        "test_path": str(tmp / "test.jsonl"),
+                        "taxonomy_path": str(DEFAULT_TAXONOMY_PATH),
+                        "output_dir": str(tmp / "out"),
+                        "minilm": {"model_name": "stub"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            def _stub_encode(texts: list[str], **kwargs: object) -> np.ndarray:
+                vecs = []
+                for t in texts:
+                    if "Greenhouse" in t:
+                        vecs.append([1.0, 0.0, 0.1, 0.0])
+                    else:
+                        vecs.append([0.0, 1.0, 0.0, 0.1])
+                return np.asarray(vecs, dtype=np.float32)
+
+            summary = run_stage2_experiments(
+                config_path=cfg_path,
+                output_dir=tmp / "exp",
+                minilm_encoder_fn=_stub_encode,
+            )
+            self.assertIn("E1_class_weight_ablation", summary)
+            self.assertIn("E2_input_ablation", summary)
+            self.assertIn("E3_general_label_correction", summary)
+            self.assertIn("E4_primary_vs_secondary", summary)
+            self.assertTrue((tmp / "exp" / "stage2_e1_e4_report.md").exists())
 
 
 if __name__ == "__main__":
