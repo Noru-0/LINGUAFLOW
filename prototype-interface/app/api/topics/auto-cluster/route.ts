@@ -4,11 +4,69 @@ import { cards, decks, cardTopics, cardTopicReviewHistory, topics } from '@/lib/
 import { getSession } from '@/lib/auth/session'
 import { seedDatabase } from '@/lib/db/seed'
 import { eq, inArray } from 'drizzle-orm'
+import { ALL_TAXONOMY_TOPICS } from '@/lib/db/initial_topics'
 import { batchClassifyWords } from '@/services/gemini-service'
 import { classifyCardsWithVocabClassifier } from '@/services/vocab-classifier-client'
 import { safeJsonParse } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size))
+  }
+  return chunks
+}
+
+async function ensureTaxonomyTopicsExist(activeDb: any) {
+  try {
+    const existing = await activeDb.select({ id: topics.id }).from(topics)
+    const existingIds = new Set(existing.map((t: any) => t.id))
+    let order = existingIds.size
+    const missingRows: any[] = []
+
+    for (const major of ALL_TAXONOMY_TOPICS) {
+      order++
+      if (!existingIds.has(major.id)) {
+        missingRows.push({
+          id: major.id,
+          parentId: null,
+          nameEn: major.nameEn,
+          nameVi: major.nameVi,
+          description: major.description,
+          icon: major.icon,
+          color: major.color,
+          orderIndex: order,
+        })
+      }
+      for (const sub of major.subtopics) {
+        order++
+        if (!existingIds.has(sub.id)) {
+          missingRows.push({
+            id: sub.id,
+            parentId: sub.parentId,
+            nameEn: sub.nameEn,
+            nameVi: sub.nameVi,
+            description: sub.description,
+            icon: sub.icon || 'Folder',
+            color: major.color,
+            orderIndex: order,
+          })
+        }
+      }
+    }
+
+    for (const chunk of chunkArray(missingRows, 50)) {
+      await activeDb.insert(topics).values(chunk).onConflictDoNothing?.().catch(async () => {
+        for (const row of chunk) {
+          await activeDb.insert(topics).values(row).catch(() => {})
+        }
+      })
+    }
+  } catch {}
+}
 
 export async function POST(request: Request) {
   let activeDb = db
@@ -150,12 +208,16 @@ export async function POST(request: Request) {
           )
         : new Map()
 
-    // 5. Persist classifications into card_topics preserving predicted labels & review status
+    // 5. Persist classifications in batches (replaces ~1,200+ sequential round-trips)
+    await ensureTaxonomyTopicsExist(activeDb)
+
     const nowIso = new Date().toISOString()
-    let successfullyClassified = 0
     let acceptedCount = 0
     let needsReviewCount = 0
     const summaryDistribution: Record<string, number> = {}
+    const cardTopicRows: any[] = []
+    const historyRows: any[] = []
+    const targetCardIds: string[] = []
 
     for (const card of cardsToClassify) {
       const mlPred = mlPredictions?.get(card.id)
@@ -169,46 +231,65 @@ export async function POST(request: Request) {
 
       if (!subtopicId || !mainTopicId) continue
 
-      if (forceReclassify) {
-        try {
-          await activeDb.delete(cardTopics).where(eq(cardTopics.cardId, card.id))
-        } catch {}
-      }
+      const rand = Math.random().toString(36).substring(2, 7)
+      targetCardIds.push(card.id)
+      cardTopicRows.push({
+        id: `ct_${Date.now()}_${cardTopicRows.length}_${rand}`,
+        cardId: card.id,
+        topicId: subtopicId,
+        isPrimary: true,
+        confidence,
+        assignedBy: mlPred ? 'ml_model' : 'ai',
+        predictedMainTopic: mainTopicId,
+        predictedSubtopic: subtopicId,
+        humanVerified: false,
+        predictionStatus: status,
+        modelVersion,
+        createdAt: nowIso,
+      })
+      historyRows.push({
+        id: `cth_${Date.now()}_${historyRows.length}_${rand}`,
+        cardId: card.id,
+        action: 'auto_classified',
+        previousTopicId: null,
+        newTopicId: subtopicId,
+        actor: modelVersion,
+        createdAt: nowIso,
+      })
 
-      try {
-        const ctId = `ct_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
-        await activeDb.insert(cardTopics).values({
-          id: ctId,
-          cardId: card.id,
-          topicId: subtopicId,
-          isPrimary: true,
-          confidence,
-          assignedBy: mlPred ? 'ml_model' : 'ai',
-          predictedMainTopic: mainTopicId,
-          predictedSubtopic: subtopicId,
-          humanVerified: false,
-          predictionStatus: status,
-          modelVersion,
-          createdAt: nowIso,
-        })
+      if (status === 'needs_review') needsReviewCount++
+      else acceptedCount++
+      summaryDistribution[subtopicId] = (summaryDistribution[subtopicId] || 0) + 1
+    }
+
+    if (forceReclassify && targetCardIds.length > 0) {
+      for (const idChunk of chunkArray(targetCardIds, 200)) {
         try {
-          await activeDb.insert(cardTopicReviewHistory).values({
-            id: `cth_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-            cardId: card.id,
-            action: 'auto_classified',
-            previousTopicId: null,
-            newTopicId: subtopicId,
-            actor: modelVersion,
-            createdAt: nowIso,
-          })
+          await activeDb.delete(cardTopics).where(inArray(cardTopics.cardId, idChunk))
         } catch {}
-        successfullyClassified++
-        if (status === 'needs_review') needsReviewCount++
-        else acceptedCount++
-        summaryDistribution[subtopicId] = (summaryDistribution[subtopicId] || 0) + 1
-      } catch (insertErr) {
-        console.warn('Error inserting card_topic:', insertErr)
       }
+    }
+
+    let successfullyClassified = 0
+    for (const ctChunk of chunkArray(cardTopicRows, 100)) {
+      try {
+        await activeDb.insert(cardTopics).values(ctChunk)
+        successfullyClassified += ctChunk.length
+      } catch (chunkErr) {
+        console.warn('[AutoCluster] Batch insert failed, retrying rows individually:', chunkErr)
+        for (const row of ctChunk) {
+          try {
+            await activeDb.insert(cardTopics).values(row)
+            successfullyClassified++
+          } catch {}
+        }
+      }
+    }
+
+    for (const histChunk of chunkArray(historyRows, 100)) {
+      try {
+        await activeDb.insert(cardTopicReviewHistory).values(histChunk)
+      } catch {}
     }
 
     return NextResponse.json({
