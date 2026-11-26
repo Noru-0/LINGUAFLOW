@@ -108,9 +108,12 @@ python -m src.training.finalize_model
 
 # Freeze and package immutable binary release zip + SHA-256 + manifest
 python -m src.training.release_artifact package --version 1.0.0
+
+# Start standalone FastAPI inference & human-review microservice
+uvicorn api.app:create_app --factory --host 127.0.0.1 --port 8000
 ```
 
-See [`artifacts/experiments/FINAL_REPORT.md`](artifacts/experiments/FINAL_REPORT.md) for full E1–E10 empirical findings.
+See [`artifacts/experiments/FINAL_REPORT.md`](artifacts/experiments/FINAL_REPORT.md) for E1–E10 ablation tables and [`artifacts/experiments/THESIS_REPORT.md`](artifacts/experiments/THESIS_REPORT.md) for the complete thesis experimental chapter.
 
 ## Release Artifact & Model Restoration (`vocab-classifier-v1.0.0`)
 
