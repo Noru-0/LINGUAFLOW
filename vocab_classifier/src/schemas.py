@@ -141,6 +141,16 @@ class ReviewImportRequest(BaseModel):
     items: list[VocabularySenseRequest] = Field(min_length=1)
 
 
+class ReviewImportResponse(BaseModel):
+    """Summary returned after importing classified senses into the review workflow."""
+
+    imported_count: int
+    accepted_count: int
+    needs_review_count: int
+    model_version: str
+    items: list[ReviewQueueItem]
+
+
 class ReviewVerifyRequest(BaseModel):
     """Human confirmation or correction of a predicted topic/subtopic pair."""
 

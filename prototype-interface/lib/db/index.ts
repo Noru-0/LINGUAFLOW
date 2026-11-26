@@ -8,7 +8,7 @@ import path from 'path'
 import fs from 'fs'
 import { INITIAL_COLLOCATIONS } from './initial_collocations'
 import { INITIAL_SPEAKING_PROMPTS } from './initial_speaking_prompts'
-import { INITIAL_TOPICS } from './initial_topics'
+import { INITIAL_TOPICS, ALL_TAXONOMY_TOPICS } from './initial_topics'
 
 let dbInstance: any = null
 let initializedSqlite = false
@@ -279,6 +279,11 @@ function getSqliteDb() {
         is_primary INTEGER NOT NULL DEFAULT 1,
         confidence REAL DEFAULT 1.0,
         assigned_by TEXT DEFAULT 'ai',
+        predicted_main_topic TEXT,
+        predicted_subtopic TEXT,
+        human_verified INTEGER NOT NULL DEFAULT 0,
+        prediction_status TEXT DEFAULT 'accepted',
+        model_version TEXT,
         created_at TEXT NOT NULL,
         FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE,
         FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
@@ -287,6 +292,17 @@ function getSqliteDb() {
       CREATE INDEX IF NOT EXISTS idx_card_topics_card ON card_topics(card_id);
       CREATE INDEX IF NOT EXISTS idx_card_topics_topic ON card_topics(topic_id);
       CREATE INDEX IF NOT EXISTS idx_card_topics_primary ON card_topics(card_id, is_primary);
+
+      CREATE TABLE IF NOT EXISTS card_topic_review_history (
+        id TEXT PRIMARY KEY,
+        card_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        previous_topic_id TEXT,
+        new_topic_id TEXT NOT NULL,
+        actor TEXT NOT NULL DEFAULT 'system',
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE
+      );
 
       CREATE TABLE IF NOT EXISTS user_topic_stats (
         user_id TEXT NOT NULL,
@@ -328,13 +344,13 @@ function getSqliteDb() {
       }
 
       const topicCountRow = sqlite.prepare('SELECT count(*) as count FROM topics').get() as { count: number }
-      if (!topicCountRow || topicCountRow.count === 0) {
+      if (!topicCountRow || topicCountRow.count < 15) {
         const insertTopicStmt = sqlite.prepare(`
-          INSERT INTO topics (id, parent_id, name_en, name_vi, description, icon, color, order_index, created_at)
+          INSERT OR IGNORE INTO topics (id, parent_id, name_en, name_vi, description, icon, color, order_index, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         let order = 0
-        for (const major of INITIAL_TOPICS) {
+        for (const major of ALL_TAXONOMY_TOPICS) {
           order++
           insertTopicStmt.run(major.id, null, major.nameEn, major.nameVi, major.description, major.icon, major.color, order, new Date().toISOString())
           for (const sub of major.subtopics) {
@@ -342,7 +358,28 @@ function getSqliteDb() {
             insertTopicStmt.run(sub.id, sub.parentId, sub.nameEn, sub.nameVi, sub.description, sub.icon || 'Folder', major.color, order, new Date().toISOString())
           }
         }
+      } else {
+        // Ensure General Vocabulary ('gen' + 'gen.*') is present even on pre-existing DBs
+        const insertIgnoreStmt = sqlite.prepare(`
+          INSERT OR IGNORE INTO topics (id, parent_id, name_en, name_vi, description, icon, color, order_index, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        let order = 100
+        for (const major of ALL_TAXONOMY_TOPICS) {
+          order++
+          insertIgnoreStmt.run(major.id, null, major.nameEn, major.nameVi, major.description, major.icon, major.color, order, new Date().toISOString())
+          for (const sub of major.subtopics) {
+            order++
+            insertIgnoreStmt.run(sub.id, sub.parentId, sub.nameEn, sub.nameVi, sub.description, sub.icon || 'Folder', major.color, order, new Date().toISOString())
+          }
+        }
       }
+
+      try { sqlite.exec('ALTER TABLE card_topics ADD COLUMN predicted_main_topic TEXT;') } catch {}
+      try { sqlite.exec('ALTER TABLE card_topics ADD COLUMN predicted_subtopic TEXT;') } catch {}
+      try { sqlite.exec('ALTER TABLE card_topics ADD COLUMN human_verified INTEGER NOT NULL DEFAULT 0;') } catch {}
+      try { sqlite.exec("ALTER TABLE card_topics ADD COLUMN prediction_status TEXT DEFAULT 'accepted';") } catch {}
+      try { sqlite.exec('ALTER TABLE card_topics ADD COLUMN model_version TEXT;') } catch {}
     } catch (e) {
       console.error('Error auto-seeding collocations, speaking prompts & topics:', e)
     }
@@ -490,26 +527,37 @@ export function getDb(): any {
           ALTER TABLE public.topics DISABLE ROW LEVEL SECURITY;
           ALTER TABLE public.card_topics DISABLE ROW LEVEL SECURITY;
           ALTER TABLE public.user_topic_stats DISABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS predicted_main_topic VARCHAR(50);
+          ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS predicted_subtopic VARCHAR(50);
+          ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS human_verified BOOLEAN NOT NULL DEFAULT FALSE;
+          ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS prediction_status VARCHAR(20) DEFAULT 'accepted';
+          ALTER TABLE public.card_topics ADD COLUMN IF NOT EXISTS model_version VARCHAR(30);
+          CREATE TABLE IF NOT EXISTS public.card_topic_review_history (
+            id VARCHAR(100) PRIMARY KEY,
+            card_id VARCHAR(100) NOT NULL REFERENCES public.cards(id) ON DELETE CASCADE,
+            action VARCHAR(30) NOT NULL,
+            previous_topic_id VARCHAR(50),
+            new_topic_id VARCHAR(50) NOT NULL,
+            actor VARCHAR(50) NOT NULL DEFAULT 'system',
+            created_at TIMESTAMPTZ DEFAULT NOW()
+          );
         `).then(async () => {
           try {
-            const countRes = await client`SELECT count(*) FROM public.topics`;
-            if (countRes && Number(countRes[0]?.count) === 0) {
-              let order = 0;
-              for (const major of INITIAL_TOPICS) {
+            let order = 0;
+            for (const major of ALL_TAXONOMY_TOPICS) {
+              order++;
+              await client`
+                INSERT INTO public.topics (id, parent_id, name_en, name_vi, description, icon, color, order_index)
+                VALUES (${major.id}, NULL, ${major.nameEn}, ${major.nameVi}, ${major.description || null}, ${major.icon || 'Folder'}, ${major.color || '#3B82F6'}, ${order})
+                ON CONFLICT (id) DO NOTHING
+              `;
+              for (const sub of major.subtopics) {
                 order++;
                 await client`
                   INSERT INTO public.topics (id, parent_id, name_en, name_vi, description, icon, color, order_index)
-                  VALUES (${major.id}, NULL, ${major.nameEn}, ${major.nameVi}, ${major.description || null}, ${major.icon || 'Folder'}, ${major.color || '#3B82F6'}, ${order})
+                  VALUES (${sub.id}, ${sub.parentId}, ${sub.nameEn}, ${sub.nameVi}, ${sub.description || null}, ${sub.icon || 'Folder'}, ${major.color || '#3B82F6'}, ${order})
                   ON CONFLICT (id) DO NOTHING
                 `;
-                for (const sub of major.subtopics) {
-                  order++;
-                  await client`
-                    INSERT INTO public.topics (id, parent_id, name_en, name_vi, description, icon, color, order_index)
-                    VALUES (${sub.id}, ${sub.parentId}, ${sub.nameEn}, ${sub.nameVi}, ${sub.description || null}, ${sub.icon || 'Folder'}, ${major.color || '#3B82F6'}, ${order})
-                    ON CONFLICT (id) DO NOTHING
-                  `;
-                }
               }
             }
           } catch (seedTopicsErr) {

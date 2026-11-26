@@ -167,6 +167,12 @@ def _evaluate_accepted_subset(
             "coverage": 0.0,
             "accepted_samples": 0,
             "needs_review_samples": n,
+            "main_accuracy": 0.0,
+            "main_macro_f1": 0.0,
+            "sub_e2e_accuracy": 0.0,
+            "sub_e2e_macro_f1": 0.0,
+            "joint_accuracy": 0.0,
+            "joint_error_capture_rate": 1.0 if total_joint_errors else 0.0,
         }
 
     ym_t = [y_main_true[i] for i in acc_idx]

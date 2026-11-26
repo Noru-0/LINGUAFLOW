@@ -10,12 +10,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.dependencies import DEFAULT_MODEL_VERSION, ServiceState
 from api.routes import create_classifier_router
 from src.inference.final_predictor import DEFAULT_FINAL_MODEL_DIR
+from src.review_store import DEFAULT_REVIEW_DB_PATH
 
 
 def create_app(
     *,
     model_dir: Path | str = DEFAULT_FINAL_MODEL_DIR,
     model_version: str = DEFAULT_MODEL_VERSION,
+    review_db_path: Path | str = DEFAULT_REVIEW_DB_PATH,
     allow_missing_definition: bool = False,
     preload: bool = True,
 ) -> FastAPI:
@@ -36,6 +38,7 @@ def create_app(
     state = ServiceState(
         model_dir=Path(model_dir),
         model_version=model_version,
+        review_db_path=Path(review_db_path),
         allow_missing_definition=allow_missing_definition,
     )
     if preload:

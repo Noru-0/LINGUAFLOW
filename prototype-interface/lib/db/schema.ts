@@ -218,6 +218,21 @@ export const cardTopics = sqliteTable('card_topics', {
   isPrimary: integer('is_primary', { mode: 'boolean' }).notNull().default(true),
   confidence: real('confidence').default(1.0),
   assignedBy: text('assigned_by').default('ai'), // 'ai' | 'user' | 'system'
+  predictedMainTopic: text('predicted_main_topic'),
+  predictedSubtopic: text('predicted_subtopic'),
+  humanVerified: integer('human_verified', { mode: 'boolean' }).notNull().default(false),
+  predictionStatus: text('prediction_status').default('accepted'), // 'accepted' | 'needs_review'
+  modelVersion: text('model_version'),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const cardTopicReviewHistory = sqliteTable('card_topic_review_history', {
+  id: text('id').primaryKey(),
+  cardId: text('card_id').notNull().references(() => cards.id, { onDelete: 'cascade' }),
+  action: text('action').notNull(), // 'auto_classified' | 'human_verified' | 'human_corrected'
+  previousTopicId: text('previous_topic_id'),
+  newTopicId: text('new_topic_id').notNull(),
+  actor: text('actor').notNull().default('system'),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 })
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { cardTopics, topics } from '@/lib/db/schema'
+import { cardTopics, cardTopicReviewHistory } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { findTopicDetails } from '@/services/gemini-service'
 
@@ -26,10 +26,26 @@ export async function PATCH(
 
     const nowIso = new Date().toISOString()
 
-    // Delete existing topic associations for this card
+    // Preserve original model predictions before replacing active assignment
+    const existingRows = await db
+      .select({
+        topicId: cardTopics.topicId,
+        predictedMainTopic: cardTopics.predictedMainTopic,
+        predictedSubtopic: cardTopics.predictedSubtopic,
+        predictionStatus: cardTopics.predictionStatus,
+        modelVersion: cardTopics.modelVersion,
+      })
+      .from(cardTopics)
+      .where(eq(cardTopics.cardId, cardId))
+
+    const prev = existingRows[0]
+    const preservedMain = prev?.predictedMainTopic || null
+    const preservedSub = prev?.predictedSubtopic || prev?.topicId || null
+    const preservedStatus = prev?.predictionStatus || 'accepted'
+    const preservedModelVersion = prev?.modelVersion || null
+
     await db.delete(cardTopics).where(eq(cardTopics.cardId, cardId))
 
-    // Insert user override
     const ctId = `ct_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
     await db.insert(cardTopics).values({
       id: ctId,
@@ -38,12 +54,33 @@ export async function PATCH(
       isPrimary: true,
       confidence: 1.0,
       assignedBy: 'user',
+      predictedMainTopic: preservedMain,
+      predictedSubtopic: preservedSub,
+      humanVerified: true,
+      predictionStatus: preservedStatus,
+      modelVersion: preservedModelVersion,
       createdAt: nowIso,
     })
+
+    try {
+      const action = preservedSub && preservedSub === subtopicId ? 'human_verified' : 'human_corrected'
+      await db.insert(cardTopicReviewHistory).values({
+        id: `cth_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        cardId,
+        action,
+        previousTopicId: prev?.topicId || null,
+        newTopicId: subtopicId,
+        actor: 'user',
+        createdAt: nowIso,
+      })
+    } catch {}
 
     return NextResponse.json({
       success: true,
       cardId,
+      humanVerified: true,
+      predictedMainTopic: preservedMain,
+      predictedSubtopic: preservedSub,
       topic: {
         id: subtopicId,
         nameEn: topicDetails.subtopicName,
@@ -57,4 +94,3 @@ export async function PATCH(
     return NextResponse.json({ error: 'Failed to update card topic' }, { status: 500 })
   }
 }
-

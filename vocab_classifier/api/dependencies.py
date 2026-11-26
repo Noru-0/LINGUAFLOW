@@ -9,13 +9,14 @@ from pathlib import Path
 from src.inference.final_predictor import DEFAULT_FINAL_MODEL_DIR
 from src.predictor import VocabClassifierService
 from src.preprocessing import InputValidationPolicy
+from src.review_store import DEFAULT_REVIEW_DB_PATH, ReviewWorkflowStore
 
 DEFAULT_MODEL_VERSION = os.environ.get("VOCAB_CLASSIFIER_VERSION", "1.0.0")
 
 
 @dataclass
 class ServiceState:
-    """Holds the loaded classifier singleton and any initialization failure details."""
+    """Holds the loaded classifier singleton, review store, and load diagnostics."""
 
     model_dir: Path = field(
         default_factory=lambda: Path(os.environ.get("VOCAB_CLASSIFIER_MODEL_DIR", str(DEFAULT_FINAL_MODEL_DIR)))
@@ -24,7 +25,11 @@ class ServiceState:
     allow_missing_definition: bool = field(
         default_factory=lambda: os.environ.get("VOCAB_CLASSIFIER_ALLOW_MISSING_DEFINITION", "false").lower() == "true"
     )
+    review_db_path: Path = field(
+        default_factory=lambda: Path(os.environ.get("VOCAB_CLASSIFIER_REVIEW_DB", str(DEFAULT_REVIEW_DB_PATH)))
+    )
     service: VocabClassifierService | None = None
+    review_store: ReviewWorkflowStore | None = None
     load_error: str | None = None
 
     def get_or_load(self) -> VocabClassifierService | None:
@@ -43,3 +48,8 @@ class ServiceState:
             self.load_error = f"{type(exc).__name__}: {exc}"
             self.service = None
         return self.service
+
+    def get_review_store(self) -> ReviewWorkflowStore:
+        if self.review_store is None:
+            self.review_store = ReviewWorkflowStore(self.review_db_path)
+        return self.review_store

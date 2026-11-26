@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { fastLookupTopicByKeywords, INITIAL_TOPICS } from '../lib/db/initial_topics';
+import { ALL_TAXONOMY_TOPICS, fastLookupTopicByKeywords, INITIAL_TOPICS } from '../lib/db/initial_topics';
 
 export interface TopicClassification {
   majorTopicId: string;
@@ -32,7 +32,7 @@ export function isDummyPlaceholder(text: string): boolean {
 
 export function findTopicDetails(subtopicId: string): TopicClassification | null {
   if (!subtopicId) return null;
-  for (const major of INITIAL_TOPICS) {
+  for (const major of ALL_TAXONOMY_TOPICS) {
     if (major.id === subtopicId) {
       const defaultSub = major.subtopics[0];
       return {

@@ -213,6 +213,21 @@ export const cardTopics = pgTable('card_topics', {
   isPrimary: boolean('is_primary').notNull().default(true),
   confidence: doublePrecision('confidence').default(1.0),
   assignedBy: text('assigned_by').default('ai'), // 'ai' | 'user' | 'system'
+  predictedMainTopic: text('predicted_main_topic'),
+  predictedSubtopic: text('predicted_subtopic'),
+  humanVerified: boolean('human_verified').notNull().default(false),
+  predictionStatus: text('prediction_status').default('accepted'),
+  modelVersion: text('model_version'),
+  createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+})
+
+export const cardTopicReviewHistory = pgTable('card_topic_review_history', {
+  id: text('id').primaryKey(),
+  cardId: text('card_id').notNull().references(() => cards.id, { onDelete: 'cascade' }),
+  action: text('action').notNull(),
+  previousTopicId: text('previous_topic_id'),
+  newTopicId: text('new_topic_id').notNull(),
+  actor: text('actor').notNull().default('system'),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
 })
 

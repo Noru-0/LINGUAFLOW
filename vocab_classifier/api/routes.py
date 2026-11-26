@@ -1,22 +1,29 @@
-"""HTTP API routes for single/batch classification, health, and model metadata."""
+"""HTTP API routes for inference, health, model metadata, and human review workflow."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request
+from typing import Literal
 
-from src.preprocessing import InputValidationError
+from fastapi import APIRouter, HTTPException, Query, Request
+
+from src.preprocessing import InputValidationError, prepare_batch_records
 from src.schemas import (
     BatchPredictRequest,
     BatchPredictResponse,
     HealthResponse,
     ModelInfoResponse,
     PredictionResponse,
+    ReviewHistoryEntry,
+    ReviewImportRequest,
+    ReviewImportResponse,
+    ReviewQueueItem,
+    ReviewVerifyRequest,
     VocabularySenseRequest,
 )
 
 
 def create_classifier_router() -> APIRouter:
-    """Create APIRouter exposing `/predict`, `/predict/batch`, `/health`, and `/model-info`."""
+    """Create APIRouter exposing inference and human-review workflow endpoints."""
     router = APIRouter()
 
     def _require_service(request: Request):
@@ -73,5 +80,74 @@ def create_classifier_router() -> APIRouter:
             return service.predict_batch(payload.items)
         except InputValidationError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @router.post("/review/import", response_model=ReviewImportResponse)
+    def review_import(payload: ReviewImportRequest, request: Request) -> ReviewImportResponse:
+        service = _require_service(request)
+        store = request.app.state.classifier_state.get_review_store()
+        try:
+            prepared = prepare_batch_records(
+                payload.items,
+                pos_mapping=service.predictor.taxonomy.get("pos_mapping", {}),
+                policy=service.validation_policy,
+                preprocessing_cfg=service.predictor.preprocessing_cfg,
+            )
+            batch_res = service.predict_batch(payload.items)
+        except InputValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        stored = store.import_batch(prepared, batch_res.predictions)
+        return ReviewImportResponse(
+            imported_count=len(stored),
+            accepted_count=batch_res.accepted_count,
+            needs_review_count=batch_res.needs_review_count,
+            model_version=batch_res.model_version,
+            items=stored,
+        )
+
+    @router.get("/review/queue", response_model=list[ReviewQueueItem])
+    def review_queue(
+        request: Request,
+        status: Literal["needs_review", "accepted", "all"] = Query("needs_review"),
+        only_unverified: bool = Query(True),
+        limit: int = Query(100, ge=1, le=1000),
+    ) -> list[ReviewQueueItem]:
+        store = request.app.state.classifier_state.get_review_store()
+        return store.list_queue(status=status, only_unverified=only_unverified, limit=limit)
+
+    @router.post("/review/{record_id}/verify", response_model=ReviewQueueItem)
+    def review_verify(
+        record_id: str,
+        payload: ReviewVerifyRequest,
+        request: Request,
+    ) -> ReviewQueueItem:
+        service = _require_service(request)
+        store = request.app.state.classifier_state.get_review_store()
+        try:
+            return store.verify_record(
+                record_id,
+                verified_subtopic_id=payload.verified_subtopic_id,
+                verified_main_topic_id=payload.verified_main_topic_id,
+                taxonomy=service.predictor.taxonomy,
+                reviewer=payload.reviewer,
+                notes=payload.notes,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @router.get("/review/{record_id}/history", response_model=list[ReviewHistoryEntry])
+    def review_history(record_id: str, request: Request) -> list[ReviewHistoryEntry]:
+        store = request.app.state.classifier_state.get_review_store()
+        return store.get_history(record_id)
+
+    @router.get("/review/export", response_model=list[ReviewQueueItem])
+    def review_export(
+        request: Request,
+        include_unverified_accepted: bool = Query(True),
+    ) -> list[ReviewQueueItem]:
+        store = request.app.state.classifier_state.get_review_store()
+        return store.export_records(include_unverified_accepted=include_unverified_accepted)
 
     return router
