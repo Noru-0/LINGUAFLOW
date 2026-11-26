@@ -342,7 +342,7 @@
           "id": "gen.function",
           "name_en": "Function Words",
           "name_vi": "Từ chức năng ngữ pháp",
-          "description": "Prepositions, pronouns, determiners, quantifiers, and structural function words expressing spatial, temporal, or grammatical relations such as concerning a subject, higher position, throughout a period, without domain-specific meaning (about, above, under, through, during, between, among)."
+          "description": "Grammatical function words such as prepositions, pronouns, determiners, and quantifiers expressing syntactic position, direction, time, or reference rather than lexical content (about, above, under, through, during, between, among, despite)."
         },
         {
           "id": "gen.linking",

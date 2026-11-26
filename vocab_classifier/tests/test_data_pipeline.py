@@ -14,6 +14,7 @@ if str(PACKAGE_ROOT) not in sys.path:
 
 from src.data.common import DEFAULT_RAW_PATH, DEFAULT_TAXONOMY_PATH, load_json, load_jsonl, load_taxonomy
 from src.data.extract import extract_collocation, extract_word_senses, normalize_pos
+from src.data.dataset_audit import audit_records
 from src.data.pipeline import run_pipeline
 from src.data.preprocess import build_model_text, preprocess_records
 from src.data.split import group_stratified_split
@@ -298,6 +299,7 @@ class TestSubtopicLabeling(unittest.TestCase):
                 "sense_index": 0,
                 "pos": "preposition",
                 "definition": "Closed-class grammatical relation concerning a particular subject without domain-specific meaning.",
+                "source_topic": "daily",
                 "main_topic": "Daily Life & Personal Finance",
                 "label_status": "main_topic_reviewed",
                 "label_source": "word_atlas_mapping",
@@ -309,6 +311,7 @@ class TestSubtopicLabeling(unittest.TestCase):
                 "sense_index": 0,
                 "pos": "preposition",  # adversarial POS: should stay topical because meaning is diplomatic treaty
                 "definition": "Diplomatic international treaty alliance and sovereignty negotiations.",
+                "source_topic": "government",
                 "main_topic": "Global Politics & Humanitarian",
                 "label_status": "main_topic_reviewed",
                 "label_source": "word_atlas_mapping",
@@ -320,6 +323,7 @@ class TestSubtopicLabeling(unittest.TestCase):
                 "sense_index": 0,
                 "pos": "adverb",
                 "definition": "Discourse marker contrasting ideas across any topic, despite the fact that.",
+                "source_topic": "thinking",
                 "main_topic": None,
                 "label_status": "needs_review",
                 "label_source": "word_atlas_mapping",
@@ -330,7 +334,8 @@ class TestSubtopicLabeling(unittest.TestCase):
             records,
             self.taxonomy,
             scorer,
-            mapped_margin=0.05,
+            mapped_margin=0.14,
+            broad_margin=0.05,
             unmapped_margin=0.0,
         )
         by_id = {r["sample_id"]: r for r in classified}
@@ -341,8 +346,50 @@ class TestSubtopicLabeling(unittest.TestCase):
         self.assertEqual(by_id["treaty_prep_001"]["main_topic"], "Global Politics & Humanitarian")
         self.assertEqual(by_id["treaty_prep_001"]["topic_type"], "topical")
         self.assertEqual(by_id["however_001"]["main_topic_id"], "gen")
-        self.assertEqual(stats["reclassified_from_topical_to_general"], 1)
+        self.assertEqual(stats["reclassified_from_broad_to_general"], 1)
         self.assertEqual(stats["rescued_from_unmapped_to_general"], 1)
+
+    def test_dataset_audit_flags_secondary_conflict_and_gen_function(self) -> None:
+        records = [
+            {
+                "sample_id": "strait_002",
+                "word_id": "strait",
+                "word": "strait",
+                "sense_index": 1,
+                "pos": "noun",
+                "definition": "Corporate finance bankruptcy liquidity debt crisis.",
+                "source_topic": "nature",
+                "main_topic": "Environment & Nature",
+                "main_topic_id": "env",
+                "subtopic_id": "env.disaster",
+                "confidence_margin": 0.25,
+            },
+            {
+                "sample_id": "maths_001",
+                "word_id": "maths",
+                "word": "maths",
+                "sense_index": 0,
+                "pos": "noun",
+                "definition": "The study of numbers and shapes.",
+                "source_topic": "education",
+                "main_topic": "General Vocabulary",
+                "main_topic_id": "gen",
+                "subtopic_id": "gen.function",
+                "confidence_margin": 0.20,
+            },
+        ]
+        audited, queue, rep = audit_records(
+            records,
+            self.taxonomy,
+            LexicalZeroShotScorer(),
+            secondary_conflict_margin=0.05,
+        )
+        self.assertTrue(audited[0]["secondary_conflict"])
+        self.assertEqual(audited[1]["gen_audit_flag"], "open_class_in_gen_function")
+        self.assertFalse(audited[0]["is_trusted_subtopic"])
+        self.assertFalse(audited[1]["is_trusted_subtopic"])
+        self.assertEqual(rep["secondary_sense_conflicts"], 1)
+        self.assertEqual(len(queue), 2)
 
     def test_propose_top3_candidates_and_generate_jsonl(self) -> None:
         records = [

@@ -33,7 +33,8 @@ def run_pipeline(
     auto_subtopic: bool = False,
     detect_general: bool = True,
     rescue_unmapped_general: bool = True,
-    general_margin: float = 0.06,
+    general_margin: float = 0.14,
+    broad_general_margin: float = 0.05,
     subtopic_backend: str = "auto",
     train_ratio: float = 0.8,
     val_ratio: float = 0.1,
@@ -84,6 +85,7 @@ def run_pipeline(
             auto_select=True,
             detect_general=detect_general,
             general_margin=general_margin,
+            broad_general_margin=broad_general_margin,
             backend=subtopic_backend,
         )
         result["subtopic"] = subtopic_stats
@@ -112,7 +114,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--auto-subtopic", action="store_true")
     parser.add_argument("--no-detect-general", action="store_true")
     parser.add_argument("--no-rescue-unmapped", action="store_true")
-    parser.add_argument("--general-margin", type=float, default=0.06)
+    parser.add_argument("--general-margin", type=float, default=0.14)
+    parser.add_argument("--broad-general-margin", type=float, default=0.05)
     parser.add_argument(
         "--subtopic-backend",
         choices=("auto", "embedding", "nli", "lexical"),
@@ -138,6 +141,7 @@ def main(argv: list[str] | None = None) -> None:
         detect_general=not args.no_detect_general,
         rescue_unmapped_general=not args.no_rescue_unmapped,
         general_margin=args.general_margin,
+        broad_general_margin=args.broad_general_margin,
         subtopic_backend=args.subtopic_backend,
         train_ratio=args.train_ratio,
         val_ratio=args.val_ratio,

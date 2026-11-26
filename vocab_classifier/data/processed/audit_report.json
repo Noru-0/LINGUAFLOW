@@ -1,0 +1,76 @@
+{
+  "train": {
+    "total_audited": 10392,
+    "secondary_senses_total": 4885,
+    "secondary_sense_conflicts": 1894,
+    "secondary_conflict_rate": 0.3877,
+    "gen_total": 2262,
+    "gen_by_subtopic": {
+      "gen.auxiliary": 247,
+      "gen.function": 463,
+      "gen.general": 1328,
+      "gen.linking": 224
+    },
+    "gen_flagged_open_class_in_function": 335,
+    "gen_flagged_domain_override": 165,
+    "trusted_subtopic_count": 7229,
+    "untrusted_subtopic_count": 3163,
+    "review_queue_count": 3163
+  },
+  "val": {
+    "total_audited": 1296,
+    "secondary_senses_total": 605,
+    "secondary_sense_conflicts": 216,
+    "secondary_conflict_rate": 0.357,
+    "gen_total": 286,
+    "gen_by_subtopic": {
+      "gen.auxiliary": 47,
+      "gen.function": 51,
+      "gen.general": 167,
+      "gen.linking": 21
+    },
+    "gen_flagged_open_class_in_function": 29,
+    "gen_flagged_domain_override": 21,
+    "trusted_subtopic_count": 938,
+    "untrusted_subtopic_count": 358,
+    "review_queue_count": 358,
+    "benchmark_clean_count": 1030
+  },
+  "test": {
+    "total_audited": 1295,
+    "secondary_senses_total": 606,
+    "secondary_sense_conflicts": 242,
+    "secondary_conflict_rate": 0.3993,
+    "gen_total": 297,
+    "gen_by_subtopic": {
+      "gen.auxiliary": 38,
+      "gen.function": 76,
+      "gen.general": 150,
+      "gen.linking": 33
+    },
+    "gen_flagged_open_class_in_function": 60,
+    "gen_flagged_domain_override": 28,
+    "trusted_subtopic_count": 854,
+    "untrusted_subtopic_count": 441,
+    "review_queue_count": 441,
+    "benchmark_clean_count": 965
+  },
+  "final_labeled": {
+    "total_audited": 12983,
+    "secondary_senses_total": 6096,
+    "secondary_sense_conflicts": 2352,
+    "secondary_conflict_rate": 0.3858,
+    "gen_total": 2845,
+    "gen_by_subtopic": {
+      "gen.auxiliary": 332,
+      "gen.function": 590,
+      "gen.general": 1645,
+      "gen.linking": 278
+    },
+    "gen_flagged_open_class_in_function": 424,
+    "gen_flagged_domain_override": 214,
+    "trusted_subtopic_count": 9021,
+    "untrusted_subtopic_count": 3962,
+    "review_queue_count": 3962
+  }
+}

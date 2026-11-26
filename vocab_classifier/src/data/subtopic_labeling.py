@@ -377,13 +377,18 @@ def detect_general_vocabulary(
     taxonomy: dict[str, Any],
     scorer: ZeroShotSubtopicScorer,
     *,
-    mapped_margin: float = 0.06,
-    unmapped_margin: float = 0.0,
+    mapped_margin: float = 0.14,
+    broad_margin: float = 0.05,
+    unmapped_margin: float = 0.02,
+    broad_sources: tuple[str, ...] = ("daily",),
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, int]]:
     """Classify General Vocabulary senses by sense meaning rather than naive POS rules.
 
     Task A: Compares each sense's core meaning (word + POS + definition) against the
     General Vocabulary subtopics (`gen.*`) versus the 10 IELTS topical categories.
+    Uses a stricter override margin (`mapped_margin`) for domain-specific `source_topic`s
+    (e.g. health, education, technology) than for catch-all `broad_sources` (`daily`)
+    or unmapped sources (`thinking`, `emotion`, `media`).
     """
     _, all_subtopics = build_subtopic_catalog(taxonomy)
     topical_cands = [c for c in all_subtopics if c["topic_type"] != "general"]
@@ -400,11 +405,14 @@ def detect_general_vocabulary(
     label2id: dict[str, int] = taxonomy["label2id"]
     topic_type_map: dict[str, str] = taxonomy["topic_type_map"]
     gen_label_id = label2id[GENERAL_TOPIC_NAME]
+    broad_set = set(broad_sources)
 
     classified: list[dict[str, Any]] = []
     still_unmapped: list[dict[str, Any]] = []
     stats = {
         "evaluated": len(records),
+        "reclassified_from_domain_to_general": 0,
+        "reclassified_from_broad_to_general": 0,
         "reclassified_from_topical_to_general": 0,
         "rescued_from_unmapped_to_general": 0,
         "kept_topical": 0,
@@ -418,7 +426,13 @@ def detect_general_vocabulary(
         diff = max_general - max_topical
 
         had_main_topic = bool(item.get("main_topic")) and item["main_topic"] in label2id
-        threshold = mapped_margin if had_main_topic else unmapped_margin
+        src_topic = str(item.get("source_topic") or "")
+        if not had_main_topic:
+            threshold = unmapped_margin
+        elif src_topic in broad_set:
+            threshold = broad_margin
+        else:
+            threshold = mapped_margin
 
         if diff >= threshold:
             prev_source = item.get("label_source") or "word_atlas_mapping"
@@ -434,6 +448,10 @@ def detect_general_vocabulary(
             classified.append(item)
             if had_main_topic:
                 stats["reclassified_from_topical_to_general"] += 1
+                if src_topic in broad_set:
+                    stats["reclassified_from_broad_to_general"] += 1
+                else:
+                    stats["reclassified_from_domain_to_general"] += 1
             else:
                 stats["rescued_from_unmapped_to_general"] += 1
         elif had_main_topic:
@@ -585,8 +603,9 @@ def generate_subtopic_candidates(
     final_output_path: Path | str | None = None,
     auto_select: bool = False,
     detect_general: bool = True,
-    general_margin: float = 0.06,
-    unmapped_general_margin: float = 0.0,
+    general_margin: float = 0.14,
+    broad_general_margin: float = 0.05,
+    unmapped_general_margin: float = 0.02,
     backend: str = "auto",
     model_name: str | None = None,
     top_k: int = 3,
@@ -618,6 +637,7 @@ def generate_subtopic_candidates(
             taxonomy,
             scorer,
             mapped_margin=general_margin,
+            broad_margin=broad_general_margin,
             unmapped_margin=unmapped_general_margin,
         )
         if review_output_path is not None:
@@ -684,13 +704,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--general-margin",
         type=float,
-        default=0.06,
-        help="Margin (max_gen - max_topical) required to reclassify a mapped topical sense to gen.",
+        default=0.14,
+        help="Margin (max_gen - max_topical) required to reclassify a domain topical sense to gen.",
+    )
+    parser.add_argument(
+        "--broad-general-margin",
+        type=float,
+        default=0.05,
+        help="Margin (max_gen - max_topical) required to reclassify a catch-all ('daily') sense to gen.",
     )
     parser.add_argument(
         "--unmapped-general-margin",
         type=float,
-        default=0.0,
+        default=0.02,
         help="Margin (max_gen - max_topical) required to rescue an unmapped sense to gen.",
     )
     parser.add_argument(
@@ -738,6 +764,7 @@ def main(argv: list[str] | None = None) -> None:
         auto_select=args.auto_select,
         detect_general=not args.no_detect_general,
         general_margin=args.general_margin,
+        broad_general_margin=args.broad_general_margin,
         unmapped_general_margin=args.unmapped_general_margin,
         backend=args.backend,
         model_name=args.model_name,
