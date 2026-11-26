@@ -1,5 +1,6 @@
 {
   "seed": 42,
+  "primary_baseline": "frozen_minilm_logreg",
   "train_path": "data/processed/train.jsonl",
   "val_path": "data/processed/val.jsonl",
   "test_path": "data/processed/test.jsonl",

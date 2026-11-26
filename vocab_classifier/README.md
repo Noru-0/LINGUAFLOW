@@ -84,6 +84,9 @@ python -m src.data.subtopic_labeling --backend embedding --auto-select
 
 # Run baseline benchmark (TF-IDF+LogReg, TF-IDF+LinearSVM, Frozen MiniLM+LogReg)
 python -m src.training.train_baselines
+
+# Run error analysis on primary baseline (Frozen MiniLM + Logistic Regression)
+python -m src.evaluation.error_analysis --split test
 ```
 
 ## Current Dataset Summary (Default Run)
