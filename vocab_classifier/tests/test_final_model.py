@@ -183,6 +183,77 @@ class TestFinalModelPackage(unittest.TestCase):
             self.assertTrue(abstained[0]["abstained"])
             self.assertEqual(abstained[0]["review_status"], "needs_review")
 
+    def test_release_artifact_package_immutability_and_restore(self) -> None:
+        from src.training.release_artifact import (
+            package_release_artifact,
+            restore_release_artifact,
+            verify_archive_checksum,
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            model_dir = tmp / "final_model"
+            (model_dir / "encoder" / "all-MiniLM-L6-v2").mkdir(parents=True)
+            (model_dir / "main_classifier").mkdir(parents=True)
+            (model_dir / "subtopic_classifiers").mkdir(parents=True)
+            (model_dir / "calibration").mkdir(parents=True)
+            (model_dir / "config").mkdir(parents=True)
+            (model_dir / "evaluation").mkdir(parents=True)
+
+            (model_dir / "README.md").write_text("# Model\n", encoding="utf-8")
+            (model_dir / "encoder" / "all-MiniLM-L6-v2" / "model.safetensors").write_bytes(b"weights")
+            (model_dir / "main_classifier" / "model.joblib").write_bytes(b"main")
+            (model_dir / "subtopic_classifiers" / "env.joblib").write_bytes(b"env")
+            (model_dir / "subtopic_classifiers" / "index.json").write_text(
+                json.dumps({"by_main_label_id": {"0": "env.joblib"}}), encoding="utf-8"
+            )
+            (model_dir / "calibration" / "temperatures.json").write_text(
+                json.dumps({"main_temperature": 0.87, "subtopic_temperature": 0.49}), encoding="utf-8"
+            )
+            (model_dir / "config" / "taxonomy.json").write_text(
+                json.dumps({"taxonomy": []}), encoding="utf-8"
+            )
+            (model_dir / "config" / "preprocessing.json").write_text(
+                json.dumps({"data_integrity": {"dataset_version": "1.2.0", "taxonomy_version": "1.1.0"}}),
+                encoding="utf-8",
+            )
+            (model_dir / "config" / "inference.json").write_text(
+                json.dumps({"top_k_main": 3, "top_k_subtopic": 3}), encoding="utf-8"
+            )
+            (model_dir / "evaluation" / "test_metrics.json").write_text("{}", encoding="utf-8")
+            (model_dir / "evaluation" / "classification_report.json").write_text("{}", encoding="utf-8")
+            (model_dir / "evaluation" / "confusion_matrix.json").write_text("{}", encoding="utf-8")
+
+            releases_dir = tmp / "releases"
+            info = package_release_artifact(
+                model_dir=model_dir,
+                releases_dir=releases_dir,
+                version="1.0.0",
+            )
+            self.assertEqual(info["artifact_tag"], "vocab-classifier-v1.0.0")
+            self.assertEqual(
+                verify_archive_checksum(info["archive_path"], manifest_path=info["manifest_path"]),
+                info["archive_sha256"],
+            )
+
+            # Never overwrite an already-published version
+            with self.assertRaises(FileExistsError):
+                package_release_artifact(model_dir=model_dir, releases_dir=releases_dir, version="1.0.0")
+
+            # Tampered checksum must fail
+            with self.assertRaises(ValueError):
+                verify_archive_checksum(info["archive_path"], expected_sha256="0" * 64)
+
+            restored_dir = tmp / "restored_model"
+            res = restore_release_artifact(
+                info["archive_path"],
+                target_dir=restored_dir,
+                manifest_path=info["manifest_path"],
+            )
+            self.assertEqual(res["archive_sha256"], info["archive_sha256"])
+            self.assertTrue((restored_dir / "encoder" / "all-MiniLM-L6-v2" / "model.safetensors").exists())
+            self.assertTrue((restored_dir / "main_classifier" / "model.joblib").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

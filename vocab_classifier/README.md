@@ -105,9 +105,33 @@ python -m src.evaluation.research_e7_e10 --experiments E7 E8
 
 # Package final official production model (Frozen MiniLM + Logistic Regression power_0.25) -> final_model/
 python -m src.training.finalize_model
+
+# Freeze and package immutable binary release zip + SHA-256 + manifest
+python -m src.training.release_artifact package --version 1.0.0
 ```
 
-See [`artifacts/experiments/FINAL_REPORT.md`](artifacts/experiments/FINAL_REPORT.md) for full E1–E6 empirical findings.
+See [`artifacts/experiments/FINAL_REPORT.md`](artifacts/experiments/FINAL_REPORT.md) for full E1–E10 empirical findings.
+
+## Release Artifact & Model Restoration (`vocab-classifier-v1.0.0`)
+
+Because binary weights (`final_model/encoder/`, `*.joblib`) are excluded from Git, a separate immutable release archive is published under tag `vocab-classifier-v1.0.0` (Dataset `v1.2.0`, Taxonomy `v1.1.0`, Encoder `all-MiniLM-L6-v2`, Classifier `LogisticRegression` with `power_0.25`, temperature scaling, Top-1 + Top-3 + abstention):
+
+```bash
+cd vocab_classifier
+
+# Option A: Restore directly from the GitHub Release URL with SHA-256 verification
+python -m src.training.release_artifact restore \
+  https://github.com/Noru-0/LINGUAFLOW/releases/download/vocab-classifier-v1.0.0/vocab-classifier-v1.0.0.zip \
+  --manifest releases/vocab-classifier-v1.0.0.manifest.json \
+  --overwrite
+
+# Option B: Verify & restore from a downloaded local zip
+python -m src.training.release_artifact verify releases/vocab-classifier-v1.0.0.zip \
+  --sha256-file releases/vocab-classifier-v1.0.0.zip.sha256
+python -m src.training.release_artifact restore releases/vocab-classifier-v1.0.0.zip --overwrite
+```
+
+Never overwrite a published release version tag or archive; bump `--version` for any future release.
 
 ## Current Dataset Summary (Default Run)
 
