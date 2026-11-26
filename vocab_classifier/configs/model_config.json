@@ -1,0 +1,16 @@
+{
+  "model_name": "sentence-transformers/all-MiniLM-L6-v2",
+  "embedding_dim": 384,
+  "max_length": 192,
+  "num_main_topics": 11,
+  "num_subtopics": 45,
+  "main_cond_dim": 64,
+  "hidden_dropout": 0.2,
+  "pooling": "mean",
+  "use_main_conditioning": true,
+  "mask_subtopic_loss": true,
+  "main_loss_weight": 1.0,
+  "subtopic_loss_weight": 1.0,
+  "taxonomy_path": "data/taxonomy/taxonomy.json",
+  "label_mapping_path": "data/processed/label_mapping.json"
+}
