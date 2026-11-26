@@ -17,6 +17,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "src.models.hierarchical_classifier",
         "load_encoder_and_tokenizer",
     ),
+    "HierarchicalLinearBaseline": ("src.models.baselines", "HierarchicalLinearBaseline"),
 }
 
 __all__ = list(_EXPORTS.keys())

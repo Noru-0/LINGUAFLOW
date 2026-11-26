@@ -79,8 +79,11 @@ python -m unittest discover -s tests -v
 # Run the full pipeline (promote mapped needs_review -> Top-3 subtopics -> auto-select Top-1 -> split)
 python -m src.data.pipeline --promote-mapped --auto-subtopic --subtopic-backend embedding
 
-# Or run subtopic labeling standalone
+# Generate Top-3 zero-shot subtopic candidates + auto-select Top-1
 python -m src.data.subtopic_labeling --backend embedding --auto-select
+
+# Run baseline benchmark (TF-IDF+LogReg, TF-IDF+LinearSVM, Frozen MiniLM+LogReg)
+python -m src.training.train_baselines
 ```
 
 ## Current Dataset Summary (Default Run)

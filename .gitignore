@@ -37,3 +37,11 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+
+# Trained binary model weights & serialized artifacts
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.joblib
+*.pkl
