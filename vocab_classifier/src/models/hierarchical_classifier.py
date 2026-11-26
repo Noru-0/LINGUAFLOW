@@ -214,6 +214,7 @@ class HierarchicalVocabClassifier(nn.Module):
         main_labels: torch.Tensor | None = None,
         subtopic_labels: torch.Tensor | None = None,
         given_main_labels: torch.Tensor | None = None,
+        main_class_weights: torch.Tensor | None = None,
         teacher_forcing: bool = False,
     ) -> dict[str, torch.Tensor | None]:
         """Run multi-task forward pass and optional hierarchical loss computation."""
@@ -252,19 +253,25 @@ class HierarchicalVocabClassifier(nn.Module):
         total_loss: torch.Tensor | None = None
 
         if main_labels is not None:
-            main_loss = F.cross_entropy(main_logits, main_labels.long())
+            main_loss = F.cross_entropy(
+                main_logits, main_labels.long(), weight=main_class_weights
+            )
             total_loss = self.config.main_loss_weight * main_loss
 
         if subtopic_labels is not None:
-            if self.config.mask_subtopic_loss and main_labels is not None:
-                loss_logits = apply_hierarchy_mask(
-                    raw_subtopic_logits, main_labels.long(), self.hierarchy_mask
+            valid_mask = subtopic_labels.long() != -100
+            if torch.any(valid_mask):
+                if self.config.mask_subtopic_loss and main_labels is not None:
+                    loss_logits = apply_hierarchy_mask(
+                        raw_subtopic_logits, main_labels.long(), self.hierarchy_mask
+                    )
+                else:
+                    loss_logits = raw_subtopic_logits
+                subtopic_loss = F.cross_entropy(
+                    loss_logits, subtopic_labels.long(), ignore_index=-100
                 )
-            else:
-                loss_logits = raw_subtopic_logits
-            subtopic_loss = F.cross_entropy(loss_logits, subtopic_labels.long())
-            weighted_sub = self.config.subtopic_loss_weight * subtopic_loss
-            total_loss = weighted_sub if total_loss is None else total_loss + weighted_sub
+                weighted_sub = self.config.subtopic_loss_weight * subtopic_loss
+                total_loss = weighted_sub if total_loss is None else total_loss + weighted_sub
 
         return {
             "loss": total_loss,
