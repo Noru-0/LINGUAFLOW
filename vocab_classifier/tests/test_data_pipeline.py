@@ -17,6 +17,13 @@ from src.data.extract import extract_collocation, extract_word_senses, normalize
 from src.data.pipeline import run_pipeline
 from src.data.preprocess import build_model_text, preprocess_records
 from src.data.split import group_stratified_split
+from src.data.subtopic_labeling import (
+    LexicalZeroShotScorer,
+    build_subtopic_catalog,
+    generate_subtopic_candidates,
+    propose_subtopic_candidates,
+    select_top1_subtopics,
+)
 
 
 class TestExtract(unittest.TestCase):
@@ -136,6 +143,48 @@ class TestPreprocess(unittest.TestCase):
         self.assertEqual(labeled[0]["label_id"], 0)
         self.assertIn("Definition: Relating to the sun.", labeled[0]["text"])
 
+    def test_promote_mapped_needs_review_includes_secondary_senses(self) -> None:
+        records = [
+            {
+                "sample_id": "bank_001",
+                "word_id": "bank",
+                "word": "bank",
+                "sense_index": 0,
+                "pos": "noun",
+                "definition": "A financial institution.",
+                "main_topic": "Business, Work & Economy",
+                "label_status": "main_topic_reviewed",
+            },
+            {
+                "sample_id": "bank_002",
+                "word_id": "bank",
+                "word": "bank",
+                "sense_index": 1,
+                "pos": "verb",
+                "definition": "To deposit money in a bank.",
+                "main_topic": "Business, Work & Economy",
+                "label_status": "needs_review",
+            },
+            {
+                "sample_id": "thought_001",
+                "word_id": "thought",
+                "word": "thought",
+                "sense_index": 0,
+                "pos": "noun",
+                "definition": "An idea or opinion.",
+                "main_topic": None,
+                "label_status": "needs_review",
+            },
+        ]
+        labeled, review, counts = preprocess_records(
+            records, self.taxonomy, promote_mapped_needs_review=True
+        )
+        self.assertEqual(counts["promoted_to_main_topic_reviewed"], 1)
+        self.assertEqual(len(labeled), 2)
+        self.assertTrue(all(r["label_status"] == "main_topic_reviewed" for r in labeled))
+        self.assertEqual(len(review), 1)
+        self.assertEqual(review[0]["sample_id"], "thought_001")
+
     def test_build_model_text_flags(self) -> None:
         record = {
             "word": "orbit",
@@ -224,6 +273,96 @@ class TestSplitAndPipeline(unittest.TestCase):
             test = load_jsonl(out_dir / "test.jsonl")
             self.assertEqual(len(train) + len(val) + len(test), 30)
             self.assertFalse({r["word_id"] for r in train} & {r["word_id"] for r in test})
+
+
+class TestSubtopicLabeling(unittest.TestCase):
+    def setUp(self) -> None:
+        self.taxonomy = load_taxonomy(DEFAULT_TAXONOMY_PATH)
+
+    def test_build_subtopic_catalog_counts(self) -> None:
+        by_main, all_subs = build_subtopic_catalog(self.taxonomy)
+        self.assertEqual(len(by_main), 10)
+        self.assertEqual(len(all_subs), 41)
+        self.assertEqual(len(by_main["Education & Academia"]), 5)
+
+    def test_propose_top3_candidates_and_generate_jsonl(self) -> None:
+        records = [
+            {
+                "sample_id": "library_001",
+                "word_id": "library",
+                "word": "library",
+                "sense_index": 0,
+                "pos": "noun",
+                "definition": "A place on a university campus where students borrow books.",
+                "examples": ["Public libraries and university campuses support student learning."],
+                "collocations": ["university library", "library card"],
+                "source_topic": "education",
+                "main_topic": "Education & Academia",
+                "main_topic_id": "edu",
+                "label_id": 3,
+                "label_status": "main_topic_reviewed",
+                "label_source": "word_atlas_mapping",
+            },
+            {
+                "sample_id": "solar_001",
+                "word_id": "solar",
+                "word": "solar",
+                "sense_index": 0,
+                "pos": "adjective",
+                "definition": "Relating to renewable solar energy and power generation.",
+                "examples": ["Solar panels produce clean electricity."],
+                "collocations": ["solar energy", "solar panel"],
+                "source_topic": "environment",
+                "main_topic": "Environment & Nature",
+                "main_topic_id": "env",
+                "label_id": 0,
+                "label_status": "main_topic_reviewed",
+                "label_source": "word_atlas_mapping",
+            },
+        ]
+
+        scorer = LexicalZeroShotScorer()
+        proposals, stats = propose_subtopic_candidates(records, self.taxonomy, scorer, top_k=3)
+        self.assertEqual(stats["total_samples"], 2)
+        self.assertEqual(len(proposals[0]["subtopic_candidates"]), 3)
+        self.assertEqual(proposals[0]["recommended_subtopic"], "edu.university")
+        self.assertEqual(proposals[1]["recommended_subtopic"], "env.energy")
+        self.assertIsNone(proposals[0]["subtopic"])
+        self.assertEqual(proposals[0]["review_status"], "pending_review")
+        scores = [c["score"] for c in proposals[0]["subtopic_candidates"]]
+        self.assertEqual(scores, sorted(scores, reverse=True))
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            in_path = tmp / "processed_labeled.jsonl"
+            out_path = tmp / "subtopic_candidates.jsonl"
+            stats_path = tmp / "subtopic_stats.json"
+            in_path.write_text(
+                "\n".join(json.dumps(r) for r in records) + "\n",
+                encoding="utf-8",
+            )
+            file_stats = generate_subtopic_candidates(
+                input_path=in_path,
+                output_path=out_path,
+                taxonomy_path=DEFAULT_TAXONOMY_PATH,
+                stats_path=stats_path,
+                final_output_path=tmp / "final_labeled.jsonl",
+                auto_select=True,
+                backend="lexical",
+            )
+            self.assertEqual(file_stats["total_samples"], 2)
+            self.assertTrue(file_stats["auto_selected"])
+            loaded = load_jsonl(out_path)
+            self.assertEqual(len(loaded), 2)
+            self.assertEqual(loaded[0]["subtopic_candidates"][0]["rank"], 1)
+
+            final_loaded = load_jsonl(tmp / "final_labeled.jsonl")
+            self.assertEqual(final_loaded[0]["subtopic"], "edu.university")
+            self.assertEqual(final_loaded[0]["label_status"], "subtopic_auto_labeled")
+            self.assertIsNotNone(final_loaded[0]["subtopic_label_id"])
+
+            top1_only = select_top1_subtopics(proposals, self.taxonomy)
+            self.assertEqual(top1_only[1]["subtopic"], "env.energy")
 
 
 if __name__ == "__main__":

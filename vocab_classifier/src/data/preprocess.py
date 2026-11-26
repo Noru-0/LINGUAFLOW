@@ -100,6 +100,7 @@ def preprocess_records(
     taxonomy: dict[str, Any],
     *,
     allowed_statuses: tuple[str, ...] = ("main_topic_reviewed",),
+    promote_mapped_needs_review: bool = False,
     include_examples: bool = True,
     include_collocations: bool = True,
     deduplicate_senses: bool = True,
@@ -117,6 +118,7 @@ def preprocess_records(
         "dropped_invalid": 0,
         "dropped_duplicate_sense": 0,
         "invalid_subtopic_cleared": 0,
+        "promoted_to_main_topic_reviewed": 0,
     }
 
     for raw in records:
@@ -148,6 +150,9 @@ def preprocess_records(
         if is_valid_topic:
             cleaned["main_topic_id"] = name_to_id[main_topic]
             cleaned["label_id"] = label2id[main_topic]
+            if promote_mapped_needs_review and cleaned["label_status"] == "needs_review":
+                cleaned["label_status"] = "main_topic_reviewed"
+                counts["promoted_to_main_topic_reviewed"] += 1
         else:
             cleaned["main_topic"] = None
             cleaned["main_topic_id"] = None
@@ -170,6 +175,7 @@ def preprocess_dataset(
     stats_path: Path | str | None = DEFAULT_PREPROCESS_STATS_PATH,
     *,
     include_needs_review: bool = False,
+    promote_mapped_needs_review: bool = False,
     include_examples: bool = True,
     include_collocations: bool = True,
 ) -> dict[str, Any]:
@@ -186,6 +192,7 @@ def preprocess_dataset(
         records,
         taxonomy,
         allowed_statuses=allowed_statuses,
+        promote_mapped_needs_review=promote_mapped_needs_review,
         include_examples=include_examples,
         include_collocations=include_collocations,
     )
@@ -198,6 +205,8 @@ def preprocess_dataset(
         "id2label": {str(k): v for k, v in taxonomy["id2label"].items()},
         "name_to_topic_id": taxonomy["name_to_id"],
         "topic_id_to_name": taxonomy["id_to_name"],
+        "subtopic2id": taxonomy["subtopic2id"],
+        "id2subtopic": {str(k): v for k, v in taxonomy["id2subtopic"].items()},
     }
     save_json(label_mapping, label_mapping_path)
 
@@ -208,6 +217,7 @@ def preprocess_dataset(
         "unique_labeled_words": len({r["word_id"] for r in labeled}),
         "labeled_by_main_topic": dict(Counter(r["main_topic"] for r in labeled)),
         "include_needs_review": include_needs_review,
+        "promote_mapped_needs_review": promote_mapped_needs_review,
         "include_examples": include_examples,
         "include_collocations": include_collocations,
     }
@@ -232,6 +242,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Include 'needs_review' senses that have a non-null main_topic in the labeled output.",
     )
+    parser.add_argument(
+        "--promote-mapped",
+        action="store_true",
+        help="Promote 'needs_review' senses with main_topic != null to 'main_topic_reviewed'.",
+    )
     parser.add_argument("--no-examples", action="store_true", help="Omit examples from model text.")
     parser.add_argument(
         "--no-collocations", action="store_true", help="Omit collocations from model text."
@@ -250,6 +265,7 @@ def main(argv: list[str] | None = None) -> None:
         label_mapping_path=args.label_mapping,
         stats_path=args.stats,
         include_needs_review=args.include_needs_review,
+        promote_mapped_needs_review=args.promote_mapped,
         include_examples=not args.no_examples,
         include_collocations=not args.no_collocations,
     )

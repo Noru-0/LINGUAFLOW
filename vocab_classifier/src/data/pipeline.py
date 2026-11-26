@@ -1,4 +1,4 @@
-"""End-to-end data processing pipeline: extract -> preprocess -> split."""
+"""End-to-end data processing pipeline: extract -> preprocess -> (optional subtopic labeling) -> split."""
 
 from __future__ import annotations
 
@@ -8,16 +8,19 @@ from typing import Any
 
 from src.data.common import (
     DEFAULT_EXTRACTED_PATH,
+    DEFAULT_FINAL_LABELED_PATH,
     DEFAULT_LABEL_MAPPING_PATH,
     DEFAULT_LABELED_PATH,
     DEFAULT_RAW_PATH,
     DEFAULT_REVIEW_PATH,
+    DEFAULT_SUBTOPIC_CANDIDATES_PATH,
     DEFAULT_TAXONOMY_PATH,
     PROCESSED_DIR,
 )
 from src.data.extract import DEFAULT_EXTRACT_STATS_PATH, extract_dataset
 from src.data.preprocess import DEFAULT_PREPROCESS_STATS_PATH, preprocess_dataset
 from src.data.split import split_dataset
+from src.data.subtopic_labeling import DEFAULT_SUBTOPIC_STATS_PATH, generate_subtopic_candidates
 
 
 def run_pipeline(
@@ -26,17 +29,22 @@ def run_pipeline(
     processed_dir: Path | str = PROCESSED_DIR,
     *,
     include_needs_review: bool = False,
+    promote_mapped_needs_review: bool = False,
+    auto_subtopic: bool = False,
+    subtopic_backend: str = "auto",
     train_ratio: float = 0.8,
     val_ratio: float = 0.1,
     test_ratio: float = 0.1,
     seed: int = 42,
 ) -> dict[str, Any]:
-    """Run extraction, preprocessing, and group-stratified splitting end-to-end."""
+    """Run extraction, preprocessing, optional zero-shot subtopic labeling, and splitting."""
     out_dir = Path(processed_dir)
     extracted_path = out_dir / DEFAULT_EXTRACTED_PATH.name
     labeled_path = out_dir / DEFAULT_LABELED_PATH.name
     review_path = out_dir / DEFAULT_REVIEW_PATH.name
     label_mapping_path = out_dir / DEFAULT_LABEL_MAPPING_PATH.name
+    candidates_path = out_dir / DEFAULT_SUBTOPIC_CANDIDATES_PATH.name
+    final_labeled_path = out_dir / DEFAULT_FINAL_LABELED_PATH.name
 
     extract_stats = extract_dataset(
         input_path=raw_path,
@@ -52,20 +60,38 @@ def run_pipeline(
         label_mapping_path=label_mapping_path,
         stats_path=out_dir / DEFAULT_PREPROCESS_STATS_PATH.name,
         include_needs_review=include_needs_review,
+        promote_mapped_needs_review=promote_mapped_needs_review,
     )
+
+    result: dict[str, Any] = {
+        "extract": extract_stats,
+        "preprocess": preprocess_stats,
+    }
+    split_input = labeled_path
+
+    if auto_subtopic:
+        subtopic_stats = generate_subtopic_candidates(
+            input_path=labeled_path,
+            output_path=candidates_path,
+            taxonomy_path=taxonomy_path,
+            stats_path=out_dir / DEFAULT_SUBTOPIC_STATS_PATH.name,
+            final_output_path=final_labeled_path,
+            auto_select=True,
+            backend=subtopic_backend,
+        )
+        result["subtopic"] = subtopic_stats
+        split_input = final_labeled_path
+
     split_stats = split_dataset(
-        input_path=labeled_path,
+        input_path=split_input,
         output_dir=out_dir,
         train_ratio=train_ratio,
         val_ratio=val_ratio,
         test_ratio=test_ratio,
         seed=seed,
     )
-    return {
-        "extract": extract_stats,
-        "preprocess": preprocess_stats,
-        "split": split_stats,
-    }
+    result["split"] = split_stats
+    return result
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -75,6 +101,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--taxonomy", type=Path, default=DEFAULT_TAXONOMY_PATH)
     parser.add_argument("--processed-dir", type=Path, default=PROCESSED_DIR)
     parser.add_argument("--include-needs-review", action="store_true")
+    parser.add_argument("--promote-mapped", action="store_true")
+    parser.add_argument("--auto-subtopic", action="store_true")
+    parser.add_argument(
+        "--subtopic-backend",
+        choices=("auto", "embedding", "nli", "lexical"),
+        default="auto",
+    )
     parser.add_argument("--train-ratio", type=float, default=0.8)
     parser.add_argument("--val-ratio", type=float, default=0.1)
     parser.add_argument("--test-ratio", type=float, default=0.1)
@@ -90,6 +123,9 @@ def main(argv: list[str] | None = None) -> None:
         taxonomy_path=args.taxonomy,
         processed_dir=args.processed_dir,
         include_needs_review=args.include_needs_review,
+        promote_mapped_needs_review=args.promote_mapped,
+        auto_subtopic=args.auto_subtopic,
+        subtopic_backend=args.subtopic_backend,
         train_ratio=args.train_ratio,
         val_ratio=args.val_ratio,
         test_ratio=args.test_ratio,

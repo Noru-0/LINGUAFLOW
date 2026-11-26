@@ -20,6 +20,8 @@ DEFAULT_EXTRACTED_PATH = PROCESSED_DIR / "extracted_senses.jsonl"
 DEFAULT_LABELED_PATH = PROCESSED_DIR / "processed_labeled.jsonl"
 DEFAULT_REVIEW_PATH = PROCESSED_DIR / "needs_review.jsonl"
 DEFAULT_LABEL_MAPPING_PATH = PROCESSED_DIR / "label_mapping.json"
+DEFAULT_SUBTOPIC_CANDIDATES_PATH = PROCESSED_DIR / "subtopic_candidates.jsonl"
+DEFAULT_FINAL_LABELED_PATH = PROCESSED_DIR / "final_labeled.jsonl"
 
 _CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -93,6 +95,8 @@ def load_taxonomy(path: Path | str = DEFAULT_TAXONOMY_PATH) -> dict[str, Any]:
     label2id: dict[str, int] = {}
     id2label: dict[int, str] = {}
     valid_subtopics: dict[str, str] = {}
+    subtopic2id: dict[str, int] = {}
+    id2subtopic: dict[int, str] = {}
 
     for idx, topic in enumerate(main_topics):
         topic_id = topic["id"]
@@ -102,7 +106,11 @@ def load_taxonomy(path: Path | str = DEFAULT_TAXONOMY_PATH) -> dict[str, Any]:
         label2id[name_en] = idx
         id2label[idx] = name_en
         for sub in topic.get("subtopics", []):
-            valid_subtopics[sub["id"]] = name_en
+            sub_id = sub["id"]
+            valid_subtopics[sub_id] = name_en
+            sub_idx = len(subtopic2id)
+            subtopic2id[sub_id] = sub_idx
+            id2subtopic[sub_idx] = sub_id
 
     return {
         "raw": raw,
@@ -112,6 +120,8 @@ def load_taxonomy(path: Path | str = DEFAULT_TAXONOMY_PATH) -> dict[str, Any]:
         "label2id": label2id,
         "id2label": id2label,
         "valid_subtopics": valid_subtopics,
+        "subtopic2id": subtopic2id,
+        "id2subtopic": id2subtopic,
         "source_topic_to_main_topic": raw.get("source_topic_to_main_topic", {}),
         "pos_mapping": raw.get("pos_mapping", {}),
     }
