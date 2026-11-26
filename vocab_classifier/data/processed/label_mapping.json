@@ -9,7 +9,8 @@
     "Urbanization & Infrastructure": 6,
     "Travel & Hospitality": 7,
     "Daily Life & Personal Finance": 8,
-    "Global Politics & Humanitarian": 9
+    "Global Politics & Humanitarian": 9,
+    "General Vocabulary": 10
   },
   "id2label": {
     "0": "Environment & Nature",
@@ -21,7 +22,8 @@
     "6": "Urbanization & Infrastructure",
     "7": "Travel & Hospitality",
     "8": "Daily Life & Personal Finance",
-    "9": "Global Politics & Humanitarian"
+    "9": "Global Politics & Humanitarian",
+    "10": "General Vocabulary"
   },
   "name_to_topic_id": {
     "Environment & Nature": "env",
@@ -33,7 +35,8 @@
     "Urbanization & Infrastructure": "urban",
     "Travel & Hospitality": "travel",
     "Daily Life & Personal Finance": "life",
-    "Global Politics & Humanitarian": "gov"
+    "Global Politics & Humanitarian": "gov",
+    "General Vocabulary": "gen"
   },
   "topic_id_to_name": {
     "env": "Environment & Nature",
@@ -45,7 +48,21 @@
     "urban": "Urbanization & Infrastructure",
     "travel": "Travel & Hospitality",
     "life": "Daily Life & Personal Finance",
-    "gov": "Global Politics & Humanitarian"
+    "gov": "Global Politics & Humanitarian",
+    "gen": "General Vocabulary"
+  },
+  "topic_type_map": {
+    "Environment & Nature": "topical",
+    "Science & Technology": "topical",
+    "Business, Work & Economy": "topical",
+    "Education & Academia": "topical",
+    "Health, Medicine & Wellness": "topical",
+    "Society, Culture & Law": "topical",
+    "Urbanization & Infrastructure": "topical",
+    "Travel & Hospitality": "topical",
+    "Daily Life & Personal Finance": "topical",
+    "Global Politics & Humanitarian": "topical",
+    "General Vocabulary": "general"
   },
   "subtopic2id": {
     "env.climate": 0,
@@ -88,7 +105,11 @@
     "life.leisure": 37,
     "gov.diplomacy": 38,
     "gov.aid": 39,
-    "gov.globalization": 40
+    "gov.globalization": 40,
+    "gen.function": 41,
+    "gen.linking": 42,
+    "gen.auxiliary": 43,
+    "gen.general": 44
   },
   "id2subtopic": {
     "0": "env.climate",
@@ -131,6 +152,57 @@
     "37": "life.leisure",
     "38": "gov.diplomacy",
     "39": "gov.aid",
-    "40": "gov.globalization"
+    "40": "gov.globalization",
+    "41": "gen.function",
+    "42": "gen.linking",
+    "43": "gen.auxiliary",
+    "44": "gen.general"
+  },
+  "subtopic_id_to_name": {
+    "env.climate": "Climate Change & Emissions",
+    "env.wildlife": "Biodiversity & Wildlife Conservation",
+    "env.pollution": "Pollution, Waste & Recycling",
+    "env.energy": "Renewable Energy & Natural Resources",
+    "env.disaster": "Natural Disasters & Geography",
+    "tech.ai": "Artificial Intelligence & Automation",
+    "tech.cyber": "Cybersecurity & Information Systems",
+    "tech.space": "Space Exploration & Astronomy",
+    "tech.bio": "Biotechnology & Genetics",
+    "tech.digital": "Digital Transformation & Consumer Devices",
+    "biz.career": "Employment, Recruitment & Workplace",
+    "biz.finance": "Corporate Finance, Investment & Banking",
+    "biz.marketing": "Marketing, Branding & Consumers",
+    "biz.trade": "International Trade & Macroeconomics",
+    "biz.leadership": "Corporate Leadership & Operations",
+    "edu.university": "Higher Education & Campus Life",
+    "edu.pedagogy": "Teaching Methodologies & E-Learning",
+    "edu.exams": "Assessments, Grading & Credentials",
+    "edu.research": "Academic Writing & Scientific Research",
+    "edu.discourse": "Academic Discourse & Linking",
+    "health.diet": "Nutrition, Diet & Physical Fitness",
+    "health.mental": "Mental Health & Psychology",
+    "health.disease": "Diseases, Pandemics & Pathology",
+    "health.care": "Healthcare Systems & Pharmacology",
+    "soc.equality": "Diversity, Gender & Social Mobility",
+    "soc.arts": "Visual Arts, Literature & Music",
+    "soc.heritage": "History, Traditions & Customs",
+    "soc.law": "Crime, Law Enforcement & Justice",
+    "urban.planning": "Smart Cities & Urban Density",
+    "urban.transit": "Public Transportation & Infrastructure",
+    "urban.housing": "Real Estate, Architecture & Interior",
+    "travel.eco": "Sightseeing & Sustainable Tourism",
+    "travel.aviation": "Aviation, Hotels & Accommodations",
+    "travel.customs": "Cultural Etiquette & Expatriate Life",
+    "life.family": "Family Dynamics, Parenting & Friendship",
+    "life.food": "Culinary Arts, Cooking & Dining",
+    "life.finance": "Personal Budgeting, Saving & Taxes",
+    "life.leisure": "Hobbies, Entertainment & Sports",
+    "gov.diplomacy": "Diplomacy, Treaties & Alliances",
+    "gov.aid": "Humanitarian Aid & Poverty Alleviation",
+    "gov.globalization": "Global Supply Chain & Geopolitics",
+    "gen.function": "Function Words",
+    "gen.linking": "Linking & Discourse",
+    "gen.auxiliary": "Auxiliary & Linking Verbs",
+    "gen.general": "General-purpose Vocabulary"
   }
 }
