@@ -102,6 +102,9 @@ python -m src.evaluation.research_e7_e10 --experiments E9 E10
 
 # Run GPU-only training ablations E7 (Subtopic Head Recovery) & E8 (Loss Weight Lambda) on Vast.ai
 python -m src.evaluation.research_e7_e10 --experiments E7 E8
+
+# Package final official production model (Frozen MiniLM + Logistic Regression power_0.25) -> final_model/
+python -m src.training.finalize_model
 ```
 
 See [`artifacts/experiments/FINAL_REPORT.md`](artifacts/experiments/FINAL_REPORT.md) for full E1–E6 empirical findings.

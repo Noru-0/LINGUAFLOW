@@ -1,0 +1,10 @@
+{
+  "main_temperature": 0.8659,
+  "subtopic_temperature": 0.4928,
+  "val_main_nll_before": 0.9634,
+  "val_main_nll_after": 0.9527,
+  "val_main_ece_before": 0.0516,
+  "val_main_ece_after": 0.0525,
+  "val_sub_ece_before": 0.1224,
+  "val_sub_ece_after": 0.0217
+}

@@ -1,0 +1,295 @@
+{
+  "labels": [
+    "Environment & Nature",
+    "Science & Technology",
+    "Business, Work & Economy",
+    "Education & Academia",
+    "Health, Medicine & Wellness",
+    "Society, Culture & Law",
+    "Urbanization & Infrastructure",
+    "Travel & Hospitality",
+    "Daily Life & Personal Finance",
+    "Global Politics & Humanitarian",
+    "General Vocabulary"
+  ],
+  "short_labels": [
+    "env",
+    "tech",
+    "biz",
+    "edu",
+    "health",
+    "soc",
+    "urban",
+    "travel",
+    "life",
+    "gov",
+    "gen"
+  ],
+  "matrix": [
+    [
+      79,
+      5,
+      1,
+      1,
+      1,
+      2,
+      1,
+      2,
+      13,
+      1,
+      5
+    ],
+    [
+      5,
+      44,
+      4,
+      7,
+      4,
+      2,
+      0,
+      0,
+      7,
+      0,
+      15
+    ],
+    [
+      0,
+      5,
+      79,
+      4,
+      0,
+      3,
+      0,
+      0,
+      14,
+      3,
+      11
+    ],
+    [
+      0,
+      8,
+      4,
+      32,
+      0,
+      5,
+      0,
+      0,
+      0,
+      1,
+      4
+    ],
+    [
+      2,
+      1,
+      3,
+      3,
+      49,
+      0,
+      0,
+      0,
+      6,
+      0,
+      3
+    ],
+    [
+      6,
+      9,
+      9,
+      3,
+      2,
+      129,
+      3,
+      1,
+      15,
+      10,
+      17
+    ],
+    [
+      4,
+      0,
+      0,
+      0,
+      1,
+      2,
+      13,
+      1,
+      2,
+      0,
+      0
+    ],
+    [
+      2,
+      6,
+      0,
+      0,
+      0,
+      0,
+      3,
+      31,
+      5,
+      0,
+      5
+    ],
+    [
+      12,
+      5,
+      10,
+      1,
+      5,
+      12,
+      2,
+      7,
+      159,
+      1,
+      33
+    ],
+    [
+      0,
+      2,
+      2,
+      0,
+      0,
+      5,
+      0,
+      0,
+      0,
+      24,
+      0
+    ],
+    [
+      9,
+      15,
+      14,
+      0,
+      4,
+      21,
+      1,
+      1,
+      40,
+      0,
+      192
+    ]
+  ],
+  "top_confused_pairs": [
+    {
+      "true_main": "General Vocabulary",
+      "true_id": "gen",
+      "pred_main": "Daily Life & Personal Finance",
+      "pred_id": "life",
+      "count": 40,
+      "rate_of_true": 0.1347
+    },
+    {
+      "true_main": "Daily Life & Personal Finance",
+      "true_id": "life",
+      "pred_main": "General Vocabulary",
+      "pred_id": "gen",
+      "count": 33,
+      "rate_of_true": 0.1336
+    },
+    {
+      "true_main": "General Vocabulary",
+      "true_id": "gen",
+      "pred_main": "Society, Culture & Law",
+      "pred_id": "soc",
+      "count": 21,
+      "rate_of_true": 0.0707
+    },
+    {
+      "true_main": "Society, Culture & Law",
+      "true_id": "soc",
+      "pred_main": "General Vocabulary",
+      "pred_id": "gen",
+      "count": 17,
+      "rate_of_true": 0.0833
+    },
+    {
+      "true_main": "Science & Technology",
+      "true_id": "tech",
+      "pred_main": "General Vocabulary",
+      "pred_id": "gen",
+      "count": 15,
+      "rate_of_true": 0.1705
+    },
+    {
+      "true_main": "Society, Culture & Law",
+      "true_id": "soc",
+      "pred_main": "Daily Life & Personal Finance",
+      "pred_id": "life",
+      "count": 15,
+      "rate_of_true": 0.0735
+    },
+    {
+      "true_main": "General Vocabulary",
+      "true_id": "gen",
+      "pred_main": "Science & Technology",
+      "pred_id": "tech",
+      "count": 15,
+      "rate_of_true": 0.0505
+    },
+    {
+      "true_main": "Business, Work & Economy",
+      "true_id": "biz",
+      "pred_main": "Daily Life & Personal Finance",
+      "pred_id": "life",
+      "count": 14,
+      "rate_of_true": 0.1176
+    },
+    {
+      "true_main": "General Vocabulary",
+      "true_id": "gen",
+      "pred_main": "Business, Work & Economy",
+      "pred_id": "biz",
+      "count": 14,
+      "rate_of_true": 0.0471
+    },
+    {
+      "true_main": "Environment & Nature",
+      "true_id": "env",
+      "pred_main": "Daily Life & Personal Finance",
+      "pred_id": "life",
+      "count": 13,
+      "rate_of_true": 0.1171
+    },
+    {
+      "true_main": "Daily Life & Personal Finance",
+      "true_id": "life",
+      "pred_main": "Environment & Nature",
+      "pred_id": "env",
+      "count": 12,
+      "rate_of_true": 0.0486
+    },
+    {
+      "true_main": "Daily Life & Personal Finance",
+      "true_id": "life",
+      "pred_main": "Society, Culture & Law",
+      "pred_id": "soc",
+      "count": 12,
+      "rate_of_true": 0.0486
+    },
+    {
+      "true_main": "Business, Work & Economy",
+      "true_id": "biz",
+      "pred_main": "General Vocabulary",
+      "pred_id": "gen",
+      "count": 11,
+      "rate_of_true": 0.0924
+    },
+    {
+      "true_main": "Society, Culture & Law",
+      "true_id": "soc",
+      "pred_main": "Global Politics & Humanitarian",
+      "pred_id": "gov",
+      "count": 10,
+      "rate_of_true": 0.049
+    },
+    {
+      "true_main": "Daily Life & Personal Finance",
+      "true_id": "life",
+      "pred_main": "Business, Work & Economy",
+      "pred_id": "biz",
+      "count": 10,
+      "rate_of_true": 0.0405
+    }
+  ]
+}

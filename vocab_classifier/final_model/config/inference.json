@@ -1,0 +1,15 @@
+{
+  "default_prediction_mode": "top_1_main_with_hierarchical_subtopic",
+  "top_k_main": 3,
+  "top_k_subtopic": 3,
+  "main_confidence_threshold": 0.6,
+  "joint_confidence_threshold": 0.3,
+  "threshold_selection_split": "validation",
+  "target_validation_coverage": 0.7,
+  "alternative_high_precision_thresholds": {
+    "main_confidence_threshold": 0.65,
+    "joint_confidence_threshold": 0.35,
+    "target_validation_coverage": 0.6
+  },
+  "abstention_review_status": "needs_review"
+}

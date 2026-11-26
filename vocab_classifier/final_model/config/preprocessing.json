@@ -1,0 +1,45 @@
+{
+  "input_variant": "full",
+  "include_examples": true,
+  "include_collocations": true,
+  "text_template": "Word: {word} ({pos})\\nDefinition: {definition}\\nCollocations: ...\\nExamples: ...",
+  "encoder": {
+    "model_name": "sentence-transformers/all-MiniLM-L6-v2",
+    "embedding_dim": 384,
+    "max_length": 192,
+    "batch_size": 64,
+    "pooling": "mean",
+    "normalize": true
+  },
+  "training_hyperparameters": {
+    "classifier": "LogisticRegression",
+    "C": 2.0,
+    "max_iter": 1000,
+    "class_weight": "power_0.25",
+    "alpha": 0.25,
+    "seed": 42
+  },
+  "data_integrity": {
+    "dataset_version": "1.2.0",
+    "taxonomy_version": "1.1.0",
+    "taxonomy_sha256": "2eedc1cf8f196e557c08f3ae4737d3e67757964f59c0f37e28847432a9ca8043",
+    "train_sha256": "b23e848a078e4a4cbc55ea42541c24a6107807d437a288aa217a670cdffb4b10",
+    "val_sha256": "dec32da63681abf141f3372244e2d621c0915db3ba25d138d3b82aacc0d9db32",
+    "test_sha256": "95e600bc7d66a98d1b2dced875db927c9a8faddb810940155b4737a954aa41f4",
+    "label_mapping_sha256": "e48cc2565ca4c481acc33d16cfee7dd18dbb7561dd3af6fd4aead6391f0466d4",
+    "splits": {
+      "train": {
+        "samples": 10392,
+        "unique_words": 5577
+      },
+      "val": {
+        "samples": 1296,
+        "unique_words": 697
+      },
+      "test": {
+        "samples": 1295,
+        "unique_words": 697
+      }
+    }
+  }
+}

@@ -48,3 +48,4 @@ venv/
 vocab_classifier/artifacts/minilm_finetuned/best_model/tokenizer*
 vocab_classifier/artifacts/minilm_finetuned/best_model/special_tokens_map.json
 vocab_classifier/artifacts/minilm_finetuned/best_model/vocab.txt
+vocab_classifier/final_model/encoder/

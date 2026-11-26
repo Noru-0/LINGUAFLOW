@@ -16,6 +16,10 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "src.inference.hierarchical_inference",
         "fit_temperature_scaling",
     ),
+    "ProductionVocabPredictor": (
+        "src.inference.final_predictor",
+        "ProductionVocabPredictor",
+    ),
 }
 
 __all__ = list(_EXPORTS.keys())
