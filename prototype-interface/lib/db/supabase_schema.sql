@@ -289,6 +289,14 @@ CREATE TABLE IF NOT EXISTS card_topic_review_history (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS user_topic_cluster_runs (
+    user_id VARCHAR(100) PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    engine VARCHAR(50) NOT NULL,
+    processed_count INT NOT NULL DEFAULT 0,
+    classified_count INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS user_topic_stats (
     user_id VARCHAR(100) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     topic_id VARCHAR(50) NOT NULL REFERENCES topics(id) ON DELETE CASCADE,

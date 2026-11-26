@@ -314,11 +314,13 @@ export function TopicExplorer({
     totalClassifiedCards: number
     totalUnclassifiedCards: number
     majorCount: number
+    hasAutoClustered?: boolean
   }>({
     totalUserCards: 0,
     totalClassifiedCards: 0,
     totalUnclassifiedCards: 0,
-    majorCount: 10,
+    majorCount: 11,
+    hasAutoClustered: false,
   })
   const [loading, setLoading] = useState<boolean>(true)
   const [isClustering, setIsClustering] = useState<boolean>(false)
@@ -353,7 +355,8 @@ export function TopicExplorer({
           totalUserCards: 0,
           totalClassifiedCards: 0,
           totalUnclassifiedCards: 0,
-          majorCount: 10,
+          majorCount: 11,
+          hasAutoClustered: false,
         })
       }
     } catch (e) {
@@ -367,23 +370,31 @@ export function TopicExplorer({
     fetchTopics()
   }, [fetchTopics])
 
-  // Batch Auto-Cluster Action
-  const handleAutoCluster = async (forceReclassify = false) => {
+  // Single One-Time Auto-Cluster Action per Account (Model -> Fallback LLM)
+  const handleAutoCluster = async () => {
+    if (stats.hasAutoClustered) return
     setIsClustering(true)
     setClusterToast({
-      message: forceReclassify
-        ? 'Đang phân loại lại toàn bộ từ vựng bằng Model ML (Cloud Run)...'
-        : 'Đang quét và phân loại từ vựng mới bằng Model ML...',
+      message: 'Đang phân loại từ vựng bằng Model ML (tự động fallback LLM nếu offline)...',
       type: 'info',
     })
     try {
       const res = await fetch('/api/topics/auto-cluster', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scope: 'all_decks', forceReclassify }),
+        body: JSON.stringify({ scope: 'all_decks' }),
       })
       const data = await res.json()
+      if (res.status === 409 || data.limitReached) {
+        setStats((prev) => ({ ...prev, hasAutoClustered: true }))
+        setClusterToast({
+          message: data.message || 'Mỗi tài khoản chỉ được gom chủ đề 1 lần. Từ mới thêm sẽ tự động phân loại.',
+          type: 'info',
+        })
+        return
+      }
       if (res.ok) {
+        setStats((prev) => ({ ...prev, hasAutoClustered: true }))
         if (data.newlyClassifiedCount > 0) {
           const engineLabel =
             data.engine === 'vocab_classifier_v1'
@@ -395,7 +406,7 @@ export function TopicExplorer({
           })
         } else if (data.alreadyClassified) {
           setClusterToast({
-            message: `Tất cả ${data.processedCount} từ vựng đã có nhãn. Bấm "Phân loại lại (Model)" để chạy lại bằng Model ML.`,
+            message: `Tất cả ${data.processedCount} từ vựng đã được phân loại vào cây chủ đề (đã chốt lượt gom 1/1).`,
             type: 'success',
           })
         } else {
@@ -598,26 +609,40 @@ export function TopicExplorer({
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+          <div className="flex flex-col items-stretch sm:items-end gap-1.5 shrink-0">
             <button
-              onClick={() => handleAutoCluster(false)}
-              disabled={isClustering}
+              onClick={handleAutoCluster}
+              disabled={isClustering || Boolean(stats.hasAutoClustered)}
+              title={
+                stats.hasAutoClustered
+                  ? 'Tài khoản đã thực hiện gom nhóm 1 lần. Từ mới thêm vào deck sẽ tự động phân loại.'
+                  : 'Phân loại toàn bộ thẻ bằng Model v1.0.0 (tự động fallback LLM nếu offline)'
+              }
               className={`topic-cluster-btn inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm shadow-xl transition-all duration-200 ${
-                isClustering ? 'is-clustering' : 'hover:scale-105 active:scale-95'
+                stats.hasAutoClustered
+                  ? 'opacity-65 cursor-not-allowed'
+                  : isClustering
+                  ? 'is-clustering'
+                  : 'hover:scale-105 active:scale-95'
               }`}
             >
-              <RefreshCw className={`w-4 h-4 ${isClustering ? 'animate-spin' : ''}`} />
-              {isClustering ? 'Đang phân loại...' : '⚡ Quét & Gom Từ Mới'}
+              {stats.hasAutoClustered ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Đã Phân Loại Tài Khoản (1/1)
+                </>
+              ) : (
+                <>
+                  <RefreshCw className={`w-4 h-4 ${isClustering ? 'animate-spin' : ''}`} />
+                  {isClustering ? 'Đang phân loại...' : '⚡ Phân Loại Chủ Đề (Model)'}
+                </>
+              )}
             </button>
-            <button
-              onClick={() => handleAutoCluster(true)}
-              disabled={isClustering}
-              title="Chạy lại toàn bộ các thẻ hiện có qua Model ML trên Cloud Run"
-              className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm border border-white/25 bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm transition-all duration-200 disabled:opacity-50"
-            >
-              <Sparkles className="w-4 h-4" />
-              Phân loại lại (Model)
-            </button>
+            <span className="text-[11px] opacity-80 text-center sm:text-right">
+              {stats.hasAutoClustered
+                ? 'Đã dùng lượt gom duy nhất • Từ mới tự phân loại khi thêm'
+                : 'Giới hạn 1 lần/tài khoản (Model v1.0.0 → fallback LLM)'}
+            </span>
           </div>
         </div>
 

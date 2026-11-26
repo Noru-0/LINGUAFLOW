@@ -304,6 +304,15 @@ function getSqliteDb() {
         FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE
       );
 
+      CREATE TABLE IF NOT EXISTS user_topic_cluster_runs (
+        user_id TEXT PRIMARY KEY,
+        engine TEXT NOT NULL,
+        processed_count INTEGER NOT NULL DEFAULT 0,
+        classified_count INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
       CREATE TABLE IF NOT EXISTS user_topic_stats (
         user_id TEXT NOT NULL,
         topic_id TEXT NOT NULL,
@@ -541,6 +550,15 @@ export function getDb(): any {
             actor VARCHAR(50) NOT NULL DEFAULT 'system',
             created_at TIMESTAMPTZ DEFAULT NOW()
           );
+
+          CREATE TABLE IF NOT EXISTS public.user_topic_cluster_runs (
+            user_id VARCHAR(100) PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
+            engine VARCHAR(50) NOT NULL,
+            processed_count INT NOT NULL DEFAULT 0,
+            classified_count INT NOT NULL DEFAULT 0,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+          );
+          ALTER TABLE public.user_topic_cluster_runs DISABLE ROW LEVEL SECURITY;
         `).then(async () => {
           try {
             let order = 0;
