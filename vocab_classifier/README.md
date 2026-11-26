@@ -1,6 +1,8 @@
 # Vocab Classifier (`vocab_classifier`)
 
-Data processing and topic classification pipeline for LinguaFlow English vocabulary senses, aligned with the 10-domain / 41-subtopic academic taxonomy in [`documents/topic.md`](../documents/topic.md).
+Data processing and topic classification pipeline for LinguaFlow English vocabulary senses, aligned with the 2-branch taxonomy in [`documents/topic.md`](../documents/topic.md):
+- **Topical Vocabulary (`topic_type: "topical"`)**: 10 IELTS Academic Main Topics / 41 Subtopics (`env`..`gov`).
+- **General Vocabulary (`topic_type: "general"`)**: Non-topical branch (`gen`) with 4 Subtopics (`gen.function`, `gen.linking`, `gen.auxiliary`, `gen.general`) to prevent forced classification of grammatical and domain-neutral words.
 
 ## Directory Structure
 
@@ -59,10 +61,10 @@ Prepares extracted senses for model training and evaluation:
 Splits `processed_labeled.jsonl` into `train.jsonl`, `val.jsonl`, and `test.jsonl` (default `0.8 / 0.1 / 0.1`, `seed = 42`):
 - Uses **group-stratified splitting** by `word_id` and stratified by `main_topic` so all senses of the same word stay in the same split (preventing intra-word example/collocation leakage).
 
-### 4. Zero-Shot Subtopic Candidate Labeling (`src/data/subtopic_labeling.py`)
-Reads `data/processed/processed_labeled.jsonl`, retrieves candidate subtopics for each sample's `main_topic` from `data/taxonomy/taxonomy.json`, scores them with a zero-shot model, and outputs Top-3 proposals to `data/processed/subtopic_candidates.jsonl` for human review:
-- Supports `embedding` (`sentence-transformers/all-MiniLM-L6-v2` bi-encoder cosine similarity + calibrated softmax), `nli` (HuggingFace `zero-shot-classification` pipeline, e.g. `facebook/bart-large-mnli`), and `lexical` (zero-dependency TF-weighted fallback).
-- Outputs `recommended_subtopic`, `confidence`, `confidence_margin` (top1 - top2 for prioritizing uncertain items during review), and `subtopic_candidates` (Top-3).
+### 4. General Vocabulary Detection & Zero-Shot Subtopics (`src/data/subtopic_labeling.py`)
+Implements hierarchical two-stage labeling:
+- **Task A (Topical vs General Vocabulary)**: Evaluates each sense's core meaning (`Word + POS + Definition`) semantically — never by naive POS rules — against `General Vocabulary` (`gen.*`) vs the 10 IELTS topical categories (`41` topical subtopics), reclassifying domain-neutral/functional senses and rescuing unmapped `needs_review` senses (e.g. `although`, `however`, `therefore`, `seem`, `significant`).
+- **Task B (Hierarchical Top-3 Subtopics)**: Scores only the subtopics under each sample's assigned `main_topic` (`gen.*` for `General Vocabulary`, or the corresponding topical subtopics), outputting Top-3 proposals to `data/processed/subtopic_candidates.jsonl`. Passing `--auto-select` chooses the highest-confidence Top-1 subtopic (`subtopic` name + `subtopic_id`) into `data/processed/final_labeled.jsonl`.
 
 ## Quick Start
 
@@ -87,6 +89,6 @@ python -m src.data.subtopic_labeling --backend embedding --auto-select
 | --- | ---: | --- |
 | Raw words | 7,298 | Source: `word-atlas.json` |
 | Extracted senses | 13,733 | 6,318 primary + 7,415 `needs_review` |
-| Promoted & labeled (`processed_labeled.jsonl`) | 11,986 | 5,668 mapped senses promoted (`main_topic != null`); 1,747 unmapped remain in `needs_review.jsonl` |
-| Subtopic auto-labeled (`final_labeled.jsonl`) | 11,986 | Top-1 selected from zero-shot Top-3 (`all-MiniLM-L6-v2`) |
-| Train / Val / Test | 9,608 / 1,202 / 1,176 | 5,054 / 633 / 631 unique `word_id`s, 0 `word_id` overlap |
+| Promoted & mapped (`processed_labeled.jsonl`) | 11,986 | `main_topic != null` before General Vocabulary detection |
+| Final labeled (`final_labeled.jsonl`) | 13,153 | **8,927** `topical` (10 domains) + **4,226** `general` (`gen`); 580 unmapped remain in `needs_review.jsonl` |
+| Train / Val / Test | 10,506 / 1,320 / 1,327 | 5,640 / 706 / 704 unique `word_id`s, 0 `word_id` overlap |

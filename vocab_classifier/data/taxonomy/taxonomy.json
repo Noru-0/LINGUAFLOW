@@ -1,11 +1,14 @@
 {
-  "version": "1.0.0",
-  "standard": "CEFR / IELTS Academic Lexical Taxonomy",
-  "total_main_topics": 10,
-  "total_subtopics": 41,
+  "version": "1.1.0",
+  "standard": "CEFR / IELTS Academic Lexical Taxonomy + General Vocabulary Branch",
+  "total_main_topics": 11,
+  "total_topical_topics": 10,
+  "total_general_topics": 1,
+  "total_subtopics": 45,
   "taxonomy": [
     {
       "id": "env",
+      "topic_type": "topical",
       "name_en": "Environment & Nature",
       "name_vi": "Môi trường & Thiên nhiên",
       "subtopics": [
@@ -43,6 +46,7 @@
     },
     {
       "id": "tech",
+      "topic_type": "topical",
       "name_en": "Science & Technology",
       "name_vi": "Khoa học & Công nghệ",
       "subtopics": [
@@ -80,6 +84,7 @@
     },
     {
       "id": "biz",
+      "topic_type": "topical",
       "name_en": "Business, Work & Economy",
       "name_vi": "Kinh doanh, Việc làm & Kinh tế",
       "subtopics": [
@@ -117,6 +122,7 @@
     },
     {
       "id": "edu",
+      "topic_type": "topical",
       "name_en": "Education & Academia",
       "name_vi": "Giáo dục & Học thuật",
       "subtopics": [
@@ -148,12 +154,13 @@
           "id": "edu.discourse",
           "name_en": "Academic Discourse & Linking",
           "name_vi": "Ngôn ngữ lập luận & Từ nối học thuật",
-          "description": "Grammar, vocabulary, words, language expressions, consequently, notwithstanding, paradigm, substantiate, correlate, predominant, nuance, academic linking."
+          "description": "Formal academic argumentation vocabulary, paradigm, substantiate, correlate, predominant, nuance, scholarly register, academic rhetoric."
         }
       ]
     },
     {
       "id": "health",
+      "topic_type": "topical",
       "name_en": "Health, Medicine & Wellness",
       "name_vi": "Sức khỏe, Y học & Đời sống lành mạnh",
       "subtopics": [
@@ -185,6 +192,7 @@
     },
     {
       "id": "soc",
+      "topic_type": "topical",
       "name_en": "Society, Culture & Law",
       "name_vi": "Xã hội, Văn hóa & Pháp luật",
       "subtopics": [
@@ -216,6 +224,7 @@
     },
     {
       "id": "urban",
+      "topic_type": "topical",
       "name_en": "Urbanization & Infrastructure",
       "name_vi": "Đô thị hóa & Cơ sở hạ tầng",
       "subtopics": [
@@ -241,6 +250,7 @@
     },
     {
       "id": "travel",
+      "topic_type": "topical",
       "name_en": "Travel & Hospitality",
       "name_vi": "Du lịch & Dịch vụ lưu trú",
       "subtopics": [
@@ -266,6 +276,7 @@
     },
     {
       "id": "life",
+      "topic_type": "topical",
       "name_en": "Daily Life & Personal Finance",
       "name_vi": "Đời sống cá nhân & Tài chính hộ gia đình",
       "subtopics": [
@@ -297,6 +308,7 @@
     },
     {
       "id": "gov",
+      "topic_type": "topical",
       "name_en": "Global Politics & Humanitarian",
       "name_vi": "Chính trị toàn cầu & Nhân đạo",
       "subtopics": [
@@ -317,6 +329,38 @@
           "name_en": "Global Supply Chain & Geopolitics",
           "name_vi": "Chuỗi cung ứng toàn cầu & Địa chính trị",
           "description": "International borders, outsourcing, cross-border, supply chain, multinational corporations, cultural homogenization, interdependence, global order."
+        }
+      ]
+    },
+    {
+      "id": "gen",
+      "topic_type": "general",
+      "name_en": "General Vocabulary",
+      "name_vi": "Từ vựng tổng quát (Phi chủ đề)",
+      "subtopics": [
+        {
+          "id": "gen.function",
+          "name_en": "Function Words",
+          "name_vi": "Từ chức năng ngữ pháp",
+          "description": "Prepositions, pronouns, determiners, quantifiers, and structural function words expressing spatial, temporal, or grammatical relations such as concerning a subject, higher position, throughout a period, without domain-specific meaning (about, above, under, through, during, between, among)."
+        },
+        {
+          "id": "gen.linking",
+          "name_en": "Linking & Discourse",
+          "name_vi": "Từ nối & Đánh dấu diễn ngôn",
+          "description": "Conjunctions, transition adverbs, and general discourse markers connecting clauses, contrasting ideas, or expressing cause and effect such as despite the fact that, however, therefore, as a result (although, however, therefore, moreover, nevertheless, whereas, because)."
+        },
+        {
+          "id": "gen.auxiliary",
+          "name_en": "Auxiliary & Linking Verbs",
+          "name_vi": "Trợ động từ & Động từ nối",
+          "description": "Auxiliary verbs, modal verbs, and copular linking verbs expressing state, existence, becoming, seeming, remaining, possibility, or obligation such as to start to be, to appear to be, to continue in the same state (be, become, seem, remain, appear, might, should)."
+        },
+        {
+          "id": "gen.general",
+          "name_en": "General-purpose Vocabulary",
+          "name_vi": "Từ vựng tổng quát đa lĩnh vực",
+          "description": "Domain-neutral general nouns, verbs, adjectives, and adverbs of degree or approximation applicable across all subjects such as an unspecified situation, various kinds, approximately close to, significant or important, make better, allow to happen (thing, aspect, various, certain, significant, approximately, improve, increase)."
         }
       ]
     }

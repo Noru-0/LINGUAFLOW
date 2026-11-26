@@ -136,9 +136,16 @@ def _split_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
     summary: dict[str, Any] = {
         "samples": len(records),
         "unique_words": len({r["word_id"] for r in records}),
+        "by_topic_type": dict(
+            sorted(Counter(r.get("topic_type") or "topical" for r in records).items())
+        ),
         "by_main_topic": dict(sorted(Counter(r["main_topic"] for r in records).items())),
     }
-    subtopics = [r.get("subtopic") for r in records if r.get("subtopic") is not None]
+    subtopics = [
+        r.get("subtopic_id") or r.get("subtopic")
+        for r in records
+        if (r.get("subtopic_id") or r.get("subtopic")) is not None
+    ]
     if subtopics:
         summary["by_subtopic"] = dict(sorted(Counter(subtopics).items()))
     return summary

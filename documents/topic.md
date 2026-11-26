@@ -18,6 +18,7 @@ Tài liệu này định nghĩa chi tiết cấu trúc phân tầng gồm **10 C
 | **8** | `travel` | **Travel & Hospitality**<br>*(Du lịch & Dịch vụ lưu trú)* | `travel.eco` (Sightseeing & Sustainable Tourism)<br>`travel.aviation` (Aviation, Hotels & Accommodations)<br>`travel.customs` (Cultural Etiquette & Expatriate Life) |
 | **9** | `life` | **Daily Life & Personal Finance**<br>*(Đời sống cá nhân & Tài chính hộ gia đình)* | `life.family` (Family Dynamics, Parenting & Friendship)<br>`life.food` (Culinary Arts, Cooking & Dining)<br>`life.finance` (Personal Budgeting, Saving & Taxes)<br>`life.leisure` (Hobbies, Entertainment & Sports) |
 | **10** | `gov` | **Global Politics & Humanitarian**<br>*(Chính trị toàn cầu & Nhân đạo)* | `gov.diplomacy` (Diplomacy, Treaties & Alliances)<br>`gov.aid` (Humanitarian Aid & Poverty Alleviation)<br>`gov.globalization` (Global Supply Chain & Geopolitics) |
+| **11 (Non-topical)** | `gen` | **General Vocabulary**<br>*(Từ vựng tổng quát / Phi chủ đề)* | `gen.function` (Function Words)<br>`gen.linking` (Linking & Discourse)<br>`gen.auxiliary` (Auxiliary & Linking Verbs)<br>`gen.general` (General-purpose Vocabulary) |
 
 ---
 
@@ -131,6 +132,19 @@ Tài liệu này định nghĩa chi tiết cấu trúc phân tầng gồm **10 C
 | **`gov.diplomacy`**<br>Diplomacy, Treaties & Alliances | Từ vựng về ngoại giao quốc tế, hiệp ước, liên minh chính trị, chủ quyền quốc gia và đàm phán đa phương. | Sanctions, bilateral, treaty, sovereignty, ambassador, geopolitical, summit, diplomatic immunity. | Commercial import/export tariffs (`biz.trade`), domestic criminal courts (`soc.law`). |
 | **`gov.aid`**<br>Humanitarian Aid & Poverty Alleviation | Từ vựng về cứu trợ nhân đạo, khủng hoảng tị nạn, xóa đói giảm nghèo và các tổ chức phi chính phủ (NGOs). | Refugees, asylum, humanitarian aid, famine, philanthropy, NGOs, poverty alleviation, relief funds. | Domestic gender/racial diversity (`soc.equality`), natural disaster meteorology (`env.disaster`). |
 | **`gov.globalization`**<br>Global Supply Chain & Geopolitics | Từ vựng về toàn cầu hóa, chuỗi cung ứng xuyên quốc gia, hội nhập quốc tế và tác động xuyên biên giới. | Outsourcing, cross-border, supply chain, multinational, cultural homogenization, interdependence. | Local retail marketing (`biz.marketing`), city commuter trains (`urban.transit`). |
+
+---
+
+### 2.11 Nhánh Phi Chủ Đề: General Vocabulary (`gen`, `topic_type: "general"`)
+
+Nhánh này tách biệt khỏi 10 chủ đề IELTS (`topic_type: "topical"`) để xử lý các sense mang chức năng ngữ pháp hoặc ngữ nghĩa tổng quát đa lĩnh vực, tránh hiện tượng *forced classification*. **Nguyên tắc cốt lõi:** phân loại theo **ngữ nghĩa từng sense**, không suy ra máy móc từ POS (`preposition`, `conjunction`, `verb`, `noun` đều có thể là topical hoặc general tùy nghĩa).
+
+| Subtopic (`id`) | Description (Mô tả) | Inclusion Criteria (Tiêu chí bao gồm) | Exclusion Criteria (Tiêu chí loại trừ) |
+| :--- | :--- | :--- | :--- |
+| **`gen.function`**<br>Function Words | Từ chức năng ngữ pháp biểu thị quan hệ không gian, thời gian, sở hữu hoặc cấu trúc câu. | Prepositions, pronouns, determiners, quantifiers mang nghĩa cấu trúc thuần túy (*about, above, under, through, during, between*). | Giới từ/cụm từ gắn với nghĩa chuyên biệt trong một sense cụ thể; từ nối câu (`gen.linking`). |
+| **`gen.linking`**<br>Linking & Discourse | Liên từ, trạng từ chuyển tiếp và dấu hiệu diễn ngôn kết nối mệnh đề/ý tưởng nói chung. | *Although, however, therefore, moreover, nevertheless, whereas, unless, because*. | Động từ nối/copular verbs (`gen.auxiliary`); thuật ngữ lập luận học thuật chuyên sâu (`edu.discourse`). |
+| **`gen.auxiliary`**<br>Auxiliary & Linking Verbs | Trợ động từ, động từ khuyết thiếu và động từ nối (*copular/linking verbs*) biểu thị trạng thái hoặc tình thái. | *Be, become, seem, remain, appear, might, should, must* (ở sense trạng thái/trợ động từ). | Động từ hành động mang nghĩa chuyên ngành hoặc liên kết mệnh đề (`gen.linking`). |
+| **`gen.general`**<br>General-purpose Vocabulary | Danh từ, động từ, tính từ, trạng từ mang nghĩa tổng quát dùng chung cho mọi chủ đề. | *Thing, aspect, various, certain, significant, approximately, improve, increase, important, similar*. | Thuật ngữ gắn với ngữ cảnh IELTS cụ thể (vd. *biodiversity* → `env.wildlife`, *unemployment* → `biz.career`). |
 
 ---
 

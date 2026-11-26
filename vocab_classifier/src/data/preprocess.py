@@ -75,6 +75,7 @@ def _clean_record(raw_record: dict[str, Any]) -> dict[str, Any] | None:
     source_topic = normalize_whitespace(raw_record.get("source_topic")) or None
     main_topic = normalize_whitespace(raw_record.get("main_topic")) or None
     subtopic = normalize_whitespace(raw_record.get("subtopic")) or None
+    subtopic_id = normalize_whitespace(raw_record.get("subtopic_id")) or None
     label_status = normalize_whitespace(raw_record.get("label_status")) or "needs_review"
     label_source = normalize_whitespace(raw_record.get("label_source")) or "unknown"
 
@@ -90,6 +91,7 @@ def _clean_record(raw_record: dict[str, Any]) -> dict[str, Any] | None:
         "source_topic": source_topic,
         "main_topic": main_topic,
         "subtopic": subtopic,
+        "subtopic_id": subtopic_id,
         "label_status": label_status,
         "label_source": label_source,
     }
@@ -107,8 +109,10 @@ def preprocess_records(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, int]]:
     """Clean records, format model text, and split into labeled vs needs-review pools."""
     name_to_id: dict[str, str] = taxonomy["name_to_id"]
+    topic_type_map: dict[str, str] = taxonomy.get("topic_type_map", {})
     label2id: dict[str, int] = taxonomy["label2id"]
     valid_subtopics: dict[str, str] = taxonomy["valid_subtopics"]
+    subtopic_id_to_name: dict[str, str] = taxonomy.get("subtopic_id_to_name", {})
 
     labeled: list[dict[str, Any]] = []
     needs_review: list[dict[str, Any]] = []
@@ -134,10 +138,17 @@ def preprocess_records(
                 continue
             seen_sense_keys.add(sense_key)
 
-        subtopic = cleaned["subtopic"]
-        if subtopic is not None and subtopic not in valid_subtopics:
+        raw_sub_id = cleaned["subtopic_id"] or (
+            cleaned["subtopic"] if cleaned["subtopic"] in valid_subtopics else None
+        )
+        if raw_sub_id is not None and raw_sub_id in valid_subtopics:
+            cleaned["subtopic_id"] = raw_sub_id
+            cleaned["subtopic"] = subtopic_id_to_name.get(raw_sub_id, cleaned["subtopic"])
+        else:
+            if cleaned["subtopic"] is not None or cleaned["subtopic_id"] is not None:
+                counts["invalid_subtopic_cleared"] += 1
             cleaned["subtopic"] = None
-            counts["invalid_subtopic_cleared"] += 1
+            cleaned["subtopic_id"] = None
 
         cleaned["text"] = build_model_text(
             cleaned,
@@ -149,6 +160,7 @@ def preprocess_records(
         is_valid_topic = main_topic is not None and main_topic in label2id
         if is_valid_topic:
             cleaned["main_topic_id"] = name_to_id[main_topic]
+            cleaned["topic_type"] = topic_type_map.get(main_topic, "topical")
             cleaned["label_id"] = label2id[main_topic]
             if promote_mapped_needs_review and cleaned["label_status"] == "needs_review":
                 cleaned["label_status"] = "main_topic_reviewed"
@@ -156,6 +168,7 @@ def preprocess_records(
         else:
             cleaned["main_topic"] = None
             cleaned["main_topic_id"] = None
+            cleaned["topic_type"] = None
             cleaned["label_id"] = None
 
         if is_valid_topic and cleaned["label_status"] in allowed_statuses:
@@ -205,8 +218,10 @@ def preprocess_dataset(
         "id2label": {str(k): v for k, v in taxonomy["id2label"].items()},
         "name_to_topic_id": taxonomy["name_to_id"],
         "topic_id_to_name": taxonomy["id_to_name"],
+        "topic_type_map": taxonomy["topic_type_map"],
         "subtopic2id": taxonomy["subtopic2id"],
         "id2subtopic": {str(k): v for k, v in taxonomy["id2subtopic"].items()},
+        "subtopic_id_to_name": taxonomy["subtopic_id_to_name"],
     }
     save_json(label_mapping, label_mapping_path)
 

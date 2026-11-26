@@ -20,6 +20,7 @@ from src.data.split import group_stratified_split
 from src.data.subtopic_labeling import (
     LexicalZeroShotScorer,
     build_subtopic_catalog,
+    detect_general_vocabulary,
     generate_subtopic_candidates,
     propose_subtopic_candidates,
     select_top1_subtopics,
@@ -281,9 +282,67 @@ class TestSubtopicLabeling(unittest.TestCase):
 
     def test_build_subtopic_catalog_counts(self) -> None:
         by_main, all_subs = build_subtopic_catalog(self.taxonomy)
-        self.assertEqual(len(by_main), 10)
-        self.assertEqual(len(all_subs), 41)
+        self.assertEqual(len(by_main), 11)
+        self.assertEqual(len(all_subs), 45)
         self.assertEqual(len(by_main["Education & Academia"]), 5)
+        self.assertEqual(len(by_main["General Vocabulary"]), 4)
+        self.assertEqual(self.taxonomy["topic_type_map"]["General Vocabulary"], "general")
+        self.assertEqual(self.taxonomy["topic_type_map"]["Environment & Nature"], "topical")
+
+    def test_detect_general_vocabulary_by_meaning_not_pos(self) -> None:
+        records = [
+            {
+                "sample_id": "about_001",
+                "word_id": "about",
+                "word": "about",
+                "sense_index": 0,
+                "pos": "preposition",
+                "definition": "Closed-class grammatical relation concerning a particular subject without domain-specific meaning.",
+                "main_topic": "Daily Life & Personal Finance",
+                "label_status": "main_topic_reviewed",
+                "label_source": "word_atlas_mapping",
+            },
+            {
+                "sample_id": "treaty_prep_001",
+                "word_id": "treaty",
+                "word": "treaty",
+                "sense_index": 0,
+                "pos": "preposition",  # adversarial POS: should stay topical because meaning is diplomatic treaty
+                "definition": "Diplomatic international treaty alliance and sovereignty negotiations.",
+                "main_topic": "Global Politics & Humanitarian",
+                "label_status": "main_topic_reviewed",
+                "label_source": "word_atlas_mapping",
+            },
+            {
+                "sample_id": "however_001",
+                "word_id": "however",
+                "word": "however",
+                "sense_index": 0,
+                "pos": "adverb",
+                "definition": "Discourse marker contrasting ideas across any topic, despite the fact that.",
+                "main_topic": None,
+                "label_status": "needs_review",
+                "label_source": "word_atlas_mapping",
+            },
+        ]
+        scorer = LexicalZeroShotScorer()
+        classified, unmapped, stats = detect_general_vocabulary(
+            records,
+            self.taxonomy,
+            scorer,
+            mapped_margin=0.05,
+            unmapped_margin=0.0,
+        )
+        by_id = {r["sample_id"]: r for r in classified}
+        self.assertEqual(len(unmapped), 0)
+        self.assertEqual(by_id["about_001"]["main_topic"], "General Vocabulary")
+        self.assertEqual(by_id["about_001"]["main_topic_id"], "gen")
+        self.assertEqual(by_id["about_001"]["topic_type"], "general")
+        self.assertEqual(by_id["treaty_prep_001"]["main_topic"], "Global Politics & Humanitarian")
+        self.assertEqual(by_id["treaty_prep_001"]["topic_type"], "topical")
+        self.assertEqual(by_id["however_001"]["main_topic_id"], "gen")
+        self.assertEqual(stats["reclassified_from_topical_to_general"], 1)
+        self.assertEqual(stats["rescued_from_unmapped_to_general"], 1)
 
     def test_propose_top3_candidates_and_generate_jsonl(self) -> None:
         records = [
@@ -299,6 +358,7 @@ class TestSubtopicLabeling(unittest.TestCase):
                 "source_topic": "education",
                 "main_topic": "Education & Academia",
                 "main_topic_id": "edu",
+                "topic_type": "topical",
                 "label_id": 3,
                 "label_status": "main_topic_reviewed",
                 "label_source": "word_atlas_mapping",
@@ -315,6 +375,7 @@ class TestSubtopicLabeling(unittest.TestCase):
                 "source_topic": "environment",
                 "main_topic": "Environment & Nature",
                 "main_topic_id": "env",
+                "topic_type": "topical",
                 "label_id": 0,
                 "label_status": "main_topic_reviewed",
                 "label_source": "word_atlas_mapping",
@@ -328,6 +389,7 @@ class TestSubtopicLabeling(unittest.TestCase):
         self.assertEqual(proposals[0]["recommended_subtopic"], "edu.university")
         self.assertEqual(proposals[1]["recommended_subtopic"], "env.energy")
         self.assertIsNone(proposals[0]["subtopic"])
+        self.assertIsNone(proposals[0]["subtopic_id"])
         self.assertEqual(proposals[0]["review_status"], "pending_review")
         scores = [c["score"] for c in proposals[0]["subtopic_candidates"]]
         self.assertEqual(scores, sorted(scores, reverse=True))
@@ -348,6 +410,7 @@ class TestSubtopicLabeling(unittest.TestCase):
                 stats_path=stats_path,
                 final_output_path=tmp / "final_labeled.jsonl",
                 auto_select=True,
+                detect_general=False,
                 backend="lexical",
             )
             self.assertEqual(file_stats["total_samples"], 2)
@@ -357,12 +420,14 @@ class TestSubtopicLabeling(unittest.TestCase):
             self.assertEqual(loaded[0]["subtopic_candidates"][0]["rank"], 1)
 
             final_loaded = load_jsonl(tmp / "final_labeled.jsonl")
-            self.assertEqual(final_loaded[0]["subtopic"], "edu.university")
+            self.assertEqual(final_loaded[0]["subtopic_id"], "edu.university")
+            self.assertEqual(final_loaded[0]["subtopic"], "Higher Education & Campus Life")
             self.assertEqual(final_loaded[0]["label_status"], "subtopic_auto_labeled")
             self.assertIsNotNone(final_loaded[0]["subtopic_label_id"])
 
             top1_only = select_top1_subtopics(proposals, self.taxonomy)
-            self.assertEqual(top1_only[1]["subtopic"], "env.energy")
+            self.assertEqual(top1_only[1]["subtopic_id"], "env.energy")
+            self.assertEqual(top1_only[1]["subtopic"], "Renewable Energy & Natural Resources")
 
 
 if __name__ == "__main__":

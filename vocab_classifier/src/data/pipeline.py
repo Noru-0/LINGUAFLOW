@@ -31,13 +31,16 @@ def run_pipeline(
     include_needs_review: bool = False,
     promote_mapped_needs_review: bool = False,
     auto_subtopic: bool = False,
+    detect_general: bool = True,
+    rescue_unmapped_general: bool = True,
+    general_margin: float = 0.06,
     subtopic_backend: str = "auto",
     train_ratio: float = 0.8,
     val_ratio: float = 0.1,
     test_ratio: float = 0.1,
     seed: int = 42,
 ) -> dict[str, Any]:
-    """Run extraction, preprocessing, optional zero-shot subtopic labeling, and splitting."""
+    """Run extraction, preprocessing, optional General+subtopic labeling, and splitting."""
     out_dir = Path(processed_dir)
     extracted_path = out_dir / DEFAULT_EXTRACTED_PATH.name
     labeled_path = out_dir / DEFAULT_LABELED_PATH.name
@@ -75,8 +78,12 @@ def run_pipeline(
             output_path=candidates_path,
             taxonomy_path=taxonomy_path,
             stats_path=out_dir / DEFAULT_SUBTOPIC_STATS_PATH.name,
+            review_input_path=review_path if (detect_general and rescue_unmapped_general) else None,
+            review_output_path=review_path if (detect_general and rescue_unmapped_general) else None,
             final_output_path=final_labeled_path,
             auto_select=True,
+            detect_general=detect_general,
+            general_margin=general_margin,
             backend=subtopic_backend,
         )
         result["subtopic"] = subtopic_stats
@@ -103,6 +110,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--include-needs-review", action="store_true")
     parser.add_argument("--promote-mapped", action="store_true")
     parser.add_argument("--auto-subtopic", action="store_true")
+    parser.add_argument("--no-detect-general", action="store_true")
+    parser.add_argument("--no-rescue-unmapped", action="store_true")
+    parser.add_argument("--general-margin", type=float, default=0.06)
     parser.add_argument(
         "--subtopic-backend",
         choices=("auto", "embedding", "nli", "lexical"),
@@ -125,6 +135,9 @@ def main(argv: list[str] | None = None) -> None:
         include_needs_review=args.include_needs_review,
         promote_mapped_needs_review=args.promote_mapped,
         auto_subtopic=args.auto_subtopic,
+        detect_general=not args.no_detect_general,
+        rescue_unmapped_general=not args.no_rescue_unmapped,
+        general_margin=args.general_margin,
         subtopic_backend=args.subtopic_backend,
         train_ratio=args.train_ratio,
         val_ratio=args.val_ratio,
@@ -133,7 +146,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     print(
         f"Pipeline complete: extracted={summary['extract']['extracted_senses']}, "
-        f"labeled={summary['preprocess']['labeled_records']}, "
+        f"final_labeled={summary['split']['total_samples']}, "
         f"train={summary['split']['train']['samples']}, "
         f"val={summary['split']['val']['samples']}, "
         f"test={summary['split']['test']['samples']}"

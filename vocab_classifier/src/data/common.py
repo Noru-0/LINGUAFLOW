@@ -92,22 +92,30 @@ def load_taxonomy(path: Path | str = DEFAULT_TAXONOMY_PATH) -> dict[str, Any]:
 
     name_to_id: dict[str, str] = {}
     id_to_name: dict[str, str] = {}
+    topic_type_map: dict[str, str] = {}
     label2id: dict[str, int] = {}
     id2label: dict[int, str] = {}
     valid_subtopics: dict[str, str] = {}
+    subtopic_id_to_name: dict[str, str] = {}
+    subtopic_name_to_id: dict[str, str] = {}
     subtopic2id: dict[str, int] = {}
     id2subtopic: dict[int, str] = {}
 
     for idx, topic in enumerate(main_topics):
         topic_id = topic["id"]
         name_en = topic["name_en"]
+        topic_type = topic.get("topic_type", "topical")
         name_to_id[name_en] = topic_id
         id_to_name[topic_id] = name_en
+        topic_type_map[name_en] = topic_type
         label2id[name_en] = idx
         id2label[idx] = name_en
         for sub in topic.get("subtopics", []):
             sub_id = sub["id"]
+            sub_name = sub["name_en"]
             valid_subtopics[sub_id] = name_en
+            subtopic_id_to_name[sub_id] = sub_name
+            subtopic_name_to_id[sub_name] = sub_id
             sub_idx = len(subtopic2id)
             subtopic2id[sub_id] = sub_idx
             id2subtopic[sub_idx] = sub_id
@@ -117,9 +125,12 @@ def load_taxonomy(path: Path | str = DEFAULT_TAXONOMY_PATH) -> dict[str, Any]:
         "main_topics": main_topics,
         "name_to_id": name_to_id,
         "id_to_name": id_to_name,
+        "topic_type_map": topic_type_map,
         "label2id": label2id,
         "id2label": id2label,
         "valid_subtopics": valid_subtopics,
+        "subtopic_id_to_name": subtopic_id_to_name,
+        "subtopic_name_to_id": subtopic_name_to_id,
         "subtopic2id": subtopic2id,
         "id2subtopic": id2subtopic,
         "source_topic_to_main_topic": raw.get("source_topic_to_main_topic", {}),

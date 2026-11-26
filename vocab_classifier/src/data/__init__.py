@@ -14,6 +14,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "split_dataset": ("src.data.split", "split_dataset"),
     "generate_subtopic_candidates": ("src.data.subtopic_labeling", "generate_subtopic_candidates"),
     "propose_subtopic_candidates": ("src.data.subtopic_labeling", "propose_subtopic_candidates"),
+    "detect_general_vocabulary": ("src.data.subtopic_labeling", "detect_general_vocabulary"),
     "select_top1_subtopics": ("src.data.subtopic_labeling", "select_top1_subtopics"),
 }
 
