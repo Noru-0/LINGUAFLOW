@@ -1,0 +1,57 @@
+{
+  "raw_words": 7298,
+  "extracted_senses": 13733,
+  "by_label_status": {
+    "main_topic_reviewed": 6318,
+    "needs_review": 7415
+  },
+  "by_main_topic": {
+    "Education & Academia": 687,
+    "Daily Life & Personal Finance": 3988,
+    "Health, Medicine & Wellness": 676,
+    "Society, Culture & Law": 2196,
+    "Travel & Hospitality": 556,
+    "<unmapped>": 1747,
+    "Environment & Nature": 1043,
+    "Urbanization & Infrastructure": 276,
+    "Business, Work & Economy": 1247,
+    "Science & Technology": 964,
+    "Global Politics & Humanitarian": 353
+  },
+  "by_source_topic": {
+    "education": 687,
+    "daily": 3796,
+    "health": 676,
+    "society": 1559,
+    "arts": 430,
+    "travel": 556,
+    "thinking": 934,
+    "nature": 794,
+    "city": 276,
+    "work": 731,
+    "emotion": 627,
+    "economy": 516,
+    "technology": 383,
+    "media": 186,
+    "sport": 192,
+    "history": 207,
+    "government": 353,
+    "science": 581,
+    "environment": 249
+  },
+  "by_pos": {
+    "noun": 6940,
+    "adjective": 2646,
+    "verb": 3336,
+    "adverb": 541,
+    "preposition": 99,
+    "pronoun": 61,
+    "conjunction": 35,
+    "determiner": 34,
+    "number": 26,
+    "interjection": 10,
+    "phrase": 5
+  },
+  "input_path": "D:\\5\\EN_web\\vocab_classifier\\data\\raw\\word-atlas.json",
+  "output_path": "D:\\5\\EN_web\\vocab_classifier\\data\\processed\\extracted_senses.jsonl"
+}

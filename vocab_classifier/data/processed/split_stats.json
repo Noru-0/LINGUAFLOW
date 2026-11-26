@@ -1,0 +1,58 @@
+{
+  "seed": 42,
+  "ratios": {
+    "train": 0.8,
+    "val": 0.1,
+    "test": 0.1
+  },
+  "total_samples": 6318,
+  "total_unique_words": 6318,
+  "train": {
+    "samples": 5054,
+    "unique_words": 5054,
+    "by_main_topic": {
+      "Business, Work & Economy": 544,
+      "Daily Life & Personal Finance": 1545,
+      "Education & Academia": 302,
+      "Environment & Nature": 470,
+      "Global Politics & Humanitarian": 164,
+      "Health, Medicine & Wellness": 305,
+      "Science & Technology": 425,
+      "Society, Culture & Law": 940,
+      "Travel & Hospitality": 240,
+      "Urbanization & Infrastructure": 119
+    }
+  },
+  "val": {
+    "samples": 633,
+    "unique_words": 633,
+    "by_main_topic": {
+      "Business, Work & Economy": 68,
+      "Daily Life & Personal Finance": 193,
+      "Education & Academia": 38,
+      "Environment & Nature": 59,
+      "Global Politics & Humanitarian": 21,
+      "Health, Medicine & Wellness": 38,
+      "Science & Technology": 53,
+      "Society, Culture & Law": 118,
+      "Travel & Hospitality": 30,
+      "Urbanization & Infrastructure": 15
+    }
+  },
+  "test": {
+    "samples": 631,
+    "unique_words": 631,
+    "by_main_topic": {
+      "Business, Work & Economy": 68,
+      "Daily Life & Personal Finance": 193,
+      "Education & Academia": 38,
+      "Environment & Nature": 59,
+      "Global Politics & Humanitarian": 20,
+      "Health, Medicine & Wellness": 38,
+      "Science & Technology": 53,
+      "Society, Culture & Law": 117,
+      "Travel & Hospitality": 30,
+      "Urbanization & Infrastructure": 15
+    }
+  }
+}

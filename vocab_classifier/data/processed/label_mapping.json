@@ -1,0 +1,50 @@
+{
+  "label2id": {
+    "Environment & Nature": 0,
+    "Science & Technology": 1,
+    "Business, Work & Economy": 2,
+    "Education & Academia": 3,
+    "Health, Medicine & Wellness": 4,
+    "Society, Culture & Law": 5,
+    "Urbanization & Infrastructure": 6,
+    "Travel & Hospitality": 7,
+    "Daily Life & Personal Finance": 8,
+    "Global Politics & Humanitarian": 9
+  },
+  "id2label": {
+    "0": "Environment & Nature",
+    "1": "Science & Technology",
+    "2": "Business, Work & Economy",
+    "3": "Education & Academia",
+    "4": "Health, Medicine & Wellness",
+    "5": "Society, Culture & Law",
+    "6": "Urbanization & Infrastructure",
+    "7": "Travel & Hospitality",
+    "8": "Daily Life & Personal Finance",
+    "9": "Global Politics & Humanitarian"
+  },
+  "name_to_topic_id": {
+    "Environment & Nature": "env",
+    "Science & Technology": "tech",
+    "Business, Work & Economy": "biz",
+    "Education & Academia": "edu",
+    "Health, Medicine & Wellness": "health",
+    "Society, Culture & Law": "soc",
+    "Urbanization & Infrastructure": "urban",
+    "Travel & Hospitality": "travel",
+    "Daily Life & Personal Finance": "life",
+    "Global Politics & Humanitarian": "gov"
+  },
+  "topic_id_to_name": {
+    "env": "Environment & Nature",
+    "tech": "Science & Technology",
+    "biz": "Business, Work & Economy",
+    "edu": "Education & Academia",
+    "health": "Health, Medicine & Wellness",
+    "soc": "Society, Culture & Law",
+    "urban": "Urbanization & Infrastructure",
+    "travel": "Travel & Hospitality",
+    "life": "Daily Life & Personal Finance",
+    "gov": "Global Politics & Humanitarian"
+  }
+}

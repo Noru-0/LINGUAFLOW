@@ -1,0 +1,24 @@
+{
+  "input_records": 13733,
+  "dropped_invalid": 0,
+  "dropped_duplicate_sense": 0,
+  "invalid_subtopic_cleared": 0,
+  "labeled_records": 6318,
+  "needs_review_records": 7415,
+  "unique_labeled_words": 6318,
+  "labeled_by_main_topic": {
+    "Education & Academia": 378,
+    "Daily Life & Personal Finance": 1931,
+    "Health, Medicine & Wellness": 381,
+    "Society, Culture & Law": 1175,
+    "Travel & Hospitality": 300,
+    "Environment & Nature": 588,
+    "Urbanization & Infrastructure": 149,
+    "Business, Work & Economy": 680,
+    "Science & Technology": 531,
+    "Global Politics & Humanitarian": 205
+  },
+  "include_needs_review": false,
+  "include_examples": true,
+  "include_collocations": true
+}
